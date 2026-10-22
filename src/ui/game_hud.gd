@@ -31,6 +31,10 @@ var _goal_mining: ProgressBar
 var _goal_mass_value: Label
 var _goal_upgrade_value: Label
 var _goal_mining_value: Label
+var _goal_fourth_value: Label
+var _goal_fourth: ProgressBar
+var _research_caption: Label
+var _research_button: Button
 var _victory: Label
 var _report: PanelContainer
 var _report_labels: Array[Label] = []
@@ -219,7 +223,7 @@ func _build_goals(layer: Control) -> void:
 	card.offset_left = -332
 	card.offset_right = -16
 	card.offset_top = 16
-	card.offset_bottom = 224
+	card.offset_bottom = 300
 	var content := _column(card, 9)
 	_goal_heading = _label(content, "RÄUMUNG", 16, UiTheme.TEXT)
 
@@ -232,6 +236,10 @@ func _build_goals(layer: Control) -> void:
 	var mining := _objective(content, "90 % Welt abbauen", Materials.COLORS[Materials.SOFT], 90)
 	_goal_mining_value = mining[0]
 	_goal_mining = mining[1]
+	var fourth := _objective(content, "Weiteres Ziel", Color8(0xE6, 0xC3, 0x5C), 1)
+	_goal_fourth_value = fourth[0]
+	_goal_fourth = fourth[1]
+	_goal_sections[_goal_sections.size() - 1].visible = false
 	_victory = _label(content, "WELT EROBERT – WEITERSPIELEN MÖGLICH", 12, UiTheme.ACCENT)
 	_victory.visible = false
 	_build_report(layer)
@@ -242,8 +250,8 @@ func _build_report(layer: Control) -> void:
 	_report.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	_report.offset_left = -332
 	_report.offset_right = -16
-	_report.offset_top = 232
-	_report.offset_bottom = 468
+	_report.offset_top = 308
+	_report.offset_bottom = 544
 	_report.visible = false
 	var content := _column(_report, 4)
 	_label(content, "AUSWERTUNG", 16, UiTheme.ACCENT)
@@ -319,6 +327,10 @@ func _build_upgrade_panel(layer: Control) -> void:
 	_add_upgrade_button(content, Upgrades.KIND_DIG, 0)
 	_add_upgrade_button(content, Upgrades.KIND_FUSION2, 0)
 	_add_upgrade_button(content, Upgrades.KIND_FUSION3, 22)
+	_research_caption = _label(content, "FORSCHUNG", 12, UiTheme.MUTED)
+	_research_button = _button(content, "FORSCHUNG", func() -> void: _buy(Upgrades.KIND_RESEARCH))
+	_research_button.custom_minimum_size = Vector2(310, 34)
+	_research_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_build_caption = _label(content, "BAUEN", 12, UiTheme.MUTED)
 	_source_place_button = _build_button(content, _arm_source)
 	_source_tier_button = _build_button(content, _raise_source)
@@ -436,9 +448,13 @@ func _divider(parent: Node) -> void:
 
 
 func _has_presence(group_id: int) -> bool:
-	return sim.group_open[group_id] == 1 and (
+	return _human_group(group_id) and sim.group_open[group_id] == 1 and (
 		sim.quotas[group_id] > 0 or sim.workers.group_mass[group_id] > 0
 	)
+
+
+func _human_group(group_id: int) -> bool:
+	return sim.rules.group_faction.size() <= group_id or sim.rules.group_faction[group_id] == 0
 
 
 func _available_for_work(group_id: int) -> bool:
@@ -517,6 +533,8 @@ func _buy(kind: int) -> void:
 			_notice("Arbeiter bewegen sich schneller.")
 		elif kind == Upgrades.KIND_ENERGY_SPEED:
 			_notice("Energie bewegt sich schneller.")
+		elif kind == Upgrades.KIND_RESEARCH:
+			_notice("Forschung steigt.")
 		else:
 			_notice("Fähigkeit gekauft.")
 	else:
@@ -569,11 +587,17 @@ func _refresh_upgrades() -> void:
 					button.text = "VERSCHMELZUNG 3×3    •    %d Energie" % cost
 		button.disabled = locked or cost < 0 or u.energy < cost
 	_refresh_buildings()
+	_refresh_research()
 
 
 func _refresh_goals(mass: int, mined: float) -> void:
 	if _goal_names.size() < 3 or _goal_sections.size() < 3:
 		return
+	if sim.config.mode == SimConfig.MODE_MATCH:
+		_refresh_match_goals()
+		return
+	if _goal_sections.size() > 3:
+		_goal_sections[3].visible = false
 	var percent := clampi(int(round(mined * 100.0)), 0, 100)
 	if sim.config.mode == SimConfig.MODE_EXTRACTION:
 		_goal_heading.text = "FÖRDERUNG"
@@ -602,10 +626,71 @@ func _refresh_goals(mass: int, mined: float) -> void:
 		_victory.text = "WELT EROBERT – WEITERSPIELEN MÖGLICH"
 
 
+func _refresh_match_goals() -> void:
+	_goal_heading.text = "MEHRSPIELER"
+	var rows: Array = []
+	var mask := sim.config.victory_mask
+	if (mask & MatchRules.VICTORY_ELIMINATION) != 0:
+		var gone := 0
+		for faction in range(1, sim.rules.faction_count):
+			if faction < sim.rules.alive.size() and sim.rules.alive[faction] == 0:
+				gone += 1
+		rows.append(["Gegner auslöschen", gone, maxi(1, sim.rules.faction_count - 1)])
+	if (mask & MatchRules.VICTORY_RESEARCH) != 0:
+		rows.append(["Forschung Stufe 5", sim.upgrades.research_level, Upgrades.RESEARCH_MAX])
+	if (mask & MatchRules.VICTORY_RELICS) != 0:
+		var owned := 0
+		for owner in sim.rules.relic_owner:
+			if owner == 0:
+				owned += 1
+		rows.append(["Reliquien", owned, MatchRules.RELIC_NEED])
+	if (mask & MatchRules.VICTORY_HILL) != 0:
+		var score := sim.rules.hill_score[0] if sim.rules.hill_score.size() > 0 else 0
+		rows.append(["König des Hügels", score, MatchRules.HILL_TICKS])
+	var bars: Array[ProgressBar] = [_goal_mass, _goal_upgrade, _goal_mining, _goal_fourth]
+	var values: Array[Label] = [_goal_mass_value, _goal_upgrade_value, _goal_mining_value, _goal_fourth_value]
+	for index in _goal_sections.size():
+		var show := index < rows.size()
+		_goal_sections[index].visible = show
+		if not show:
+			continue
+		var row: Array = rows[index]
+		_goal_names[index].text = str(row[0])
+		var goal := maxi(1, int(row[2]))
+		var current := int(row[1])
+		bars[index].max_value = float(goal)
+		bars[index].value = minf(float(goal), float(current))
+		values[index].text = "%d / %d" % [current, goal]
+	if sim.won:
+		_victory.text = MatchRules.outcome_text(sim.rules.winner_faction, sim.rules.win_kind) + " – weiterspielen möglich"
+
+
+func _refresh_research() -> void:
+	if _research_button == null or _research_caption == null:
+		return
+	var show := (
+		sim.config.mode == SimConfig.MODE_MATCH
+		and (sim.config.victory_mask & MatchRules.VICTORY_RESEARCH) != 0
+	)
+	_research_caption.visible = show
+	_research_button.visible = show
+	if not show:
+		return
+	var cost := sim.upgrades.research_cost()
+	if cost < 0:
+		_research_button.text = "FORSCHUNG   Stufe %d    VOLL" % sim.upgrades.research_level
+		_research_button.disabled = true
+	else:
+		_research_button.text = "FORSCHUNG   Stufe %d    •    %d Energie" % [sim.upgrades.research_level + 1, cost]
+		_research_button.disabled = sim.upgrades.energy < cost
+
+
 func _show_single_goal(title: String, current: int, goal: int) -> void:
 	_goal_sections[0].visible = true
 	_goal_sections[1].visible = false
 	_goal_sections[2].visible = false
+	if _goal_sections.size() > 3:
+		_goal_sections[3].visible = false
 	_goal_names[0].text = title
 	_goal_mass.max_value = float(goal)
 	_goal_mass.value = minf(float(goal), float(current))
@@ -711,6 +796,8 @@ func _build_button(parent: Node, action: Callable) -> Button:
 func _opening_hint() -> String:
 	if sim == null:
 		return "Ziehen markiert den Abbau. Bewegen setzt einen Punkt im Tunnel."
+	if sim.config.mode == SimConfig.MODE_MATCH:
+		return "Gegen KI. Andere Spieler folgen später. Die Ziele stehen oben rechts."
 	if sim.config.mode == SimConfig.MODE_EXTRACTION:
 		return "Quellen lassen Material nachwachsen. Markiere es zum Abbau."
 	if sim.config.mode == SimConfig.MODE_REFINING:

@@ -4,7 +4,7 @@ Stand: 22. Oktober 2026. Version in `project.godot`: 0.3.0, Test-Beta mit Energi
 
 ## Was hier geprüft wurde
 
-* 135 automatisierte Tests, 22 323 Prüfungen, headless, Godot 4.3. Kein Fehler.
+* 145 automatisierte Tests, 22 392 Prüfungen, headless, Godot 4.3. Kein Fehler.
 * Headless-Start schreibt `DOT WARS bereit`.
 * Startmenü und die Spielansicht wurden in dieser Linux-Umgebung geöffnet.
 * Simulation mit 1.000, 10.000 und 50.000 Arbeitern, dazu eine 1.000×1.000-Welt. Zahlen in `docs/PERFORMANCE.md`.
@@ -32,12 +32,12 @@ Die Vorgabe liegt in `export_presets.cfg`. Der Export bettet das PCK ein und zie
 
 * Bei 10.000 Arbeitern liegt ein Takt auf der Messmaschine über 10 ms. 50.000 Arbeiter liegen bei etwa 87 ms.
 * Kleine Tunneländerungen korrigieren die Zielsuche lokal. Große Änderungen und neue Ziele rechnen die erreichbare Fläche neu, verteilt über mehrere Takte.
-* Es gibt eine Fraktion. Kampf, KI und Mehrspieler fehlen.
+* Mehrspieler läuft lokal gegen eine bis drei KI. Auslöschen, Forschung, Reliquien und König des Hügels sind schaltbar. Andere Spieler sind noch nicht verbunden. Rote Krieger fehlen.
 * 3×3 kostet 250 Energie. Ein Arbeiter kostet vorläufig 10 Energie. Beides sind vorläufige Werte.
 * Energie-Dots warten, wenn ein Arbeiter auf der nächsten Zelle zum Kern steht. Untereinander teilen sie die Zelle.
 * Ohne die Fähigkeit Kern können Arbeiter die beiden Zugänge blockieren. Danach bleibt die Fläche frei und wächst bis Radius 4. Die Kosten 40 je angefangene Stufe sind vorläufig.
 * Neue Spiele starten Arbeiter und Energie-Dots mit einem Schritt alle 8 Takte. Die Fähigkeiten unter Bewegung verkürzen das in Stufen bis auf jeden Takt. Die Kosten 25 und 30 je angefangene Stufe sind vorläufig.
-* Drei Modi: Räumung mit den bisherigen drei Zielen, Förderung mit 1.000 gelieferter Energie und Quelle, Veredelung mit 400 veredelter Energie. Die Zielzahlen und die Gebäudekosten sind vorläufig.
+* Vier Modi: Räumung mit den bisherigen drei Zielen, Förderung mit 1.000 gelieferter Energie und Quelle, Veredelung mit 400 veredelter Energie, Mehrspieler mit schaltbaren Zielen gegen KI. Die Zielzahlen und die Kosten sind vorläufig.
 * Speicherstände der Version 1 sind mit dieser Wirtschaft nicht lesbar.
 * Musik fehlt, weil kein lizenziertes Stück beiliegt.
 

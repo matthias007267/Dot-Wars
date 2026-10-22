@@ -13,10 +13,15 @@ var cells := PackedInt32Array()
 var birth := PackedInt32Array()
 ## 1, nachdem ein Veredler diesen Dot verdoppelt hat. Der Zwilling trägt dieselbe Markierung.
 var refined := PackedByteArray()
+## Besitzer des Dots. 0 ist der menschliche Spieler. Fehlende Einträge gelten als 0.
+var owner := PackedByteArray()
+## Gelieferte Einheiten je Fraktion. Leer, solange alle Dots denselben Kern nutzen.
+var delivered_to := PackedInt32Array()
 var generated: int = 0
 var delivered: int = 0
 var refined_delivered: int = 0
 var _dist := PackedInt32Array()
+var _routed: Array = []
 var _revision := -1
 var _width := 0
 var _exit_stamp := 0
@@ -27,17 +32,19 @@ func pending() -> int:
 	return cells.size()
 
 
-func enqueue(origin: int, count: int) -> void:
+func enqueue(origin: int, count: int, faction_id: int = 0) -> void:
 	for _i in count:
 		cells.append(origin)
 		birth.append(origin)
 		refined.append(0)
+		owner.append(faction_id)
 	generated += count
 
 
 ## Ältere Stände haben nur die Positionen. Fehlende Herkunft bleibt unveredelbar.
 func ensure_tracks() -> void:
 	if birth.size() == cells.size() and refined.size() == cells.size():
+		_fit_owner()
 		return
 	var next_birth := PackedInt32Array()
 	var next_refined := PackedByteArray()
@@ -52,14 +59,23 @@ func ensure_tracks() -> void:
 		next_refined[i] = refined[i]
 	birth = next_birth
 	refined = next_refined
+	_fit_owner()
 
 
 func step(
-	world: WorldState, workers: WorkerStore, gate: PackedInt32Array, tick: int, period: int = MOVE_PERIOD
+	world: WorldState,
+	workers: WorkerStore,
+	gate: PackedInt32Array,
+	tick: int,
+	period: int = MOVE_PERIOD,
+	gate_owner: PackedByteArray = PackedByteArray(),
+	faction_period: PackedByteArray = PackedByteArray(),
 ) -> int:
 	ensure_tracks()
 	if cells.is_empty():
 		return 0
+	if gate_owner.size() == gate.size() and not gate_owner.is_empty():
+		return _step_routed(world, workers, gate, gate_owner, tick, period, faction_period)
 	var pace := MOVE_PERIOD if period < 1 else period
 	if tick % pace != 0:
 		return 0
@@ -145,4 +161,104 @@ func _rebuild(world: WorldState, gate: PackedInt32Array) -> void:
 
 
 func state_hash() -> int:
-	return hash([hash(cells), hash(birth), hash(refined), generated, delivered, refined_delivered])
+	ensure_tracks()
+	return hash([
+		hash(cells), hash(birth), hash(refined), hash(owner), hash(delivered_to),
+		generated, delivered, refined_delivered,
+	])
+
+
+func _fit_owner() -> void:
+	if owner.size() == cells.size():
+		return
+	var next_owner := PackedByteArray()
+	next_owner.resize(cells.size())
+	var kept := mini(owner.size(), cells.size())
+	for i in kept:
+		next_owner[i] = owner[i]
+	owner = next_owner
+
+
+func _step_routed(
+	world: WorldState,
+	workers: WorkerStore,
+	gate: PackedInt32Array,
+	gate_owner: PackedByteArray,
+	tick: int,
+	period: int,
+	faction_period: PackedByteArray,
+) -> int:
+	var due := false
+	for i in cells.size():
+		if tick % _pace_of(int(owner[i]), period, faction_period) == 0:
+			due = true
+			break
+	if not due:
+		return 0
+	var stamp := hash([hash(gate), hash(gate_owner)])
+	if stamp != _exit_stamp or _width != world.width or (_revision != world.revision and tick - _last_rebuild_tick >= 10):
+		_rebuild_routed(world, gate, gate_owner)
+		_exit_stamp = stamp
+		_last_rebuild_tick = tick
+	var gained := 0
+	var next := PackedInt32Array()
+	var next_birth := PackedInt32Array()
+	var next_refined := PackedByteArray()
+	var next_owner := PackedByteArray()
+	for i in cells.size():
+		var faction := int(owner[i])
+		var cell := cells[i]
+		if tick % _pace_of(faction, period, faction_period) != 0:
+			next.append(cell)
+			next_birth.append(birth[i])
+			next_refined.append(refined[i])
+			next_owner.append(faction)
+			continue
+		if _owned_gate(cell, faction, gate, gate_owner):
+			gained += 1
+			while delivered_to.size() <= faction:
+				delivered_to.append(0)
+			delivered_to[faction] += 1
+			if refined[i] != 0:
+				refined_delivered += 1
+			continue
+		if faction < _routed.size():
+			_dist = _routed[faction]
+		next.append(_next_cell(cell, world, workers))
+		next_birth.append(birth[i])
+		next_refined.append(refined[i])
+		next_owner.append(faction)
+	cells = next
+	birth = next_birth
+	refined = next_refined
+	owner = next_owner
+	delivered += gained
+	return gained
+
+
+func _pace_of(faction: int, period: int, faction_period: PackedByteArray) -> int:
+	var pace := period
+	if faction >= 0 and faction < faction_period.size():
+		pace = int(faction_period[faction])
+	return MOVE_PERIOD if pace < 1 else pace
+
+
+func _owned_gate(cell: int, faction: int, gate: PackedInt32Array, gate_owner: PackedByteArray) -> bool:
+	for index in gate.size():
+		if gate[index] == cell and int(gate_owner[index]) == faction:
+			return true
+	return false
+
+
+func _rebuild_routed(world: WorldState, gate: PackedInt32Array, gate_owner: PackedByteArray) -> void:
+	var factions := 1
+	for owner_id in gate_owner:
+		factions = maxi(factions, int(owner_id) + 1)
+	_routed = []
+	for faction in factions:
+		var mine := PackedInt32Array()
+		for index in gate.size():
+			if int(gate_owner[index]) == faction:
+				mine.append(gate[index])
+		_rebuild(world, mine)
+		_routed.append(_dist.duplicate())

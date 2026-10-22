@@ -34,6 +34,8 @@ static func snapshot(sim: Simulation) -> Dictionary:
 		"version": VERSION,
 		"seed": sim.config.world_seed,
 		"mode": sim.config.mode,
+		"ai_count": sim.config.ai_count,
+		"victory_mask": sim.config.victory_mask,
 		"size": sim.world.width,
 		"tick": sim.tick_count,
 		"initial_mass": sim.initial_mass,
@@ -41,6 +43,8 @@ static func snapshot(sim: Simulation) -> Dictionary:
 		"purchased_workers": sim.purchased_workers,
 		"energy_cells": sim.energy_dots.cells.duplicate(),
 		"energy_birth": sim.energy_dots.birth.duplicate(),
+		"energy_owner": sim.energy_dots.owner.duplicate(),
+		"energy_delivered_to": sim.energy_dots.delivered_to.duplicate(),
 		"energy_refined": sim.energy_dots.refined.duplicate(),
 		"energy_generated": sim.energy_dots.generated,
 		"energy_delivered": sim.energy_dots.delivered,
@@ -69,6 +73,8 @@ static func snapshot(sim: Simulation) -> Dictionary:
 		"fusion2": sim.upgrades.fusion2,
 		"fusion3": sim.upgrades.fusion3,
 		"purchased": sim.upgrades.purchased,
+		"research_level": sim.upgrades.research_level,
+		"match": sim.rules.export_state(),
 		"move_period": sim.config.move_period_ticks,
 		"quotas_config": sim.config.group_quotas.duplicate(),
 	}
@@ -104,6 +110,8 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 	config.initial_workers = 1
 	config.move_period_ticks = int(data.get("move_period", 2))
 	config.mode = int(data.get("mode", SimConfig.MODE_CLEARING))
+	config.ai_count = int(data.get("ai_count", 0))
+	config.victory_mask = int(data.get("victory_mask", MatchRules.VICTORY_ALL))
 	config.group_quotas = live_quotas
 	if not config.validate().is_empty():
 		return null
@@ -127,6 +135,8 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 	sim.purchased_workers = int(data.get("purchased_workers", 0))
 	sim.energy_dots.cells = data.get("energy_cells", PackedInt32Array()).duplicate()
 	sim.energy_dots.birth = data.get("energy_birth", PackedInt32Array()).duplicate()
+	sim.energy_dots.owner = data.get("energy_owner", PackedByteArray()).duplicate()
+	sim.energy_dots.delivered_to = data.get("energy_delivered_to", PackedInt32Array()).duplicate()
 	sim.energy_dots.refined = data.get("energy_refined", PackedByteArray()).duplicate()
 	sim.energy_dots.generated = int(data.get("energy_generated", 0))
 	sim.energy_dots.delivered = int(data.get("energy_delivered", 0))
@@ -179,7 +189,10 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 	sim.upgrades.fusion2 = bool(data.get("fusion2", false))
 	sim.upgrades.fusion3 = bool(data.get("fusion3", false))
 	sim.upgrades.purchased = int(data.get("purchased", 0))
+	sim.upgrades.research_level = int(data.get("research_level", 0))
 	sim.upgrades.core_level = int(data.get("core_level", 0))
+	if sim.config.mode == SimConfig.MODE_MATCH and not sim.rules.restore(data.get("match", {})):
+		return null
 	if sim.upgrades.core_level > 0 and not sim._bind_core(sim.upgrades.core_level, false):
 		return null
 	if not sim.check_invariants().is_empty():

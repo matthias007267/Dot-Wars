@@ -59,7 +59,7 @@ static func step(
 		if total >= Materials.durability(cells[cell], work_per_hardness):
 			var hardness := Materials.hardness(cells[cell])
 			if world.mine_cell(cell):
-				energy.enqueue(cell, hardness)
+				energy.enqueue(cell, hardness, int(workers.faction[id]))
 				completed += 1
 		else:
 			progress[cell] = total
@@ -77,6 +77,8 @@ static func step_scaled(
 	dig_power: int,
 	dig_num: int,
 	dig_den: int,
+	faction_num: PackedInt32Array = PackedInt32Array(),
+	faction_den: PackedInt32Array = PackedInt32Array(),
 ) -> int:
 	var completed := 0
 	for id in workers.count:
@@ -90,11 +92,18 @@ static func step_scaled(
 		var power := WorkerStore.SIZE_POWER[workers.size[id]] * dig_power
 		var base := power / targets.size()
 		var extra := power % targets.size()
+		var num := dig_num
+		var den := dig_den
+		if not faction_num.is_empty():
+			var faction_id := int(workers.faction[id])
+			if faction_id < faction_num.size():
+				num = faction_num[faction_id]
+				den = faction_den[faction_id]
 		for index in targets.size():
 			var share := base + (1 if index < extra else 0)
 			if share <= 0:
 				continue
-			if _apply_power(workers, world, areas, energy, id, targets[index], share, work_per_hardness, dig_num, dig_den):
+			if _apply_power(workers, world, areas, energy, id, targets[index], share, work_per_hardness, num, den):
 				completed += 1
 	return completed
 
@@ -169,7 +178,7 @@ static func _apply_power(
 	if total >= Materials.durability(world.cells[cell], work_per_hardness):
 		var hardness := Materials.hardness(world.cells[cell])
 		if world.mine_cell(cell):
-			energy.enqueue(cell, hardness)
+			energy.enqueue(cell, hardness, int(workers.faction[id]))
 			return true
 		return false
 	world.progress[cell] = total

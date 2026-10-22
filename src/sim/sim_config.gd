@@ -10,6 +10,7 @@ const MAX_DURABILITY := 1_000_000
 const MODE_CLEARING := 0
 const MODE_EXTRACTION := 1
 const MODE_REFINING := 2
+const MODE_MATCH := 3
 ## Vorläufige Modusziele. Sie gelten nur in ihrem Modus.
 const EXTRACTION_GOAL := 1000
 const REFINING_GOAL := 400
@@ -18,6 +19,10 @@ var world_size: int = 256
 var world_seed: int = 1337
 var chunk_size: int = 32
 var mode: int = MODE_CLEARING
+## Nur Mehrspieler. 0 lässt Räumung, Förderung und Veredelung unverändert.
+var ai_count: int = 0
+## Bitmaske aus MatchRules. Standard sind alle vier Ziele.
+var victory_mask: int = 15
 
 var initial_workers: int = 5
 var tunnel_arm_length: int = 5
@@ -47,8 +52,14 @@ var spawn_search_limit: int = 2048
 
 func validate() -> PackedStringArray:
 	var errors := PackedStringArray()
-	if mode < MODE_CLEARING or mode > MODE_REFINING:
-		errors.append("mode muss Räumung, Förderung oder Veredelung sein")
+	if mode < MODE_CLEARING or mode > MODE_MATCH:
+		errors.append("mode muss Räumung, Förderung, Veredelung oder Mehrspieler sein")
+	if mode == MODE_MATCH and (ai_count < 1 or ai_count > 3):
+		errors.append("ai_count muss zwischen 1 und 3 liegen")
+	if mode == MODE_MATCH and (victory_mask & 15) == 0:
+		errors.append("mindestens ein Spielziel")
+	if mode == MODE_MATCH and world_size < 32:
+		errors.append("Mehrspieler braucht mindestens 32 Zellen")
 	if world_size < 16 or world_size > 4096:
 		errors.append("world_size muss zwischen 16 und 4096 liegen")
 	if chunk_size < 8 or chunk_size > 128:
@@ -88,6 +99,12 @@ static func from_cmdline(args: PackedStringArray) -> SimConfig:
 			config.world_seed = arg.get_slice("=", 1).to_int()
 		elif arg.begins_with("--mode="):
 			config.mode = _mode_from_arg(arg.get_slice("=", 1))
+			if config.mode == MODE_MATCH and config.ai_count < 1:
+				config.ai_count = 1
+		elif arg.begins_with("--ai="):
+			config.ai_count = arg.get_slice("=", 1).to_int()
+		elif arg.begins_with("--siege="):
+			config.victory_mask = _victories_from_arg(arg.get_slice("=", 1))
 	return config
 
 
@@ -97,5 +114,24 @@ static func _mode_from_arg(name: String) -> int:
 			return MODE_EXTRACTION
 		"veredelung", "2":
 			return MODE_REFINING
+		"mehrspieler", "match", "3":
+			return MODE_MATCH
 		_:
 			return MODE_CLEARING
+
+
+static func _victories_from_arg(name: String) -> int:
+	if name.is_valid_int():
+		return name.to_int()
+	var mask := 0
+	for part in name.split(","):
+		match part:
+			"ausloeschen":
+				mask |= 1
+			"forschung":
+				mask |= 2
+			"reliquien":
+				mask |= 4
+			"huegel":
+				mask |= 8
+	return 15 if mask == 0 else mask

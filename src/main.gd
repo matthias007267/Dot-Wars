@@ -80,6 +80,7 @@ func _attach(next: Simulation) -> void:
 	renderer.world = world
 	renderer.core_mask = sim.core_mask
 	renderer.building_mask = sim.buildings.mask(world.cell_count())
+	renderer.sync_match(sim)
 	energy_view = EnergyRenderer.new()
 	energy_view.world = world
 	energy_view.energy = sim.energy_dots
@@ -172,6 +173,7 @@ func _process(delta: float) -> void:
 			SaveGame.write_file("user://autosave.dw", sim)
 		if hud != null:
 			hud.refresh()
+		renderer.sync_match(sim)
 	_capture_screenshot()
 	_measure_frames(delta)
 

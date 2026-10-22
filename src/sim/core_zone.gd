@@ -6,7 +6,7 @@ extends RefCounted
 
 ## Zellen, die bei diesem Radius leer werden, und die Maske der reservierten Fläche.
 ## Maske 1 verbietet Arbeiter. Der Außenring bleibt begehbar, damit der Tunnel verbunden bleibt.
-static func plan(world: WorldState, radius: int) -> Dictionary:
+static func plan(world: WorldState, radius: int, pit_idx: int = -1) -> Dictionary:
 	var mask := PackedByteArray()
 	mask.resize(world.cell_count())
 	mask.fill(0)
@@ -14,7 +14,9 @@ static func plan(world: WorldState, radius: int) -> Dictionary:
 	if radius <= 0:
 		return {"mask": mask, "carve": carve}
 	var pit := WorldGenerator.sacrifice_cell(world)
-	var pit_idx := world.index(pit.x, pit.y)
+	if pit_idx >= 0:
+		pit = Vector2i(pit_idx % world.width, pit_idx / world.width)
+	var pit_cell := world.index(pit.x, pit.y)
 	var limit := radius + 1
 	var y0 := maxi(pit.y - limit, 0)
 	var y1 := mini(pit.y + limit, world.height - 1)
@@ -26,7 +28,7 @@ static func plan(world: WorldState, radius: int) -> Dictionary:
 			if dist > limit:
 				continue
 			var idx := world.index(x, y)
-			if idx == pit_idx:
+			if idx == pit_cell:
 				continue
 			if Materials.is_mineable(world.cells[idx]):
 				carve.append(idx)

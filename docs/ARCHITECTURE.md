@@ -58,11 +58,11 @@ Verschmelzung, Opferloch, Upgrades, Siegbedingungen und Speicherstände hängen 
 
 `cells` ist ein `PackedByteArray`, Index `y * width + x`. `progress` speichert Fortschrittspunkte, die noch unter der Haltbarkeit liegen. Chunks sind standardmäßig 32×32. Jede Änderung markiert genau einen Chunk. `revision` zählt Weltänderungen.
 
-Ein Basis-Arbeiter hat Zelle, Gruppe, Fraktion, Zustand, Ziel und den Tick der letzten Bewegung. Die Fraktion ist ein Byte und steht beim Anlegen auf 0. `occupant` bildet die Zelle auf die Arbeiter-ID ab. IDs sind im Prototyp dicht, weil Arbeiter noch nicht entfernt werden.
+Ein Basis-Arbeiter hat Zelle, Gruppe, Fraktion, Zustand, Ziel und den Tick der letzten Bewegung. Die Fraktion ist ein Byte und steht beim Anlegen auf 0. `occupant` bildet die Zelle auf die Arbeiter-ID ab. IDs bleiben dicht: das Entfernen einer Fraktion tauscht die letzte ID in die Lücke.
 
 ## Takt
 
-`Simulation.tick_once` macht in dieser Reihenfolge: Zielsuche, Bewegung, Abbau, Entstehung, Verschmelzung, Nachwuchs der Quellen, Veredelung, Energietransport, danach die Siegprüfung des gewählten Modus. Innerhalb eines Systems gilt aufsteigende ID. Das ist die Konfliktauflösung und hält den Takt deterministisch.
+`Simulation.tick_once` macht in dieser Reihenfolge: Zielsuche, Bewegung, Abbau, Entstehung, Verschmelzung, Nachwuchs der Quellen, Veredelung, Energietransport, im Mehrspieler danach KI, Kernschaden, Reliquien und Hügel, danach die Siegprüfung des gewählten Modus. Innerhalb eines Systems gilt aufsteigende ID. Das ist die Konfliktauflösung und hält den Takt deterministisch.
 
 `TickClock` wandelt Frame-Zeit in Takte um, 50 ms pro Takt, höchstens fünf Takte pro Frame. In der Pause vergeht keine Simulationszeit.
 

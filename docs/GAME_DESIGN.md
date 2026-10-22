@@ -111,12 +111,15 @@ Der Modus wird vor dem Start gewählt.
 | Räumung | Masse 100, zwei Käufe, 90 % Abbau | Veredler, nur als Wirtschaft |
 | Förderung | 1.000 gelieferte Energie | Quelle |
 | Veredelung | 400 veredelte Energie am Kern | Veredler |
+| Mehrspieler | Auslöschen, Forschungssieg, Reliquien, König des Hügels, jedes Ziel einzeln schaltbar | keines |
 
 Eine Quelle oder ein Veredler ist eine leere, begehbare Zelle. Der Kauf liegt unter Bauen im Fähigkeiten-Fenster. Der nächste Klick auf einen freien Tunnel setzt das Gebäude. Kern und Kernfläche bleiben frei.
 
 Die Quelle lässt orthogonal benachbartes, leeres Gelände wieder zu echtem Material werden. Stufe 0: alle 8 Sekunden eine weiche Zelle, höchstens 4. Stufe 1: alle 6 Sekunden, höchstens 6. Stufe 2: jede dritte neue Zelle ist mittel. Stufe 3: jede sechste ist hart. Die erste Quelle kostet 80, die zweite 160, die dritte 240. Die Stufen kosten 40, 80 und 120.
 
 Der Veredler verdoppelt einen Energie-Dot aus seinem Umkreis, einmal je Dot. Stufe 0 schafft einen Dot je Sekunde im Umkreis von 16 Zellen, Stufe 1 zwei Dots und 24 Zellen, Stufe 2 vier Dots und 32 Zellen. Der erste kostet 120, der zweite 240. Die Stufen kosten 60 und 120. Das Guthaben zählt weiterhin eine Einheit je ankommendem Dot.
+
+Mehrspieler startet mit einer bis drei KI. Andere Spieler sind vorgesehen und noch nicht verbunden. Der Spieler bleibt gelb. Die KI ist koralle, himmelblau oder minze. Auslöschen räumt den gegnerischen Kern. Forschungssieg ist Stufe 5. Drei von fünf Reliquien auf dem Mittelkreuz oder 30 Sekunden allein auf der Kreuzmitte gewinnen ebenfalls. Die Zahlen sind vorläufig. Die Einzelspieler-Ziele gelten in diesem Modus nicht.
 
 ## Simulation
 
@@ -134,15 +137,15 @@ Der Veredler verdoppelt einen Energie-Dot aus seinem Umkreis, einmal je Dot. Stu
 * Die Gruppenverwaltung existiert weiterhin als interne API. Die Quoten bleiben in der Simulation exakt 100 %, aber die Standardoberfläche zeigt keine Quotenregler und keine Gruppenliste.
 * Verschmelzung auf 2×2 und 3×3 ist nach dem passenden Upgrade die Wunschgröße der Gruppe. Masse bleibt erhalten, enge Tunnel sind nicht passierbar.
 * Die Leiste öffnet ein Fähigkeiten-Fenster. Darin liegen Kern, Bewegung (Arbeiter- und Energie-Tempo), Schwarm (Abbau, 2×2, 3×3) und Bauen. Der Modus entscheidet, ob dort die Quelle oder der Veredler steht. Weitere Zweige kommen in dieses Fenster, nicht in die Leiste. Die Kosten stehen in `docs/DECISIONS.md`.
-* Der Modus steht im Startmenü. Räumung gewinnt mit Arbeitermasse, zwei Käufen und 90 % Abbau. Förderung gewinnt mit 1.000 gelieferter Energie, Veredelung mit 400 veredelter Energie. Danach läuft das Spiel weiter. Die Auswertung nennt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades, die höchste Zahl gleichzeitiger Einheiten und die veredelte Menge. Die Masse wächst nur durch Käufe.
+* Der Modus steht im Startmenü. Räumung gewinnt mit Arbeitermasse, zwei Käufen und 90 % Abbau. Förderung gewinnt mit 1.000 gelieferter Energie, Veredelung mit 400 veredelter Energie. Mehrspieler gewinnt über die gewählten Ziele gegen KI. Danach läuft das Spiel weiter. Die Auswertung nennt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades, die höchste Zahl gleichzeitiger Einheiten und die veredelte Menge. Die Masse wächst durch Käufe. Im Mehrspieler zieht das Entfernen einer Fraktion die entfernte Masse wieder ab.
 * Pause, Spielgeschwindigkeit 1×, 2× und 4×, Speichern und Laden.
 * Kleine Tunneländerungen korrigieren die Zielsuche lokal. Ab 33 Zellen, bei einem neuen Gebiet oder einem neuen Laufziel wird das Feld neu aufgebaut.
-* Die Fraktions-ID liegt am Arbeiter und ist beim Start 0. Nur diese eine Fraktion wird verwendet.
+* Die Fraktions-ID liegt am Arbeiter. Einzelspieler bleibt bei 0. Mehrspieler vergibt je KI eine eigene Fraktion, ein eigenes Guthaben und einen eigenen Kern.
 
 ## Was noch nicht da ist
 
 * Rote Krieger-Dots.
-* Mehrere Fraktionen mit eigenem Besitz.
+* Eine Verbindung zu anderen menschlichen Spielern. Der Platz dafür ist da, das Netz nicht.
 * Ein geprüfter Windows-Release-Build und eine Steam-Veröffentlichung. Die Vorbereitung steht in `docs/RELEASE.md` und `docs/STEAM.md`.
 * Hintergrundmusik. Es liegt kein lizenziertes Stück bei. Abgeschlossener Abbau spielt einen kurzen erzeugten Ton, wenn ein Audiogerät vorhanden ist.
 

@@ -159,6 +159,7 @@ func refine(energy: EnergyStore, world: WorldState, tick: int) -> void:
 			energy.cells.append(here)
 			energy.birth.append(energy.birth[d])
 			energy.refined.append(1)
+			energy.owner.append(energy.owner[d] if d < energy.owner.size() else 0)
 			energy.generated += 1
 			ready_tick[i] = tick + period
 			break

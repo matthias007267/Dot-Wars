@@ -29,6 +29,7 @@ static func step(
 	move_period: int,
 	speed_points: int = 0,
 	forbidden: PackedByteArray = PackedByteArray(),
+	faction_period: PackedByteArray = PackedByteArray(),
 ) -> void:
 	var terrain := world.cells
 	var width := world.width
@@ -42,10 +43,19 @@ static func step(
 		dirs.append(field.dir)
 	# Arbeiter id ist in diesem Takt dran, wenn (tick + id) % move_period == 0.
 	# speed_points > 0 ersetzt den Grundtakt: 100 Punkte sind ein Schritt.
+	# Eine gesetzte Fraktionsperiode ersetzt den gemeinsamen Schritt, sonst bleibt der Takt bytegleich.
 	var use_speed := speed_points > 0
-	var first_id := 0 if use_speed else posmod(-tick, move_period)
-	var stride := 1 if use_speed else move_period
+	var use_faction := not faction_period.is_empty()
+	var first_id := 0 if use_speed or use_faction else posmod(-tick, move_period)
+	var stride := 1 if use_speed or use_faction else move_period
 	for id in range(first_id, workers.count, stride):
+		if use_faction:
+			var pace := move_period
+			var faction_id := int(workers.faction[id])
+			if faction_id < faction_period.size():
+				pace = int(faction_period[faction_id])
+			if pace > 1 and posmod(tick + id, pace) != 0:
+				continue
 		if use_speed:
 			workers.move_credit[id] += speed_points
 			if workers.move_credit[id] < 100:

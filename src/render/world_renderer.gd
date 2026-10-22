@@ -14,6 +14,15 @@ var show_chunks := false
 var core_mask := PackedByteArray()
 ## 1 ist eine Quelle, 2 ein Veredler. Die Zelle bleibt leer.
 var building_mask := PackedByteArray()
+## Fraktionskerne, Hügel und Reliquien. Leer lässt die Einzelspieler-Ansicht unverändert.
+var marker_cores := PackedInt32Array()
+var marker_rgb := PackedByteArray()
+var marker_hill := -1
+var marker_relics := PackedInt32Array()
+var marker_relic_rgb := PackedByteArray()
+var _marker_stamp := 0
+const HILL_COLOR := Color8(0xE6, 0xC3, 0x5C)
+const RELIC_COLOR := Color8(0xD7, 0xC4, 0xFF)
 
 var _bytes := PackedByteArray()
 var _image: Image
@@ -23,7 +32,7 @@ var _texture: ImageTexture
 func _ready() -> void:
 	texture_filter = TEXTURE_FILTER_NEAREST
 	_bytes.resize(world.cell_count() * 4)
-	paint_all(_bytes, world, palette_bytes(), _pit_index(), core_mask, building_mask)
+	_paint_everything()
 	_upload()
 	world.consume_dirty_chunks()
 	queue_redraw()
@@ -35,7 +44,10 @@ func _process(_delta: float) -> void:
 		return
 	var palette := palette_bytes()
 	for chunk in dirty:
-		paint_rect(_bytes, world, palette, world.chunk_rect(chunk), _pit_index(), core_mask, building_mask)
+		paint_rect(
+			_bytes, world, palette, world.chunk_rect(chunk), _pit_index(), core_mask, building_mask,
+			marker_cores, marker_rgb, marker_hill, marker_relics, marker_relic_rgb
+		)
 	_upload()
 	queue_redraw()
 
@@ -76,10 +88,15 @@ static func paint_all(
 	pit: int = -1,
 	mask: PackedByteArray = PackedByteArray(),
 	buildings: PackedByteArray = PackedByteArray(),
+	cores: PackedInt32Array = PackedInt32Array(),
+	core_rgb: PackedByteArray = PackedByteArray(),
+	hill: int = -1,
+	relics: PackedInt32Array = PackedInt32Array(),
+	relic_rgb: PackedByteArray = PackedByteArray(),
 ) -> void:
 	var cells := world.cells
 	for idx in cells.size():
-		_write_cell(bytes, palette, world, idx, cells[idx], pit, mask, buildings)
+		_write_cell(bytes, palette, world, idx, cells[idx], pit, mask, buildings, cores, core_rgb, hill, relics, relic_rgb)
 
 
 static func paint_rect(
@@ -90,6 +107,11 @@ static func paint_rect(
 	pit: int = -1,
 	mask: PackedByteArray = PackedByteArray(),
 	buildings: PackedByteArray = PackedByteArray(),
+	cores: PackedInt32Array = PackedInt32Array(),
+	core_rgb: PackedByteArray = PackedByteArray(),
+	hill: int = -1,
+	relics: PackedInt32Array = PackedInt32Array(),
+	relic_rgb: PackedByteArray = PackedByteArray(),
 ) -> void:
 	var cells := world.cells
 	var width := world.width
@@ -97,7 +119,9 @@ static func paint_rect(
 		var row := y * width
 		for x in range(rect.position.x, rect.end.x):
 			var idx := row + x
-			_write_cell(bytes, palette, world, idx, cells[idx], pit, mask, buildings)
+			_write_cell(
+				bytes, palette, world, idx, cells[idx], pit, mask, buildings, cores, core_rgb, hill, relics, relic_rgb
+			)
 
 
 ## Zeichnet die Kernfläche neu. Der Aufruf kommt nach einem Kauf oder einem geladenen Stand.
@@ -105,7 +129,7 @@ func set_core_mask(mask: PackedByteArray) -> void:
 	core_mask = mask
 	if _bytes.is_empty() or world == null:
 		return
-	paint_all(_bytes, world, palette_bytes(), _pit_index(), core_mask, building_mask)
+	_paint_everything()
 	_upload()
 	queue_redraw()
 
@@ -114,9 +138,50 @@ func set_buildings(mask: PackedByteArray) -> void:
 	building_mask = mask
 	if _bytes.is_empty() or world == null:
 		return
-	paint_all(_bytes, world, palette_bytes(), _pit_index(), core_mask, building_mask)
+	_paint_everything()
 	_upload()
 	queue_redraw()
+
+
+## Zeichnet Kerne, Hügel und Reliquien neu, wenn sich ein Besitzer ändert.
+func sync_match(sim: Simulation) -> void:
+	if sim.config.mode != SimConfig.MODE_MATCH or sim.rules.cores.is_empty():
+		return
+	var stamp := hash(sim.rules.relic_owner)
+	if not marker_cores.is_empty() and stamp == _marker_stamp:
+		return
+	_marker_stamp = stamp
+	marker_cores = sim.rules.cores.duplicate()
+	marker_rgb = PackedByteArray()
+	for faction in sim.rules.faction_count:
+		_append_rgb(marker_rgb, MatchRules.FACTION_COLORS[faction])
+	marker_hill = sim.rules.hill_cell
+	marker_relics = sim.rules.relic_cell.duplicate()
+	marker_relic_rgb = PackedByteArray()
+	for index in sim.rules.relic_cell.size():
+		var owner := int(sim.rules.relic_owner[index])
+		var color := RELIC_COLOR
+		if owner >= 0 and owner < MatchRules.FACTION_COLORS.size():
+			color = MatchRules.FACTION_COLORS[owner]
+		_append_rgb(marker_relic_rgb, color)
+	if _bytes.is_empty() or world == null:
+		return
+	_paint_everything()
+	_upload()
+	queue_redraw()
+
+
+func _paint_everything() -> void:
+	paint_all(
+		_bytes, world, palette_bytes(), _pit_index(), core_mask, building_mask,
+		marker_cores, marker_rgb, marker_hill, marker_relics, marker_relic_rgb
+	)
+
+
+func _append_rgb(bytes: PackedByteArray, color: Color) -> void:
+	bytes.append(_channel(color.r))
+	bytes.append(_channel(color.g))
+	bytes.append(_channel(color.b))
 
 
 func _upload() -> void:
@@ -199,6 +264,11 @@ static func _write_cell(
 	pit: int = -1,
 	mask: PackedByteArray = PackedByteArray(),
 	buildings: PackedByteArray = PackedByteArray(),
+	cores: PackedInt32Array = PackedInt32Array(),
+	core_rgb: PackedByteArray = PackedByteArray(),
+	hill: int = -1,
+	relics: PackedInt32Array = PackedInt32Array(),
+	relic_rgb: PackedByteArray = PackedByteArray(),
 ) -> void:
 	var dst := idx * 4
 	if idx == pit:
@@ -221,6 +291,13 @@ static func _write_cell(
 		bytes[dst + 1] = _channel(mark.g)
 		bytes[dst + 2] = _channel(mark.b)
 		bytes[dst + 3] = 255
+		return
+	if material == Materials.INDESTRUCTIBLE and _paint_indexed(bytes, dst, idx, cores, core_rgb):
+		return
+	if material == Materials.EMPTY and idx == hill:
+		_paint_rgb(bytes, dst, HILL_COLOR)
+		return
+	if material == Materials.EMPTY and _paint_indexed(bytes, dst, idx, relics, relic_rgb):
 		return
 	var src := material * 4
 	var red := int(palette[src])
@@ -257,3 +334,27 @@ static func material_variation(index: int, material: int) -> int:
 
 static func _channel(value: float) -> int:
 	return clampi(int(round(value * 255.0)), 0, 255)
+
+
+static func _paint_rgb(bytes: PackedByteArray, dst: int, color: Color) -> void:
+	bytes[dst] = _channel(color.r)
+	bytes[dst + 1] = _channel(color.g)
+	bytes[dst + 2] = _channel(color.b)
+	bytes[dst + 3] = 255
+
+
+static func _paint_indexed(
+	bytes: PackedByteArray, dst: int, idx: int, cells: PackedInt32Array, rgb: PackedByteArray
+) -> bool:
+	for index in cells.size():
+		if cells[index] != idx:
+			continue
+		var at := index * 3
+		if at + 2 >= rgb.size():
+			return false
+		bytes[dst] = rgb[at]
+		bytes[dst + 1] = rgb[at + 1]
+		bytes[dst + 2] = rgb[at + 2]
+		bytes[dst + 3] = 255
+		return true
+	return false

@@ -2,7 +2,7 @@ class_name Simulation
 extends RefCounted
 ## Orchestriert alle Systeme in fester Reihenfolge. Enthält keinerlei Darstellung oder Eingabe.
 ##
-## Takt: Zielsuche → Bewegung → Abbau → Entstehung → Verschmelzung → Nachwuchs → Veredelung → Energietransport.
+## Takt: Zielsuche → Bewegung → Abbau → Entstehung → Verschmelzung → Nachwuchs → Veredelung → Energietransport → Mehrspieler.
 
 enum Stage { TARGET_SEARCH, MOVEMENT, MINING, SPAWN }
 
@@ -13,6 +13,7 @@ var areas: DigAreas
 var spawner: SpawnSystem
 var energy_dots := EnergyStore.new()
 var buildings := Buildings.new()
+var rules := MatchRules.new()
 var purchased_workers: int = 0
 const WORKER_COST := 10
 var fields: Array[FlowField] = []
@@ -81,11 +82,27 @@ func tick_once() -> void:
 	for g in fields.size():
 		fields[g].step(config.field_budget_per_tick)
 	var t1 := Time.get_ticks_usec()
+	var move_forbidden := core_mask
+	var move_periods := PackedByteArray()
+	if _match_live():
+		move_forbidden = PackedByteArray()
+		move_periods = rules.worker_periods(self)
 	MovementSystem.step(
-		tick_count, workers, world, areas, fields, upgrades.worker_period(config.move_period_ticks), 0, core_mask
+		tick_count, workers, world, areas, fields,
+		upgrades.worker_period(config.move_period_ticks), 0, move_forbidden, move_periods
 	)
 	var t2 := Time.get_ticks_usec()
-	if upgrades.dig_level == 0 and workers.max_size == 1:
+	if _match_live():
+		var nums := PackedInt32Array()
+		var dens := PackedInt32Array()
+		for faction in rules.faction_count:
+			var fraction := rules.wallet(self, faction).dig_fraction()
+			nums.append(fraction.x)
+			dens.append(fraction.y)
+		MiningSystem.step_scaled(
+			workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power, 1, 1, nums, dens
+		)
+	elif upgrades.dig_level == 0 and workers.max_size == 1:
 		MiningSystem.step(workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power)
 	else:
 		var fraction := upgrades.dig_fraction()
@@ -97,7 +114,17 @@ func tick_once() -> void:
 	FusionSystem.step(workers, world, desired_size)
 	buildings.grow(world, workers, energy_dots, core_mask)
 	buildings.refine(energy_dots, world, tick_count)
-	upgrades.energy += energy_dots.step(world, workers, energy_exits(), tick_count, upgrades.energy_period())
+	if _match_live():
+		var route: Dictionary = rules.gates(self)
+		var gate_cells: PackedInt32Array = route.cells
+		var gate_owners: PackedByteArray = route.owners
+		var before := energy_dots.delivered_to.duplicate()
+		energy_dots.step(
+			world, workers, gate_cells, tick_count, upgrades.energy_period(), gate_owners, rules.energy_periods(self)
+		)
+		rules.credit_energy(self, before)
+	else:
+		upgrades.energy += energy_dots.step(world, workers, energy_exits(), tick_count, upgrades.energy_period())
 	var mass_now := total_mass()
 	if mass_now > peak_mass:
 		peak_mass = mass_now
@@ -110,7 +137,9 @@ func tick_once() -> void:
 	stage_usec[Stage.SPAWN] += t4 - t3
 	last_tick_usec = t4 - t0
 	tick_count += 1
-	if not won and _goals_met():
+	if _match_live():
+		rules.pulse(self)
+	elif not won and _goals_met():
 		won = true
 		win_tick = tick_count
 
@@ -168,7 +197,7 @@ func total_mass() -> int:
 
 
 func expected_mass() -> int:
-	return initial_mass + purchased_workers
+	return initial_mass + purchased_workers + rules.match_bought - rules.removed_mass
 
 
 ## Zeilen der Sieganzeige. Die Zeit ist die Simulationszeit bis zum Sieg, 20 Takte je Sekunde.
@@ -220,12 +249,15 @@ func stats() -> Dictionary:
 ## Prüft alle Invarianten. Leeres Ergebnis = alles konsistent.
 func check_invariants() -> PackedStringArray:
 	var errors := PackedStringArray()
+	energy_dots.ensure_tracks()
 	if total_mass() != expected_mass():
 		errors.append("Massenbilanz verletzt: %d != %d" % [total_mass(), expected_mass()])
 	if energy_dots.generated != energy_dots.delivered + energy_dots.pending():
 		errors.append("Energiebilanz verletzt")
 	if energy_dots.birth.size() != energy_dots.cells.size() or energy_dots.refined.size() != energy_dots.cells.size():
 		errors.append("Energie-Dots ohne Herkunft")
+	if energy_dots.owner.size() != energy_dots.cells.size():
+		errors.append("Energie-Dots ohne Besitzer")
 	if energy_dots.refined_delivered > energy_dots.delivered:
 		errors.append("Veredelte Energie übersteigt die Lieferung")
 	errors.append_array(_building_errors())
@@ -245,7 +277,7 @@ func check_invariants() -> PackedStringArray:
 			errors.append("Arbeiter %d hat einen ungültigen Fußabdruck" % id)
 		if workers.state[id] == WorkerStore.STATE_MINING and not _touches_target(id, workers.target[id]):
 			errors.append("Arbeiter %d baut nicht an einer Nachbarzelle ab" % id)
-		if _footprint_hits_mask(id, core_mask):
+		if not _match_live() and _footprint_hits_mask(id, core_mask):
 			errors.append("Arbeiter %d steht im Energiekern" % id)
 	for o in workers.occupant:
 		if o != WorkerStore.NO_WORKER:
@@ -269,6 +301,9 @@ func state_hash() -> int:
 		sacrificed_mass,
 		upgrades.state_hash(),
 		config.mode,
+		config.ai_count,
+		config.victory_mask,
+		rules.state_hash(),
 		buildings.state_hash(),
 		hash(desired_size),
 		hash(sacrifice_on),
@@ -288,8 +323,12 @@ func _setup(
 	for g in quotas.size():
 		fields.append(FlowField.new(world, areas, g))
 		_append_group_meta(g)
-	if place_workers and not _place_initial_workers(start_cells):
-		return false
+	if place_workers:
+		if config.mode == SimConfig.MODE_MATCH:
+			if not rules.install(self):
+				return false
+		elif not _place_initial_workers(start_cells):
+			return false
 	initial_mass = workers.mass_sum()
 	peak_mass = initial_mass
 	max_units = workers.count
@@ -327,7 +366,8 @@ func add_group(group_name: String = "") -> int:
 		group_names[id] = group_name
 	areas.add_group()
 	var field := FlowField.new(world, areas, id)
-	field.blocked = core_mask
+	if config.mode != SimConfig.MODE_MATCH:
+		field.blocked = core_mask
 	fields.append(field)
 	workers.ensure_groups(quotas.size())
 	return id
@@ -392,6 +432,9 @@ func set_sacrifice(group_id: int, enabled: bool) -> bool:
 	return true
 
 func buy(kind: int) -> bool:
+	if kind == Upgrades.KIND_RESEARCH:
+		if config.mode != SimConfig.MODE_MATCH or (config.victory_mask & MatchRules.VICTORY_RESEARCH) == 0:
+			return false
 	if kind == Upgrades.KIND_CORE:
 		return _buy_core()
 	var before := upgrades.max_size()
@@ -436,7 +479,7 @@ func upgrade_building(kind: int) -> bool:
 func buy_worker() -> bool:
 	if upgrades.energy < WORKER_COST:
 		return false
-	var origin := world.find_nearest_empty(world.width / 2, world.height / 2)
+	var origin := _worker_origin()
 	if origin < 0:
 		return false
 	upgrades.energy -= WORKER_COST
@@ -465,6 +508,8 @@ func energy_exits() -> PackedInt32Array:
 
 
 func pit_index() -> int:
+	if _match_live():
+		return rules.cores[0]
 	var pit := WorldGenerator.sacrifice_cell(world)
 	if not world.in_bounds(pit.x, pit.y):
 		return -1
@@ -527,7 +572,20 @@ func _is_adjacent(a: int, b: int) -> bool:
 	return delta == w or (delta == 1 and a / w == b / w)
 
 
+func _match_live() -> bool:
+	return config.mode == SimConfig.MODE_MATCH and rules.faction_count > 1
+
+
+func _worker_origin() -> int:
+	if _match_live():
+		var core := rules.cores[0]
+		return world.find_nearest_empty(core % world.width, core / world.width)
+	return world.find_nearest_empty(world.width / 2, world.height / 2)
+
+
 func _goals_met() -> bool:
+	if config.mode == SimConfig.MODE_MATCH:
+		return false
 	match config.mode:
 		SimConfig.MODE_EXTRACTION:
 			return energy_dots.delivered >= SimConfig.EXTRACTION_GOAL
@@ -584,7 +642,8 @@ func _buy_core() -> bool:
 
 ## Setzt die Kernfläche für eine Stufe. `apply_carve` legt neue Zellen leer, ohne sie als Abbau zu zählen.
 func _bind_core(radius: int, apply_carve: bool) -> bool:
-	var plan := CoreZone.plan(world, radius)
+	var around := rules.cores[0] if _match_live() else -1
+	var plan := CoreZone.plan(world, radius, around)
 	var carve: PackedInt32Array = plan.carve if apply_carve else PackedInt32Array()
 	if not _evict_workers(plan.mask, carve):
 		return false
@@ -593,7 +652,8 @@ func _bind_core(radius: int, apply_carve: bool) -> bool:
 			world.open_without_mining(idx)
 	core_mask = plan.mask
 	for field in fields:
-		field.blocked = core_mask
+		if config.mode != SimConfig.MODE_MATCH:
+			field.blocked = core_mask
 		field.force_rebuild()
 	return true
 
