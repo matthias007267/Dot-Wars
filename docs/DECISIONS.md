@@ -158,3 +158,14 @@ Die Fraktions-ID liegt neben der Gruppe. Neue Arbeiter bekommen Fraktion 0, und 
 Datum: 22. Oktober 2026.
 
 Die beschlossene Palette D-007 bleibt unverändert. Abbaubare Materialien erhalten deterministische Helligkeitsvariationen von höchstens sechs RGB-Stufen pro Zelle; der Abbau-Fortschritt blendet weiter Richtung Tunnel. Arbeiter bekommen nur bei naher Kamera (Zoom mindestens 7) dezente Lichtakzente für maximal 240 sichtbare Einheiten; das Opferloch erhält bei Zoom mindestens 3 einen schwachen Lichtschein. Es gibt keine Umrandungen pro Dot, keine zusätzlichen Nodes pro Dot und keine Änderungen an der Simulation oder Speicherständen. Das HUD verwendet einen kompakten Command-Center-Titel und klar getrennte Befehlsbereiche. Visuelles Feintuning und Framerate sind am Windows-Rechner zu prüfen.
+
+
+### D-022 Reduziertes Spiel-HUD ohne Gruppenverwaltung
+
+Datum: 22. Oktober 2026.
+
+Die Farbgruppen und Gruppenquoten bleiben vollständig in der Simulation, werden aber nicht mehr als sichtbare Verwaltungsoberfläche angeboten. Das HUD erhält drei Statuswerte (Masse, Energie, Abbau), drei Missionsziele, eine kompakte Aktionsleiste (Abbauen, Bewegen, Opfern, Dot-Größe, Upgrades, Pause, Speichern) und eine anklickbare Minimap. Die Upgrade-Käufe befinden sich in einem ausblendbaren Panel. Debug-Informationen wie Simulations-Tick, Materiallegende, Gruppenlisten und Quotenregler sind nicht Teil des Standard-HUD.
+
+Abbau- und Bewegungsaufträge gelten für alle aktiven internen Gruppen außer der opfernden Gruppe. Der jeweils neue Auftrag ersetzt den vorherigen Auftrag derselben Gruppe. Die letzte aktive Gruppe mit positiver Quote beziehungsweise vorhandener Arbeitermasse übernimmt bei aktiviertem Opfern die interne Einlieferung. Die übrigen Gruppen bleiben im Abbau. Wird Opfern deaktiviert, erhält diese Gruppe wieder das zuletzt per HUD markierte Abbaugebiet, sofern vorhanden.
+
+Die Wunschgröße wird gemeinsam für alle arbeitenden Gruppen gesetzt. Gruppen-IDs sind nicht mehr per Zifferntasten auswählbar. Die Spielmechanik, Quotenverteilung, Massenerhaltung und das Speicherformat bleiben unverändert; vorhandene Speicherstände mit individuellen Gruppenaufträgen können weiter geladen werden. Neue globale Befehle überschreiben die bisherigen Aufträge der arbeitenden Gruppen.
