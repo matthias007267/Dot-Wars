@@ -92,6 +92,8 @@ func _attach(next: Simulation) -> void:
 	hud = GameHud.new()
 	hud.sim = sim
 	hud.clock = clock
+	hud.camera = camera
+	hud.renderer = renderer
 	add_child(hud)
 	workers_view.show_tick(sim.tick_count)
 	_prepare_tone()
@@ -135,10 +137,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		SaveGame.write_file("user://slot.dw", sim)
 	elif event.keycode == KEY_F9:
 		_boot_from_save("user://slot.dw")
-	elif event.keycode >= KEY_1 and event.keycode <= KEY_8:
-		var index := int(event.keycode) - int(KEY_1)
-		if index < sim.group_open.size() and sim.group_open[index] == 1:
-			sim.selected_group = index
 	if hud != null:
 		hud.refresh()
 
@@ -163,19 +161,20 @@ func _process(delta: float) -> void:
 
 
 func _finish_drag(screen: Vector2) -> void:
+	if hud == null:
+		return
 	var start := _cell_at(_drag_from)
 	var end := _cell_at(screen)
 	if start.x < 0 or end.x < 0:
 		return
-	var group_id := sim.selected_group
-	if _drag_from.distance_to(screen) < 8.0:
-		if sim.set_move_goal(group_id, world.index(end.x, end.y)):
-			hud.refresh()
+	if hud.command_mode == GameHud.Command.MOVE:
+		# Ein einzelner Klick setzt einen Sammelpunkt. Ziehen bleibt dem Abbau vorbehalten.
+		if _drag_from.distance_to(screen) < 8.0:
+			hud.issue_move_goal(world.index(end.x, end.y))
 		return
 	var rect := Rect2i(start, Vector2i.ZERO).expand(end)
 	rect.size += Vector2i.ONE
-	if sim.assign_area(group_id, rect):
-		hud.refresh()
+	hud.issue_dig_area(rect)
 
 
 func _cell_at(screen: Vector2) -> Vector2i:
