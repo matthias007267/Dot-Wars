@@ -32,17 +32,16 @@ var desired_size := PackedByteArray()
 var sacrifice_on := PackedByteArray()
 var selected_group: int = 0
 
-## Die ersten vier Farben stehen in der Vorlage. Fünf bis acht bleiben hell und getrennt,
-## damit die Tasten 1–8 lesbar bleiben.
+## Alle internen Gruppen verwenden dieselbe Arbeiterfarbe. Rot bleibt für spätere Krieger reserviert.
 const GROUP_PALETTE: Array[Color] = [
 	Color8(0xFF, 0xE4, 0x5E),
-	Color8(0x53, 0xC7, 0xFF),
-	Color8(0xFF, 0x6A, 0x76),
-	Color8(0x7E, 0xFF, 0x93),
-	Color8(0xF4, 0xF7, 0xFB),
-	Color8(0xFF, 0x9A, 0xD5),
-	Color8(0x3E, 0xE0, 0xC7),
-	Color8(0xD6, 0xF2, 0x6A),
+	Color8(0xFF, 0xE4, 0x5E),
+	Color8(0xFF, 0xE4, 0x5E),
+	Color8(0xFF, 0xE4, 0x5E),
+	Color8(0xFF, 0xE4, 0x5E),
+	Color8(0xFF, 0xE4, 0x5E),
+	Color8(0xFF, 0xE4, 0x5E),
+	Color8(0xFF, 0xE4, 0x5E),
 ]
 
 ## Kumulierte Laufzeit je Stufe in Mikrosekunden (Profiling, Benchmark, HUD).
