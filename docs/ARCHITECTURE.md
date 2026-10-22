@@ -14,8 +14,8 @@ Die Simulation läuft mit 20 Takten pro Sekunde. Spielregeln rechnen mit ganzen 
 
 ```
 src/sim/          Simulation, headless
-src/main.gd       Hauptszene, nur Welt
-src/render/       Kamera, Textur, Koordinaten
+src/main.gd       Hauptszene, Takt, Laufziel, Pause
+src/render/       Kamera, Weltbild, Arbeiter, Koordinaten
 scenes/main.tscn
 tests/            projekteigener Test-Runner und Tests
 bench/            headless Benchmark
@@ -29,12 +29,13 @@ docs/             verbindliche Dokumentation
 | `Materials` | Härte 1, 3, 8, unzerstörbar, Farben |
 | `WorldCoordinates` | Zelle, Welt, Bildschirm |
 | `WorldRenderer` | eine Textur, Chunk-Aktualisierung, Raster |
+| `WorkerRenderer` | zweite Textur, ein Pixel pro Arbeiter |
 | `CameraController` | Zoom, Verschieben, Grenzen |
 | `WorldState` | Zellen, Fortschritt, Chunk-Dirty-Flags |
 | `WorldGenerator` | reproduzierbare Welt und Starttunnel |
-| `WorkerStore` | Arbeiter als Struct-of-Arrays, eine Zelle ein Arbeiter |
+| `WorkerStore` | Arbeiter als Struct-of-Arrays, Zelle, Gruppe, Fraktion |
 | `DigAreas` | Rechtecke und Masken je Gruppe |
-| `FlowField` | gemeinsame, budgetierte Zielsuche je Gruppe |
+| `FlowField` | gemeinsame, budgetierte Zielsuche je Gruppe, plus Laufziel |
 | `MovementSystem` | orthogonale Schritte |
 | `MiningSystem` | Zielwahl und Fortschritt an der Zelle |
 | `SpawnSystem` | ein neuer Arbeiter pro Feld, Warteschlange |
@@ -42,13 +43,13 @@ docs/             verbindliche Dokumentation
 | `TickClock` | feste Takte, Pause ohne Nachholen |
 | `Simulation` | Reihenfolge der Systeme, Statistik, Invarianten |
 
-Verschmelzung, Opferloch, Upgrades, Ziele, Speicherstände und ein Renderer existieren bewusst nicht. Leere Platzhalterklassen werden nicht angelegt.
+Verschmelzung, Opferloch, Upgrades, Siegbedingungen und Speicherstände existieren bewusst nicht. Leere Platzhalterklassen werden nicht angelegt.
 
 ## Welt und Arbeiter
 
 `cells` ist ein `PackedByteArray`, Index `y * width + x`. `progress` speichert Fortschrittspunkte, die noch unter der Haltbarkeit liegen. Chunks sind standardmäßig 32×32. Jede Änderung markiert genau einen Chunk. `revision` zählt Weltänderungen.
 
-Ein Basis-Arbeiter hat Zelle, Gruppe, Zustand, Ziel und den Tick der letzten Bewegung. `occupant` bildet die Zelle auf die Arbeiter-ID ab. IDs sind im Prototyp dicht, weil Arbeiter noch nicht entfernt werden.
+Ein Basis-Arbeiter hat Zelle, Gruppe, Fraktion, Zustand, Ziel und den Tick der letzten Bewegung. Die Fraktion ist ein Byte und steht beim Anlegen auf 0. `occupant` bildet die Zelle auf die Arbeiter-ID ab. IDs sind im Prototyp dicht, weil Arbeiter noch nicht entfernt werden.
 
 ## Takt
 
@@ -62,11 +63,11 @@ Haltbarkeit = Härte × `work_per_hardness`. Der Standard von `work_per_hardness
 
 ## Zielsuche
 
-Pro Gruppe gibt es ein Flow-Field. Quellen sind leere Zellen neben festem, markiertem Material. Eine Multi-Source-BFS schreibt Distanz und Richtung in einen Hintergrundpuffer und wird erst nach Abschluss sichtbar. Pro Tick gilt ein festes Budget an Zellbesuchen.
+Pro Gruppe gibt es ein Flow-Field. Quellen sind leere Zellen neben festem, markiertem Material und, wenn gesetzt, eine leere Laufzielzelle. Eine Multi-Source-BFS schreibt Distanz und Richtung in einen Hintergrundpuffer und wird erst nach Abschluss sichtbar. Pro Tick gilt ein festes Budget an Zellbesuchen. Ein neues Laufziel startet den Aufbau neu.
 
 Das Feld ist ein Hinweis. Bewegung und Abbau prüfen den aktuellen Weltzustand. Zellen ohne Verbindung bleiben ohne Richtung, der Arbeiter wartet.
 
-Bekannte Abweichung von der Zielarchitektur: eine Weltänderung setzt den Neuaufbau des ganzen Feldes an, nicht nur der betroffenen Region. Das wird nicht in Phase 1 umgebaut.
+Bekannte Abweichung von der Zielarchitektur: eine Weltänderung oder ein neues Laufziel setzt den Neuaufbau des ganzen Feldes an, nicht nur der betroffenen Region. Das bleibt offen.
 
 ## Entstehung
 
@@ -80,7 +81,9 @@ Invariante des Prototyps, solange es keine Opferung gibt: Arbeiter plus wartende
 
 `WorldCoordinates` rechnet ohne Szene zwischen Bildschirm, Welt und Zelle. Die Kamera hat keine Drehung. Bildmitte ist die Kameraposition.
 
-Die Hauptszene erzeugt die Welt mit `WorldGenerator` und startet keine Arbeiter. Eine ungültige Konfiguration beendet das Programm mit Code 1.
+`WorkerRenderer` schreibt die Arbeiter in eine zweite RGBA-Textur mit transparentem Grund. Gruppe 0 ist Gelb, Gruppe 1 ist Cyan. Die Textur wird neu gefüllt, wenn ein neuer Simulationstakt gezeichnet wird. `_draw` zeichnet ein Rechteck. Es gibt keine Node pro Arbeiter.
+
+Die Hauptszene erzeugt die Simulation, zeichnet Welt und Arbeiter und treibt `TickClock` mit 20 Hz. Ein Linksklick auf eine leere Zelle ruft `set_move_goal` für jede Gruppe auf. Die Leertaste schaltet die Pause. Die Szene weist kein Abbaugebiet zu. Eine ungültige Konfiguration oder eine verletzte Startinvariante beendet das Programm mit Code 1.
 
 ## Tests
 
@@ -94,5 +97,5 @@ Die Hauptszene erzeugt die Welt mit `WorldGenerator` und startet keine Arbeiter.
 | Opferloch | eigenes System mit Daten und einem Schritt in `tick_once` |
 | Upgrades | `dig_power` und `move_period_ticks` in `SimConfig` |
 | Speicherstand | Zustand liegt in Packed-Arrays und Ganzzahlen. `state_hash()` nennt die relevanten Felder. |
-| Mehrere Fraktionen | die Arbeiterdaten bekommen eine Fraktions-ID neben der Gruppe |
+| Mehrere Fraktionen | `WorkerStore.faction` ist vorhanden. Die Ansicht setzt immer 0. |
 | GDExtension | `MovementSystem`, `MiningSystem`, `FlowField` haben datenorientierte Signaturen |

@@ -16,6 +16,8 @@ const NO_TARGET := -1
 var count: int = 0
 var cell := PackedInt32Array()
 var group := PackedByteArray()
+## Fraktion des Besitzers, unabhängig von der Farbgruppe.
+var faction := PackedByteArray()
 var state := PackedByteArray()
 ## Zielzelle des Abbaus (nur bei STATE_MINING gültig).
 var target := PackedInt32Array()
@@ -38,12 +40,13 @@ func is_free(cell_idx: int) -> bool:
 
 
 ## Fügt einen Arbeiter auf einer freien Zelle hinzu und gibt seine ID zurück.
-func add(cell_idx: int, group_id: int) -> int:
+func add(cell_idx: int, group_id: int, faction_id: int = 0) -> int:
 	assert(is_free(cell_idx), "Zelle bereits belegt")
 	var id := count
 	count += 1
 	cell.append(cell_idx)
 	group.append(group_id)
+	faction.append(faction_id)
 	state.append(STATE_WAITING)
 	target.append(NO_TARGET)
 	last_move_tick.append(-1)
@@ -83,4 +86,4 @@ func count_in_state(group_id: int, wanted_state: int) -> int:
 
 
 func state_hash() -> int:
-	return hash([count, hash(cell), hash(group), hash(state), hash(target), hash(last_move_tick)])
+	return hash([count, hash(cell), hash(group), hash(faction), hash(state), hash(target), hash(last_move_tick)])

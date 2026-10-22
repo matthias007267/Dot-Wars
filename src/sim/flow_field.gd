@@ -2,7 +2,7 @@ class_name FlowField
 extends RefCounted
 ## Gemeinsame Zielsuche einer Gruppe.
 ##
-## Quellen sind leere Zellen, die orthogonal an festes, markiertes Material der Gruppe grenzen.
+## Quellen sind leere Zellen neben festem, markiertem Material und ein gesetztes Laufziel.
 ## Eine Multi-Source-BFS über leere Zellen liefert für jede erreichbare Zelle die Distanz zur
 ## nächsten Quelle und die Richtung des nächsten Schritts. Das Ergebnis gilt für alle Arbeiter der
 ## Gruppe, es gibt keine individuelle Wegsuche.
@@ -41,6 +41,9 @@ var _scan_pos: int = 0
 var _rect_solid := PackedInt32Array()
 var _built_world_revision: int = -1
 var _built_area_revision: int = -1
+## Leere Zielzelle der Gruppe. -1 heißt: kein Laufziel, nur Abbaugebiete.
+var goal_cell: int = -1
+var _built_goal: int = -2
 
 
 func _init(world: WorldState, areas: DigAreas, group_id: int) -> void:
@@ -62,10 +65,15 @@ func is_building() -> bool:
 
 ## Führt höchstens `budget` Zellbesuche aus und startet bei veralteten Daten einen neuen Aufbau.
 func step(budget: int) -> void:
-	if _phase != Phase.IDLE and _areas.revision != _built_area_revision:
+	var goal_changed := goal_cell != _built_goal
+	if _phase != Phase.IDLE and (_areas.revision != _built_area_revision or goal_changed):
 		_begin()
 	elif _phase == Phase.IDLE:
-		if _world.revision == _built_world_revision and _areas.revision == _built_area_revision:
+		if (
+			_world.revision == _built_world_revision
+			and _areas.revision == _built_area_revision
+			and not goal_changed
+		):
 			return
 		_begin()
 	var remaining := budget
@@ -98,6 +106,7 @@ func _begin() -> void:
 	var rects: Array[Rect2i] = _areas.rects[_group]
 	_rect_solid.resize(rects.size())
 	_rect_solid.fill(0)
+	_built_goal = goal_cell
 	_phase = Phase.SEED
 
 
@@ -131,6 +140,8 @@ func _scan_seeds(budget: int) -> int:
 				_seed(idx + w)
 		_rect_index += 1
 		_scan_pos = 0
+	if goal_cell >= 0 and goal_cell < cells.size() and cells[goal_cell] == Materials.EMPTY:
+		_seed(goal_cell)
 	_phase = Phase.SPREAD
 	return remaining
 

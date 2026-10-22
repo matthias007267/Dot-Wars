@@ -107,14 +107,18 @@ Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 Gesam
 * Farben Grün, Braun/Orange, Blau/Grau. Unzerstörbares Material ist dunkelgrau und wird nicht abgebaut.
 * Eine Zelle neben dem Starttunnel ist für das spätere Opferloch reserviert. Das Opferloch selbst gibt es noch nicht.
 * Die Welt wird als eine Textur gezeichnet. Kamera, Zoom und Debug-Raster sind im Fenster.
-* Abbau in der beschlossenen Dauer, gemeinsamer Abbau, ein Arbeiter pro Feld, Warteschlange, Massenprüfung. Das läuft in der Simulation, nicht in der aktuellen Ansicht.
+* Fünf Arbeiter stehen auf dem Starttunnel und werden als zweite Textur gezeichnet. Gelb und Cyan sind die beiden Gruppen.
+* Ein Linksklick auf eine leere Zelle setzt dasselbe Laufziel für jede Gruppe. Die Arbeiter laufen orthogonal durch vorhandene leere Zellen. Am Ziel bleiben sie stehen.
+* Unerreichbare Ziele lassen die Arbeiter warten. Die Leertaste pausiert, ohne Zeit nachzuholen.
+* Die Fraktions-ID liegt am Arbeiter und ist beim Start 0. Nur diese eine Fraktion wird verwendet.
+* Abbau in der beschlossenen Dauer, gemeinsamer Abbau, ein Arbeiter pro Feld, Warteschlange, Massenprüfung. Das läuft in der Simulation und in den Tests. Die aktuelle Ansicht vergibt keinen Abbauauftrag, deshalb wird im Fenster nichts abgebaut.
 * Orthogonale Bewegung, gemeinsames Flow-Field, Warten bei unerreichbaren Zielen.
 * Zwei Farbgruppen mit Quoten. Neue Arbeiter folgen dem Defizitverfahren.
 
 ## Was noch nicht da ist
 
-* Fraktions-ID getrennt von der Gruppe.
-* Arbeiter in der Ansicht, Mausaufträge, Spiel-HUD.
+* Mehrere Fraktionen mit eigenem Besitz.
+* Abbau per Mausauswahl und ein HUD für Wachstum.
 * Namen, Anlegen und Löschen von Gruppen. Mindestens drei Gruppen als Bedienung.
 * Verschmelzung, Opferung, Upgrades, Siegbedingungen, Speicherstände.
 * Gezielte statt vollständiger Neuaufbau der Wegfindung nach einem einzelnen Abbau.

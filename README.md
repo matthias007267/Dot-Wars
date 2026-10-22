@@ -2,7 +2,7 @@
 
 Minimalistisches Echtzeit-Strategiespiel mit Godot 4. Die verbindlichen Regeln stehen in `docs/GAME_DESIGN.md`, die Architektur in `docs/ARCHITECTURE.md`, der Phasenstand in `docs/ROADMAP.md`. Agenten arbeiten nach `AGENTS.md`.
 
-Der aktuelle Stand zeigt die generierte Dot-Welt. Die Hauptszene erzeugt keine Arbeiter und lässt die Simulation nicht laufen.
+Der aktuelle Stand zeigt die generierte Dot-Welt mit fünf Arbeitern. Ein Linksklick auf eine leere Zelle setzt das gemeinsame Laufziel. Ohne Abbauauftrag wird nichts abgebaut.
 
 ## Voraussetzungen
 
@@ -23,14 +23,18 @@ Andere Entwicklungsgröße oder anderer Seed, die Argumente stehen hinter `--`:
 godot --path . -- --size=64 --seed=7
 ```
 
-Die Szene prüft die Konfiguration und zeichnet die Welt. Härte 8 dauert in der Simulation 8 Sekunden. Bei einem Fehler beendet sich das Programm mit Code 1.
+Die Szene prüft die Konfiguration, zeichnet die Welt und lässt die Arbeiter mit 20 Takten pro Sekunde laufen. Härte 8 dauert in der Simulation 8 Sekunden. Bei einem Fehler beendet sich das Programm mit Code 1.
 
 Steuerung im Fenster:
 
+* Linksklick auf eine leere Zelle setzt das Laufziel für beide Gruppen. Ein Klick auf Material wird verworfen.
+* Leertaste pausiert die Simulation und setzt sie fort. Während der Pause läuft keine Zeit nach.
 * Mausrad zoomt zur Cursorposition
 * Rechte oder mittlere Maustaste verschiebt die Ansicht, ebenso WASD und die Pfeiltasten
 * `G` schaltet das Zellraster ein, sobald eine Zelle mindestens 8 Pixel groß ist
 * `C` schaltet die Chunk-Grenzen ein
+
+Gelb und Cyan sind die beiden Gruppen. Die Arbeiter stehen zu Beginn auf dem Starttunnel.
 
 Der Zoom reicht von der ganzen Welt im Fenster bis zu 40 Pixeln je Zelle. Gestartet wird mit 10 Pixeln je Zelle auf dem Starttunnel.
 
@@ -72,8 +76,8 @@ Ergebnisse und die Grenzen der Messung stehen in `docs/PERFORMANCE.md`.
 
 ```
 src/sim/                 headlesse Simulation
-src/main.gd              Hauptszene
-src/render/              Kamera, Weltbild, Koordinaten
+src/main.gd              Hauptszene, Takt, Laufziel, Pause
+src/render/              Kamera, Weltbild, Arbeiter, Koordinaten
 scenes/main.tscn
 tests/                   Test-Runner und Fälle
 bench/benchmark.gd

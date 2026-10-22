@@ -64,11 +64,23 @@ Datum: 22. Oktober 2026.
 
 Eine Zelle ist eine Welteinheit und ein Pixel in einer gemeinsamen Textur. Geändert wird nur der betroffene Chunk, gezeichnet wird ein Rechteck. Es gibt keine Node pro Zelle. Der Zoom startet bei 10 Pixeln je Zelle, geht bis 40 hinauf und bis zur ganzen Welt im Fenster hinunter. Das Mausrad zoomt zur Cursorposition.
 
+### D-010 Laufziel ohne Abbau in der Ansicht
+
+Datum: 22. Oktober 2026.
+
+Phase 3 zeigt die Arbeiter und lässt sie laufen. Ein Linksklick auf eine leere Zelle setzt dasselbe Laufziel für jede Gruppe. Ein Klick auf Material wird verworfen. Das Flow-Field der Gruppe erhält diese Zelle als zusätzliche Quelle. Zellen ohne Verbindung behalten keine Richtung, der Arbeiter wartet. Steht ein Arbeiter auf dem Ziel und hat die Gruppe keinen Abbauauftrag, bleibt er stehen.
+
+Die Abbaulogik bleibt in der Simulation und in den Tests. Die Hauptszene weist kein Abbaugebiet zu, deshalb steigt die abgebaute Masse im Fenster nicht.
+
+Die Leertaste schaltet `TickClock.paused`. In der Pause wird keine Zeit gesammelt.
+
+Arbeiter liegen weiter in `WorkerStore`. `faction` ist ein zusätzliches Byte und steht beim Anlegen auf 0. Gezeichnet werden sie in einer zweiten Textur, ein Pixel pro Zelle, Gelb für Gruppe 0 und Cyan für Gruppe 1. Es gibt keine Node pro Arbeiter.
+
 ## Offen
 
-### O-002 Fraktions-ID
+### O-002 Weitere Fraktionen
 
-Die Regel trennt Fraktion und Farbgruppe. `WorkerStore` speichert nur die Gruppe.
+Die Fraktions-ID liegt neben der Gruppe. Neue Arbeiter bekommen Fraktion 0, und die Ansicht verwendet nur diese Fraktion. Mehrere Fraktionen, Besitz und getrennte Aufträge je Fraktion sind nicht umgesetzt.
 
 ### O-003 Prozent-Upgrades auf dem Ganzzahl-Takt
 
@@ -76,7 +88,7 @@ Die Regel trennt Fraktion und Farbgruppe. `WorkerStore` speichert nur die Gruppe
 
 ### O-004 Neuaufbau der Zielsuche
 
-Der Prototyp plant bei jeder Weltänderung einen vollständigen Neuaufbau des Flow-Fields der Gruppe. Die Regel will eine selektive Aktualisierung. Das bleibt eine Aufgabe der Wegfindungs- und Performancephasen.
+Der Prototyp plant bei jeder Weltänderung und bei einem neuen Laufziel einen vollständigen Neuaufbau des Flow-Fields der Gruppe. Die Regel will eine selektive Aktualisierung. Das bleibt eine Aufgabe der Wegfindungs- und Performancephasen.
 
 ### O-005 Schutzregel am Opferloch
 

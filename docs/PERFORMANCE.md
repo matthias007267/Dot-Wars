@@ -2,8 +2,6 @@
 
 Zielwerte aus der Spezifikation sind Vorgaben, keine bereits bestandenen Nachweise. Diese Seite enthält nur Läufe, die auf dieser Maschine ausgeführt wurden.
 
-Rendering-FPS sind nicht gemessen. Es gibt noch keinen Welt-Renderer. Die Hauptszene zeichnet nur Text.
-
 ## Headless-Benchmark vom 22. Oktober 2026
 
 Befehl:
@@ -62,3 +60,31 @@ Dieselbe Maschine, Godot 4.3, OpenGL über llvmpipe (Mesa 25.2). Kein dedizierte
 60 FPS bei 1080p sind auf dieser Maschine für die statische Welt erreicht. Der Wert liegt knapp über 60. Ob der Treiber die Rate noch dämpft, ist nicht getrennt gemessen. Sobald Arbeiter gezeichnet werden, gilt diese Zahl nicht mehr.
 
 Die Erzeugung von 1.000 × 1.000 dauert etwa 2,1 Sekunden. Der Kopf des Laufs bleibt unter 100 MB RSS, wie im Simulationsbenchmark.
+
+## Simulation vom 22. Oktober 2026, mit Laufziel im Flow-Field
+
+Derselbe Befehl und dieselbe Maschine wie im ersten Headless-Lauf. Der Benchmark weist weiterhin Abbaugebiete zu. Neu ist nur die Prüfung, ob sich das Laufziel geändert hat. Die Ansicht selbst vergibt kein Abbaugebiet; dieser Lauf misst die Simulation, nicht das Fenster.
+
+| Arbeiter am Start | Ø Tick | p95 | Maximum | nachhaltig | Zielsuche Ø | Bewegung Ø | Abbau Ø | Entstehung Ø |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1.000 | 4,23 ms | 5,43 ms | 5,57 ms | 236 Takte/s | 2,72 ms | 1,48 ms | 0,03 ms | 0,00 ms |
+| 10.000 | 16,09 ms | 19,60 ms | 21,19 ms | 62 Takte/s | 2,73 ms | 13,17 ms | 0,18 ms | 0,00 ms |
+
+Kein Takt lag über 50 ms. Das Ziel von höchstens 10 ms im Durchschnitt ist bei 10.000 Arbeitern weiterhin nicht erreicht.
+
+Eine vollständige Neuberechnung eines Flow-Fields dauerte im Median 30,6 ms bei 1.000 Arbeitern und 39,6 ms bei 10.000. Im Takt bleibt die Zielsuche budgetiert und kostet etwa 2,7 ms.
+
+Speicher nach dem Aufbau der 10.000-Arbeiter-Simulation: etwa 18,7 MB statisch in Godot, 88 MB RSS. Am Ende: 10.178 Arbeiter, 178 abgebaute Zellen, 81 wartend, 179 in Bewegung, 54 am Abbauen, 9.864 blockiert. Die Invariantenprüfung war in beiden Läufen ohne Fehler. Weltgenerierung 138 ms, Anlegen der Simulation 14 ms.
+
+## Darstellung mit Arbeitern vom 22. Oktober 2026
+
+Dieselbe Maschine und dasselbe Fensterverfahren wie bei der statischen Welt. Fünf Arbeiter, die Simulation läuft, kein gesetztes Laufziel, die Arbeiter bleiben auf dem Tunnel. Die Arbeitertextur wird bei jedem neuen Takt für die ganze Welt neu gefüllt. 120 Frames nach 30 Frames Warmup. VSync lässt sich auf diesem Treiber nicht abschalten.
+
+| Welt | Fenster | Erzeugung | FPS |
+|---:|---|---:|---:|
+| 256 × 256 | 1920 × 1080 | 139 ms | 51,5 |
+| 500 × 500 | 1920 × 1080 | 533 ms | 50,3 |
+| 1.000 × 1.000 | 1920 × 1080 | 2.214 ms | 59,1 |
+| 500 × 500 | 1280 × 720 | 532 ms | 110,7 |
+
+60 FPS bei 1080p sind auf dieser Maschine nicht mehr erreicht, sobald die Simulation läuft. Die statische Welt lag bei 64 bis 68 FPS. Bei 1280 × 720 bleiben 110 FPS. Die Arbeitertextur wird je neuem Takt vollständig geleert und hochgeladen. Diese Kosten wachsen mit der Weltgröße. Eine engere Aktualisierung gehört in die Performance-Phase und ist hier nicht umgesetzt.

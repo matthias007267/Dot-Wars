@@ -76,6 +76,29 @@ func clear_area(group_id: int) -> void:
 	areas.clear_group(group_id)
 
 
+## Setzt ein Laufziel auf eine leere Zelle. Die Gruppe läuft dorthin, ohne abzubauen.
+## Gibt false zurück, wenn Gruppe oder Zelle ungültig sind oder Material auf der Zelle liegt.
+func set_move_goal(group_id: int, cell_idx: int) -> bool:
+	if group_id < 0 or group_id >= fields.size():
+		return false
+	if cell_idx < 0 or cell_idx >= world.cell_count() or world.cells[cell_idx] != Materials.EMPTY:
+		return false
+	fields[group_id].goal_cell = cell_idx
+	return true
+
+
+func clear_move_goal(group_id: int) -> void:
+	if group_id < 0 or group_id >= fields.size():
+		return
+	fields[group_id].goal_cell = -1
+
+
+func move_goal(group_id: int) -> int:
+	if group_id < 0 or group_id >= fields.size():
+		return -1
+	return fields[group_id].goal_cell
+
+
 ## Ändert die Zielquoten. Gibt false zurück, wenn sie ungültig sind (Zustand bleibt unverändert).
 func set_quotas(new_quotas: PackedInt32Array) -> bool:
 	if new_quotas.size() != quotas.size() or not GroupQuotas.validate(new_quotas).is_empty():
