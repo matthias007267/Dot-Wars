@@ -29,7 +29,7 @@ Steuerung im Fenster:
 
 * „Abbau“ ist der Startmodus. Ziehen mit der linken Taste markiert das Abbaugebiet des Schwarms. Die Fläche bleibt als Rahmen sichtbar.
 * „Bewegen“ und ein Klick in einen Tunnel setzen den Sammelpunkt. Er wird als farbige Zelle gezeichnet.
-* „Opfern“ schickt die letzte Schwarmfarbe zum Opferloch. Ein zweiter Klick holt sie zurück. Die Leiste zeigt, welche Farbe opfert.
+* „Arbeiter +10“ kauft einen gelben Arbeiter für 10 bereits gelieferte Energie. Er erscheint am Energiekern. Die Energiezeile zeigt das Guthaben und in Klammern die Dots, die noch unterwegs sind.
 * „1×1“, „2×2“ und „3×3“ setzen die Wunschgröße. 2×2 und 3×3 brauchen das passende Upgrade.
 * „Upgrades“ öffnet Tempo, Abbau und Verschmelzung. „1×“ wechselt auf 2× und 4×.
 * „Speichern“ und „Laden“ nutzen `user://slot.dw`, ebenso F5 und F9. Alle 600 Takte entsteht `user://autosave.dw`.

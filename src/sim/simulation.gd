@@ -2,7 +2,7 @@ class_name Simulation
 extends RefCounted
 ## Orchestriert alle Systeme in fester Reihenfolge. Enthält keinerlei Darstellung oder Eingabe.
 ##
-## Takt: Zielsuche → Bewegung → Abbau → Entstehung → Verschmelzung → Opferung.
+## Takt: Zielsuche → Bewegung → Abbau → Entstehung → Verschmelzung → Energietransport.
 
 enum Stage { TARGET_SEARCH, MOVEMENT, MINING, SPAWN }
 

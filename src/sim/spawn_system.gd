@@ -1,10 +1,9 @@
 class_name SpawnSystem
 extends RefCounted
-## Entstehung neuer Arbeiter. Jede abgebaute Zelle ergibt genau einen Eintrag in der FIFO-Warteschlange.
+## Entstehung gekaufter Arbeiter. Abbau füllt diese Warteschlange nicht.
 ##
-## Entstehungsort ist die abgebaute Zelle. Ist sie belegt, wird per BFS (Reihenfolge N, O, S, W)
-## die nächste freie, zusammenhängende leere Zelle gesucht. Gibt es keine, bleibt der Eintrag
-## (und alle dahinter) in der Warteschlange – es geht keine Masse verloren.
+## Der Kauf nennt eine Zelle am Energiekern. Ist sie belegt, sucht eine BFS (Nord, Ost, Süd, West)
+## die nächste freie leere Zelle. Gibt es keine, bleibt der Eintrag und alles dahinter liegen.
 
 var _queue := PackedInt32Array()
 var _head: int = 0

@@ -22,7 +22,7 @@ Jede Zelle ist leer, weiches Material, mittleres Material, hartes Material, unze
 
 ## Materialien
 
-Härte ist der Arbeitsaufwand in Arbeitseinheiten. Ein Basis-Arbeiter leistet eine Arbeitseinheit pro Simulationssekunde. Mehrere Arbeiter an gültigen Nachbarzellen addieren ihre Leistung. Ein Feld verschwindet erst, wenn der Aufwand vollständig geleistet ist. Härteres Material erzeugt nicht mehr Arbeiter als weiches.
+Härte ist der Arbeitsaufwand in Arbeitseinheiten und zugleich die Zahl der Energie-Dots, die das Feld beim Abbau erzeugt. Ein Basis-Arbeiter leistet eine Arbeitseinheit pro Simulationssekunde. Mehrere Arbeiter an gültigen Nachbarzellen addieren ihre Leistung. Ein Feld verschwindet erst, wenn der Aufwand vollständig geleistet ist. Abbau erzeugt keine Arbeiter.
 
 | Material | Härte | Farbe | Arbeitseinheiten | Dauer, ein Basis-Arbeiter |
 |---|---:|---|---:|---:|
@@ -31,7 +31,7 @@ Härte ist der Arbeitsaufwand in Arbeitseinheiten. Ein Basis-Arbeiter leistet ei
 | Hart | 8 | `#5C86DB` | 8 | 8 Sekunden |
 | Unzerstörbar | — | `#393F49` | nicht abbaubar | — |
 | Tunnel | — | `#161C24` | — | — |
-| Opferloch | — | `#C77AFF`, nur gezeichnet | nicht abbaubar | — |
+| Energiekern | — | `#C77AFF`, nur gezeichnet | nicht abbaubar | — |
 
 Die Farben liegen später in einer zentralen Konfiguration. Die Dauer ist beschlossen (`docs/DECISIONS.md`). Im Code entsprechen 20 Fortschrittspunkte einer Arbeitseinheit, bei 20 Simulationstakten pro Sekunde und einem Punkt pro Tick.
 
@@ -71,13 +71,13 @@ Arbeiter haben bei Bewegungskonflikten Vorrang. Energie-Dots berücksichtigen di
 
 ## Farbgruppen
 
-Eine interne Gruppe hat ID, Farbe, optionalen Namen, Zielquote, Auftrag, optionales Zielgebiet, Verschmelzungseinstellung und aktuelle Masse. Gruppen werden im Standard-HUD nicht angezeigt und nicht einzeln verwaltet. Die Aktionsleiste bedient den arbeitenden Schwarm gemeinsam; ein interner Quotenanteil kann über die Aktion „Opfern“ zum Opferloch geschickt werden. Gekaufte Arbeiter gehen an die interne Gruppe mit dem größten relativen Defizit gegenüber ihrer Zielquote. Das Verfahren ist deterministisch. Gleichstände haben eine feste Reihenfolge. Gruppen mit 0 % bekommen keine neuen Arbeiter. Die Summe der Quoten ist 100 %. Bestehende Arbeiter wechseln bei einer Quotenänderung nicht die Gruppe. Verschmolzene Einheiten zählen mit ihrer vollen Masse. Opferung senkt die Gruppenmasse.
+Eine interne Gruppe hat ID, Farbe, optionalen Namen, Zielquote, Auftrag, optionales Zielgebiet, Verschmelzungseinstellung und aktuelle Masse. Gruppen werden im Standard-HUD nicht angezeigt und nicht einzeln verwaltet. Sichtbar sind alle Arbeiter gelb. Die Aktionsleiste bedient den arbeitenden Schwarm gemeinsam. Gekaufte Arbeiter gehen an die interne Gruppe mit dem größten relativen Defizit gegenüber ihrer Zielquote. Das Verfahren ist deterministisch. Gleichstände haben eine feste Reihenfolge. Gruppen mit 0 % bekommen keine neuen Arbeiter. Die Summe der Quoten ist 100 %. Bestehende Arbeiter wechseln bei einer Quotenänderung nicht die Gruppe. Verschmolzene Einheiten zählen mit ihrer vollen Masse.
 
 Im Prototyp gilt bei Gleichstand: die größere Quote gewinnt, danach der kleinere Gruppenindex. Eine Summe ungleich 100 % wird abgelehnt und nicht normalisiert. Ob eine Eingabe später auf 100 % normalisiert werden darf, ist offen.
 
-## Verschmelzung, Opferloch, Upgrades, Sieg
+## Verschmelzung, Energiekern, Upgrades, Sieg
 
-Diese Regeln sind verbindlich für ihre Phasen. Sie sind im Prototyp nicht implementiert.
+Verschmelzung, der Energiekern, Upgrades und die Siegbedingungen sind im Spiel. Arbeiter können nicht geopfert werden.
 
 | Stufe | Größe | Masse | Abbauleistung | Stand der Werte |
 |---|---|---:|---:|---|
@@ -107,26 +107,26 @@ Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 gekau
 ## Was der Stand heute bereits tut
 
 * Quadratische Welt in 256, 500 und 1.000, gleicher Seed, drei abbaubare Materialien mit Härte 1, 3 und 8.
-* Premium-Pixel-Farben: Grün, Orange, Blau, dunkles Grau. Der Tunnel ist `#161C24`, der Hintergrund `#0D1015`. Das Opferloch wird magenta gezeichnet und bleibt unzerstörbar.
-* Das Opferloch liegt auf der reservierten Zelle im Startbereich. Eine Einlieferung opfert die Einheit einmal. Die letzte Masse bleibt.
+* Premium-Pixel-Farben: Grün, Orange, Blau, dunkles Grau. Der Tunnel ist `#161C24`, der Hintergrund `#0D1015`. Der Energiekern wird magenta gezeichnet und bleibt unzerstörbar.
+* Gelbe Dots sind Arbeiter. Cyanfarbene Dots sind Energie auf dem Weg zum Kern. Rote Dots sind für spätere Krieger reserviert und nicht im Spiel.
 * Die Welt wird als eine Textur gezeichnet. Teilweise abgebaute Zellen dunkeln ab. Kamera, Zoom und Debug-Raster sind im Fenster.
 * Arbeiter werden als zweite Textur gezeichnet, große Einheiten über ihr Quadrat.
 * Das Startmenü startet ein Spiel mit drei Gruppen (40/30/30) oder lädt einen Speicherstand.
-* Das HUD bietet zwei Modi: „Abbau“ markiert ein Gebiet per Ziehen, „Bewegen“ setzt einen gemeinsamen Sammelpunkt im Tunnel. Gebiete und Sammelpunkte sind auf der Welt sichtbar. Die drei Schwarmfarben zeigen ihre Masse; die opfernde Farbe ist beschriftet. Quotenregler gibt es nicht.
+* Das HUD bietet zwei Modi: „Abbau“ markiert ein Gebiet per Ziehen, „Bewegen“ setzt einen gemeinsamen Sammelpunkt im Tunnel. Gebiete und Sammelpunkte sind auf der Welt sichtbar. „Arbeiter +10“ kauft einen Arbeiter für 10 gelieferte Energie. Die Energiezeile nennt das Guthaben und die noch unterwegs befindlichen Dots. Quotenregler gibt es nicht.
 * Die Gruppenverwaltung existiert weiterhin als interne API. Die Quoten bleiben in der Simulation exakt 100 %, aber die Standardoberfläche zeigt keine Quotenregler und keine Gruppenliste.
 * Verschmelzung auf 2×2 und 3×3 ist nach dem passenden Upgrade die Wunschgröße der Gruppe. Masse bleibt erhalten, enge Tunnel sind nicht passierbar.
 * Energie kauft Tempo, Abbauleistung und die beiden Verschmelzungsstufen. Die Kosten stehen in `docs/DECISIONS.md`.
-* Gewonnen ist, wenn Masse, zwei Upgrades und 90 % Abbau zusammen erreicht sind. Danach läuft das Spiel weiter, die Statistik bleibt sichtbar.
+* Gewonnen ist, wenn Arbeitermasse, zwei Upgrades und 90 % Abbau zusammen erreicht sind. Danach läuft das Spiel weiter. Die Masse wächst nur durch Käufe.
 * Pause, Spielgeschwindigkeit 1×, 2× und 4×, Speichern und Laden.
 * Kleine Tunneländerungen korrigieren die Zielsuche lokal. Ab 33 Zellen, bei einem neuen Gebiet oder einem neuen Laufziel wird das Feld neu aufgebaut.
 * Die Fraktions-ID liegt am Arbeiter und ist beim Start 0. Nur diese eine Fraktion wird verwendet.
 
 ## Was noch nicht da ist
 
+* Rote Krieger-Dots.
+* Eine Ausweichlogik, die Energie-Dots in engen Tunneln zuverlässig am Arbeiter vorbeiführt. Sie können dort vorerst stecken bleiben.
 * Mehrere Fraktionen mit eigenem Besitz.
 * Ein geprüfter Windows-Release-Build und eine Steam-Veröffentlichung. Die Vorbereitung steht in `docs/RELEASE.md` und `docs/STEAM.md`.
 * Hintergrundmusik. Es liegt kein lizenziertes Stück bei. Abgeschlossener Abbau spielt einen kurzen erzeugten Ton, wenn ein Audiogerät vorhanden ist.
 
-## Umsetzung 2026-10-22
-
-Die Wirtschaft wurde auf Energie-Dots und kostenpflichtige Arbeiter umgestellt. Vorhandene Speicherstände der Version 1 sind wegen der neuen Massen- und Energiebilanz nicht mit Version 2 kompatibel. Alte Aussagen im Abschnitt „Was der Stand heute bereits tut“ zu Opferung und automatischer Arbeiterentstehung gelten nicht mehr; maßgeblich sind die neuen Abschnitte Energie, Transport und Wachstum.
+Speicherstände der Version 1 passen nicht zur neuen Massen- und Energiebilanz und werden abgelehnt. Gültig ist Version 2.

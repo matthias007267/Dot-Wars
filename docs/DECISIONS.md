@@ -177,7 +177,7 @@ Datum: 22. Oktober 2026.
 Die reduzierte Leiste aus D-022 bleibt die Spieloberfläche. Die Quotenregler kommen nicht zurück. Sichtbar werden die drei Schwarmfarben mit ihrer Masse und dem Hinweis, welche Farbe opfert. Abbaugebiete und Sammelpunkte werden auf der Welt gezeichnet. Die Wunschgröße gilt auch für die opfernde Gruppe. Tempo 1×, 2× und 4× sowie Laden des Speicherstands `user://slot.dw` liegen in der Leiste. Kampf, KI und weitere Fraktionen gehören nicht zu dieser Beta.
 
 
-### D-023 Zwei Dot-Arten und Energie-Kreislauf
+### D-024 Zwei Dot-Arten und Energie-Kreislauf
 
 Datum: 22. Oktober 2026.
 

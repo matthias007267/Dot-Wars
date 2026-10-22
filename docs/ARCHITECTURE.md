@@ -30,6 +30,7 @@ docs/             verbindliche Dokumentation
 | `Materials` | Härte 1, 3, 8, unzerstörbar, Farben |
 | `WorldCoordinates` | Zelle, Welt, Bildschirm |
 | `WorldRenderer` | eine Textur, Chunk-Aktualisierung, Raster, Texturzugriff für Minimap |
+| `EnergyRenderer` | cyanfarbene Energie-Dots, unter den Arbeitern |
 | `WorkerRenderer` | zweite Textur, Fußabdruck je Einheit, nur geänderte Pixel |
 | `OrderOverlay` | Rahmen der Abbaugebiete und Markierung der Sammelpunkte |
 | `CameraController` | Zoom, Verschieben, Grenzen, Minimap-Sprung |
@@ -39,12 +40,13 @@ docs/             verbindliche Dokumentation
 | `DigAreas` | Rechtecke und Masken je Gruppe |
 | `FlowField` | gemeinsame, budgetierte Zielsuche je Gruppe, plus Laufziel |
 | `MovementSystem` | orthogonale Schritte |
-| `MiningSystem` | Zielwahl und Fortschritt an der Zelle, Bruchleistung großer Einheiten |
+| `MiningSystem` | Zielwahl und Fortschritt an der Zelle; Abschluss erzeugt Energie-Dots nach Härte |
+| `EnergyStore` | Energie-Dots auf dem Weg zum Kern, Arbeiter haben Vorrang |
 | `FusionSystem` | Wunschgröße, Masse bleibt erhalten |
-| `SacrificeSystem` | Einlieferung am Opferloch, letzte Masse bleibt |
+| `SacrificeSystem` | leere Nachbarzellen des Energiekerns als Ablage |
 | `Upgrades` | Energie, Kosten, Tempo, Abbau, Verschmelzungsstufen |
-| `SaveGame` | Speicherstand Version 1 |
-| `SpawnSystem` | ein neuer Arbeiter pro Feld, Warteschlange |
+| `SaveGame` | Speicherstand Version 2; Version 1 wird abgelehnt |
+| `SpawnSystem` | gekaufte Arbeiter, Warteschlange am Kern |
 | `GroupQuotas` | Quotenprüfung und Defizitverfahren |
 | `TickClock` | feste Takte, Pause ohne Nachholen |
 | `Simulation` | Reihenfolge der Systeme, Statistik, Invarianten |
@@ -59,7 +61,7 @@ Ein Basis-Arbeiter hat Zelle, Gruppe, Fraktion, Zustand, Ziel und den Tick der l
 
 ## Takt
 
-`Simulation.tick_once` macht in dieser Reihenfolge: Zielsuche, Bewegung, Abbau, Entstehung, Verschmelzung, Opferung, danach die Siegprüfung. Innerhalb eines Systems gilt aufsteigende ID. Das ist die Konfliktauflösung und hält den Takt deterministisch.
+`Simulation.tick_once` macht in dieser Reihenfolge: Zielsuche, Bewegung, Abbau, Entstehung, Verschmelzung, Energietransport, danach die Siegprüfung. Innerhalb eines Systems gilt aufsteigende ID. Das ist die Konfliktauflösung und hält den Takt deterministisch.
 
 `TickClock` wandelt Frame-Zeit in Takte um, 50 ms pro Takt, höchstens fünf Takte pro Frame. In der Pause vergeht keine Simulationszeit.
 
@@ -75,11 +77,13 @@ Das Feld ist ein Hinweis. Bewegung und Abbau prüfen den aktuellen Weltzustand. 
 
 Bis zu 32 Materialänderungen korrigieren das letzte veröffentlichte Feld. Größere Änderungen, ein neues Gebiet und ein neues Laufziel bauen es vollständig neu auf. Die Grenze und der Abhängigkeitskegel stehen in D-020.
 
-## Entstehung
+## Entstehung und Energie
 
-Jede abgebaute Zelle wird ein FIFO-Eintrag. Ist der Ort belegt, sucht eine BFS in der Reihenfolge Nord, Ost, Süd, West die nächste freie leere Zelle. Findet sie keine, bleibt der Eintrag liegen. Die Gruppe wählt `GroupQuotas.pick_group`: kleinster Quotient Anzahl/Quote, bei Gleichstand die größere Quote, danach der kleinere Index. Quote 0 wird nie gewählt.
+Abbau schreibt keine Arbeiter in die Warteschlange. Ein gekaufter Arbeiter ist ein FIFO-Eintrag an einer Zelle beim Energiekern. Ist der Ort belegt, sucht eine BFS in der Reihenfolge Nord, Ost, Süd, West die nächste freie leere Zelle. Findet sie keine, bleibt der Eintrag liegen. Die Gruppe wählt `GroupQuotas.pick_group`: kleinster Quotient Anzahl/Quote, bei Gleichstand die größere Quote, danach der kleinere Index. Quote 0 wird nie gewählt.
 
-Masseninvariante: lebende Masse plus wartende Entstehungen = Startmasse plus abgebaute Zellen minus geopferte Masse. `Simulation.check_invariants()` prüft das zusammen mit der Belegung.
+Ein abgebautes Feld der Härte 1, 3 oder 8 legt ebenso viele Energie-Dots auf diese Zelle. Sie laufen über ein gemeinsames Distanzfeld zu den leeren Nachbarn des Kerns und zählen erst dort. Arbeiter belegen Vorrang. Ein Energie-Dot betritt keine Zelle, auf der ein Arbeiter oder ein anderer Energie-Dot steht. Das Distanzfeld wird bei Tunneländerungen höchstens alle zehn Takte neu gerechnet.
+
+Masseninvariante: lebende Masse plus wartende Käufe = Startmasse plus gekaufte Arbeiter. Energieinvariante: erzeugt = geliefert + unterwegs. `Simulation.check_invariants()` prüft beides zusammen mit der Belegung.
 
 ## Darstellung
 
@@ -87,7 +91,7 @@ Masseninvariante: lebende Masse plus wartende Entstehungen = Startmasse plus abg
 
 `WorldCoordinates` rechnet ohne Szene zwischen Bildschirm, Welt und Zelle. Die Kamera hat keine Drehung. Bildmitte ist die Kameraposition.
 
-`WorkerRenderer` schreibt die Arbeiter in eine zweite RGBA-Textur mit transparentem Grund. Die Farben stehen in `Simulation.GROUP_PALETTE`; die ersten beiden sind Gelb `#FFE45E` und Blau `#53C7FF`. Die Textur wird neu gefüllt, wenn ein neuer Simulationstakt gezeichnet wird. `_draw` zeichnet diese eine Textur. Es gibt keine Node pro Arbeiter und keinen Lichtakzent je Einheit. Die Opferlochzelle wird beim Malen `#C77AFF`, ohne den Materialwert zu ändern.
+`EnergyRenderer` zeichnet jede Zelle mit mindestens einem Energie-Dot als `#53C7FF`. `WorkerRenderer` liegt darüber und schreibt die Arbeiter in eine zweite RGBA-Textur. Alle Gruppenfarben in `Simulation.GROUP_PALETTE` sind Gelb `#FFE45E`. Die Textur wird neu gefüllt, wenn ein neuer Simulationstakt gezeichnet wird. Es gibt keine Node pro Dot. Die Energiekernzelle wird beim Malen `#C77AFF`, ohne den Materialwert zu ändern.
 
 Die Hauptszene erzeugt die Simulation, zeichnet Welt und Arbeiter und treibt `TickClock` mit 20 Hz. `GameHud` bündelt Spielerbefehle für alle arbeitenden internen Farbgruppen und zeigt die Schwarmfarben. Abbau zieht ein Gebiet auf, Bewegung setzt per Linksklick einen gemeinsamen Sammelpunkt; eine Teilgruppe übernimmt auf Anforderung die Opferung. `OrderOverlay` zeichnet diese Aufträge. Quotenverwaltung existiert nur noch intern. `WorldMinimap` zeigt die vorhandene Welttextur und lässt die Kamera zum angeklickten Punkt springen. Die Leertaste schaltet die Pause. Eine ungültige Konfiguration oder eine verletzte Startinvariante beendet das Programm mit Code 1.
 
