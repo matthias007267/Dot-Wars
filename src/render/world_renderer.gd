@@ -4,6 +4,7 @@ extends Node2D
 ## Es gibt keine Node pro Zelle.
 
 const GRID_MIN_ZOOM := 8.0
+const PIT_GLOW_MIN_ZOOM := 3.0
 
 var world: WorldState
 var camera: Camera2D
@@ -39,6 +40,7 @@ func _draw() -> void:
 	if _texture == null:
 		return
 	draw_texture_rect(_texture, Rect2(0, 0, world.width, world.height), false)
+	_draw_pit_glow()
 	if show_chunks:
 		_draw_chunks()
 	if show_grid:
@@ -84,6 +86,19 @@ func _upload() -> void:
 		_texture = ImageTexture.create_from_image(_image)
 	else:
 		_texture.update(_image)
+
+
+## Der Lichtakzent wird nur beim Zeichnen berechnet; kein Pixel/Node je Zelle.
+## Bei kleinen Zoomstufen bleibt das Opferloch ein einzelner farbiger Dot.
+func _draw_pit_glow() -> void:
+	if camera == null or camera.zoom.x < PIT_GLOW_MIN_ZOOM:
+		return
+	var point := WorldGenerator.sacrifice_cell(world)
+	var center := Vector2(point.x + 0.5, point.y + 0.5)
+	var glow := Materials.PIT_COLOR
+	draw_circle(center, 3.6, Color(glow.r, glow.g, glow.b, 0.055))
+	draw_circle(center, 2.4, Color(glow.r, glow.g, glow.b, 0.095))
+	draw_circle(center, 1.35, Color(glow.r, glow.g, glow.b, 0.18))
 
 
 func _draw_grid() -> void:
@@ -151,6 +166,14 @@ static func _write_cell(
 	var red := int(palette[src])
 	var green := int(palette[src + 1])
 	var blue := int(palette[src + 2])
+	# Dezente, reproduzierbare Tonabstufungen machen Flächen lebendig,
+	# ohne Umrandungen, Texturassets oder zeitabhängiges Rauschen.
+	# Die Material-ID und die Spiellogik bleiben unverändert.
+	if Materials.is_mineable(material):
+		var offset := material_variation(idx, material)
+		red = clampi(red + offset, 0, 255)
+		green = clampi(green + offset, 0, 255)
+		blue = clampi(blue + offset, 0, 255)
 	var dug := world.progress[idx]
 	if dug > 0 and Materials.is_mineable(material):
 		var durability := Materials.durability(material, SimConfig.TICKS_PER_SECOND)
@@ -163,6 +186,13 @@ static func _write_cell(
 	bytes[dst + 1] = green
 	bytes[dst + 2] = blue
 	bytes[dst + 3] = 255
+
+
+## Geringe Helligkeitsvarianz je Zelle (-6 bis +6), unabhängig vom Seed.
+static func material_variation(index: int, material: int) -> int:
+	var hashed := (index * 31 + material * 127) & 0x7FFFFFFF
+	hashed = (hashed ^ (hashed >> 7) ^ (hashed >> 13)) & 0x7FFFFFFF
+	return (hashed % 5 - 2) * 3
 
 
 static func _channel(value: float) -> int:
