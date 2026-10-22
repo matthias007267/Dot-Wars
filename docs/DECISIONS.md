@@ -151,3 +151,10 @@ Gemessen am 22. Oktober 2026, Seed 1337, markierte linke Hälfte, eine abgebaute
 ### O-002 Weitere Fraktionen
 
 Die Fraktions-ID liegt neben der Gruppe. Neue Arbeiter bekommen Fraktion 0, und die Ansicht verwendet nur diese Fraktion. Mehrere Fraktionen, Besitz und getrennte Aufträge je Fraktion sind nicht umgesetzt.
+
+
+### D-021 Premium Pixel Tactics – grafischer Feinschliff
+
+Datum: 22. Oktober 2026.
+
+Die beschlossene Palette D-007 bleibt unverändert. Abbaubare Materialien erhalten deterministische Helligkeitsvariationen von höchstens sechs RGB-Stufen pro Zelle; der Abbau-Fortschritt blendet weiter Richtung Tunnel. Arbeiter bekommen nur bei naher Kamera (Zoom mindestens 7) dezente Lichtakzente für maximal 240 sichtbare Einheiten; das Opferloch erhält bei Zoom mindestens 3 einen schwachen Lichtschein. Es gibt keine Umrandungen pro Dot, keine zusätzlichen Nodes pro Dot und keine Änderungen an der Simulation oder Speicherständen. Das HUD verwendet einen kompakten Command-Center-Titel und klar getrennte Befehlsbereiche. Visuelles Feintuning und Framerate sind am Windows-Rechner zu prüfen.
