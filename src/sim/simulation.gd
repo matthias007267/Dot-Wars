@@ -345,21 +345,12 @@ func set_desired_size(group_id: int, unit_size: int) -> bool:
 	return true
 
 
+## Legacy-API für ältere Aufrufer; Arbeiteropfer sind nicht mehr möglich.
 func set_sacrifice(group_id: int, enabled: bool) -> bool:
-	if not _group_is_open(group_id):
+	if not _group_is_open(group_id) or enabled:
 		return false
-	if enabled:
-		return false
-	if not enabled:
-		sacrifice_on[group_id] = 0
-		return true
-	var delivery := _delivery_cells()
-	if delivery.is_empty():
-		return false
-	sacrifice_on[group_id] = 1
-	fields[group_id].goal_cell = delivery[0]
+	sacrifice_on[group_id] = 0
 	return true
-
 
 func buy(kind: int) -> bool:
 	var before := upgrades.max_size()
