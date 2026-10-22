@@ -15,7 +15,7 @@ Die Simulation läuft mit 20 Takten pro Sekunde. Spielregeln rechnen mit ganzen 
 ```
 src/sim/          Simulation, headless
 src/main.gd       Menü, Takt, Mausaufträge, Pause
-src/ui/           Startmenü und Spiel-Leiste
+src/ui/           Startmenü, reduziertes HUD und Weltübersicht
 src/render/       Kamera, Weltbild, Arbeiter, Koordinaten
 scenes/main.tscn
 tests/            projekteigener Test-Runner und Tests
@@ -29,9 +29,9 @@ docs/             verbindliche Dokumentation
 | `SimConfig` | Weltgröße, Seed, Quoten, Abbau- und Bewegungswerte, Prüfung |
 | `Materials` | Härte 1, 3, 8, unzerstörbar, Farben |
 | `WorldCoordinates` | Zelle, Welt, Bildschirm |
-| `WorldRenderer` | eine Textur, Chunk-Aktualisierung, Raster |
+| `WorldRenderer` | eine Textur, Chunk-Aktualisierung, Raster, Texturzugriff für Minimap |
 | `WorkerRenderer` | zweite Textur, Fußabdruck je Einheit, nur geänderte Pixel |
-| `CameraController` | Zoom, Verschieben, Grenzen |
+| `CameraController` | Zoom, Verschieben, Grenzen, Minimap-Sprung |
 | `WorldState` | Zellen, Fortschritt, Chunk-Dirty-Flags |
 | `WorldGenerator` | reproduzierbare Welt und Starttunnel |
 | `WorkerStore` | Einheiten als Struct-of-Arrays, Zelle, Gruppe, Fraktion, Größe, Masse |
@@ -88,7 +88,7 @@ Invariante des Prototyps, solange es keine Opferung gibt: Arbeiter plus wartende
 
 `WorkerRenderer` schreibt die Arbeiter in eine zweite RGBA-Textur mit transparentem Grund. Gruppe 0 ist Gelb `#FFE45E`, Gruppe 1 ist Blau `#53C7FF`. Die Textur wird neu gefüllt, wenn ein neuer Simulationstakt gezeichnet wird. `_draw` zeichnet ein Rechteck. Es gibt keine Node pro Arbeiter. Die Opferlochzelle wird beim Malen `#C77AFF`, ohne den Materialwert zu ändern.
 
-Die Hauptszene erzeugt die Simulation, zeichnet Welt und Arbeiter und treibt `TickClock` mit 20 Hz. Ein Linksklick auf eine leere Zelle ruft `set_move_goal` für jede Gruppe auf. Die Leertaste schaltet die Pause. Die Szene weist kein Abbaugebiet zu. Eine ungültige Konfiguration oder eine verletzte Startinvariante beendet das Programm mit Code 1.
+Die Hauptszene erzeugt die Simulation, zeichnet Welt und Arbeiter und treibt `TickClock` mit 20 Hz. `GameHud` bündelt Spielerbefehle für alle arbeitenden internen Farbgruppen. Abbau zieht ein Gebiet auf, Bewegung setzt per Linksklick einen gemeinsamen Sammelpunkt; eine Teilgruppe übernimmt auf Anforderung die Opferung. Quotenverwaltung existiert nur noch intern. `WorldMinimap` zeigt die vorhandene Welttextur und lässt die Kamera zum angeklickten Punkt springen. Die Leertaste schaltet die Pause. Eine ungültige Konfiguration oder eine verletzte Startinvariante beendet das Programm mit Code 1.
 
 ## Tests
 
