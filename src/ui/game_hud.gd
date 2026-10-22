@@ -34,7 +34,9 @@ func _ready() -> void:
 	root.add_theme_constant_override("separation", 4)
 	panel.add_child(root)
 
-	_label(root, "DOT WARS  ·  Linksklick Ziel  ·  Ziehen Abbau  ·  1–8 Gruppe  ·  Leertaste Pause  ·  F11 Vollbild", 16)
+	var heading := _label(root, "DOT WARS   /   COMMAND CENTER", 19)
+	heading.add_theme_color_override("font_color", UiTheme.ACCENT)
+	_label(root, "Linksklick: Ziel   ·   Ziehen: Abbau   ·   1–8: Gruppe   ·   Leertaste: Pause   ·   F11: Vollbild", 13)
 	_status = _label(root, "", 16)
 	_win = _label(root, "", 18)
 	_message = _label(root, "", 14)
@@ -49,6 +51,7 @@ func _ready() -> void:
 	_chip(row, Materials.COLORS[Materials.INDESTRUCTIBLE], "Unzerstörbar")
 	_chip(row, Materials.PIT_COLOR, "Opferloch")
 
+	_label(root, "BEFEHLE   /   TECHNOLOGIE", 12)
 	var actions := HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 6)
 	root.add_child(actions)
@@ -66,6 +69,7 @@ func _ready() -> void:
 	_button(actions, "2×2", _buy_fusion2)
 	_button(actions, "3×3", _buy_fusion3)
 
+	_label(root, "FARBGRUPPEN   /   EINHEITEN", 12)
 	_groups = VBoxContainer.new()
 	_groups.add_theme_constant_override("separation", 2)
 	root.add_child(_groups)
