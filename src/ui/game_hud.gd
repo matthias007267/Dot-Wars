@@ -31,7 +31,7 @@ var _victory: Label
 var _message: Label
 var _mine_button: Button
 var _move_button: Button
-var _sacrifice_button: Button
+var _buy_worker_button: Button
 var _pause_button: Button
 var _speed_button: Button
 var _swarm_ids: Array[int] = []
@@ -43,7 +43,6 @@ var _map: WorldMinimap
 
 var _last_mode_style := -1
 var _last_size_style := -1
-var _last_sacrifice_style := false
 var _last_mine_area := Rect2i()
 
 
@@ -102,32 +101,12 @@ func issue_move_goal(cell: int) -> bool:
 	return issued
 
 
-func toggle_sacrifice() -> bool:
-	if sim == null:
-		return false
-	# Der letzte aktive Quoten-Slot übernimmt intern den Opferauftrag.
-	# Die übrigen Gruppen behalten ihre Abbauaufträge.
-	var group_id := _sacrifice_group()
-	if group_id < 0:
-		_notice("Keine Opfergruppe verfügbar.")
-		return false
-	var active := sim.sacrifice_on[group_id] == 1
-	if active:
-		sim.set_sacrifice(group_id, false)
-		sim.clear_move_goal(group_id)
-		if _last_mine_area.has_area():
-			sim.clear_area(group_id)
-			sim.assign_area(group_id, _last_mine_area)
-		_notice("Opfern beendet.")
+func _buy_worker() -> void:
+	if sim.buy_worker():
+		_notice("Arbeiter gekauft. Er startet am Energiekern.")
 	else:
-		# Andernfalls konkurrieren Abbaufront und Opferloch in der Zielsuche.
-		if not sim.set_sacrifice(group_id, true):
-			_notice("Opferloch nicht erreichbar.")
-			return false
-		sim.clear_area(group_id)
-		_notice("Ein Teil des Schwarms wird geopfert.")
+		_notice("Zu wenig Energie oder kein freier Starttunnel.")
 	refresh()
-	return true
 
 
 func set_size_all(unit_size: int) -> bool:
@@ -153,7 +132,7 @@ func refresh() -> void:
 	var percent := clampi(int(round(mined * 100.0)), 0, 100)
 
 	_mass_value.text = str(mass)
-	_energy_value.text = str(energy)
+	_energy_value.text = "%d (+%d)" % [energy, sim.energy_dots.pending()]
 	_mined_value.text = "%d %%" % percent
 	_mass_bar.value = minf(100.0, float(mass))
 	_energy_bar.value = minf(250.0, float(energy))
@@ -168,7 +147,7 @@ func refresh() -> void:
 	_victory.visible = sim.won
 	_pause_button.text = "WEITER" if clock.paused else "PAUSE"
 	_speed_button.text = "%d×" % clock.speed
-	_sacrifice_button.text = "OPFERN AN" if _is_sacrificing() else "OPFERN"
+	_buy_worker_button.disabled = sim.upgrades.energy < Simulation.WORKER_COST
 	_refresh_swarm()
 
 	_refresh_selection()
@@ -242,8 +221,8 @@ func _build_dock(layer: Control) -> void:
 	_mine_button.tooltip_text = "Rechteck auf die Welt ziehen, um Material abzubauen."
 	_move_button = _button(buttons, "BEWEGEN", func() -> void: _set_mode(Command.MOVE))
 	_move_button.tooltip_text = "Auf einen freien Tunnel klicken, um den Schwarm zu bewegen."
-	_sacrifice_button = _button(buttons, "OPFERN", toggle_sacrifice)
-	_sacrifice_button.tooltip_text = "Eine interne Teilgruppe zum Opferloch schicken. Erneut klicken zum Stoppen."
+	_buy_worker_button = _button(buttons, "ARBEITER +10", _buy_worker)
+	_buy_worker_button.tooltip_text = "Kauft einen Arbeiter für 10 Energie. Start am Energiekern."
 
 	_divider(buttons)
 	for size in [1, 2, 3]:
@@ -407,22 +386,9 @@ func _has_presence(group_id: int) -> bool:
 
 
 func _available_for_work(group_id: int) -> bool:
-	return _has_presence(group_id) and sim.sacrifice_on[group_id] == 0
+	return _has_presence(group_id)
 
 
-func _sacrifice_group() -> int:
-	var found := -1
-	for group_id in sim.group_open.size():
-		if sim.group_open[group_id] == 1 and (
-			sim.quotas[group_id] > 0 or sim.workers.group_mass[group_id] > 0
-		):
-			found = group_id
-	return found
-
-
-func _is_sacrificing() -> bool:
-	var group_id := _sacrifice_group()
-	return group_id >= 0 and sim.sacrifice_on[group_id] == 1
 
 
 func _set_mode(next: int) -> void:
@@ -498,11 +464,6 @@ func _refresh_selection() -> void:
 		UiTheme.style_button(_move_button, command_mode == Command.MOVE)
 		_last_mode_style = command_mode
 
-	var sacrificing := _is_sacrificing()
-	if sacrificing != _last_sacrifice_style:
-		UiTheme.style_button(_sacrifice_button, sacrificing)
-		_last_sacrifice_style = sacrificing
-
 	var unit_size := 1
 	for group_id in sim.group_open.size():
 		if _available_for_work(group_id):
@@ -540,10 +501,7 @@ func _refresh_swarm() -> void:
 	for index in _swarm_ids.size():
 		var group_id := _swarm_ids[index]
 		var mass := sim.workers.group_mass[group_id]
-		if sim.sacrifice_on[group_id] == 1:
-			_swarm_labels[index].text = "opfert %d" % mass
-		else:
-			_swarm_labels[index].text = str(mass)
+		_swarm_labels[index].text = str(mass)
 
 
 func _notice(message: String) -> void:
