@@ -2,7 +2,7 @@
 
 Minimalistisches Echtzeit-Strategiespiel mit Godot 4. Die verbindlichen Regeln stehen in `docs/GAME_DESIGN.md`, die Architektur in `docs/ARCHITECTURE.md`, der Phasenstand in `docs/ROADMAP.md`. Agenten arbeiten nach `AGENTS.md`.
 
-`godot --path .` öffnet das Startmenü. „Neues Spiel“ startet die Welt. Das reduzierte HUD zeigt Masse, Energie, Abbaufortschritt und Missionsziele. Farbgruppen werden intern verwaltet und erscheinen nicht mehr als eigene Spielereinstellung.
+`godot --path .` öffnet das Startmenü. „Neues Spiel“ startet die Welt. Das reduzierte HUD zeigt Masse, Energie, Abbaufortschritt und Missionsziele. Farbgruppen werden intern verwaltet und erscheinen nicht mehr als eigene Spielereinstellung. Beim Abbau entstehen ausschließlich Energie-Dots (Härte 1/3/8 → 1/3/8), die zum Energiekern transportiert werden. Nur eingelagerte Energie kann ausgegeben werden.
 
 ## Voraussetzungen
 
@@ -39,7 +39,7 @@ Steuerung im Fenster:
 * `G` schaltet das Zellraster ein, sobald eine Zelle mindestens 8 Pixel groß ist.
 * `C` schaltet die Chunk-Grenzen ein.
 
-Ohne Argumente erscheint das Menü. `--size`, `--seed`, `--play` oder ein Headless-Start überspringen es. Die Gruppenfarben stehen in `Simulation.GROUP_PALETTE`.
+Ohne Argumente erscheint das Menü. `--size`, `--seed`, `--play` oder ein Headless-Start überspringen es. Aktuell gibt es nur zwei bewegliche Dot-Arten: gelbe Arbeiter und cyanfarbene Energie-Dots. Rote Krieger-Dots sind für später geplant. Interne Farbgruppen teilen sich dieselbe Arbeiterfarbe.
 
 Der Zoom reicht von der ganzen Welt im Fenster bis zu 40 Pixeln je Zelle. Gestartet wird mit 10 Pixeln je Zelle auf dem Starttunnel.
 
