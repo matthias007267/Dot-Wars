@@ -94,7 +94,7 @@ func _upload() -> void:
 
 
 ## Der Lichtakzent wird nur beim Zeichnen berechnet; kein Pixel/Node je Zelle.
-## Bei kleinen Zoomstufen bleibt das Opferloch ein einzelner farbiger Dot.
+## Bei kleinen Zoomstufen bleibt das Energiekern ein einzelner farbiger Dot.
 func _draw_pit_glow() -> void:
 	if camera == null or camera.zoom.x < PIT_GLOW_MIN_ZOOM:
 		return
