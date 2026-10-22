@@ -2,7 +2,7 @@
 
 Minimalistisches Echtzeit-Strategiespiel mit Godot 4. Die verbindlichen Regeln stehen in `docs/GAME_DESIGN.md`, die Architektur in `docs/ARCHITECTURE.md`, der Phasenstand in `docs/ROADMAP.md`. Agenten arbeiten nach `AGENTS.md`.
 
-`godot --path .` öffnet das Startmenü. „Neues Spiel“ startet eine Welt mit drei Farbgruppen. Ein Zug mit der linken Taste markiert das Abbaugebiet der gewählten Gruppe, ein kurzer Klick setzt ihr Laufziel.
+`godot --path .` öffnet das Startmenü. „Neues Spiel“ startet die Welt. Das reduzierte HUD zeigt Masse, Energie, Abbaufortschritt und Missionsziele. Farbgruppen werden intern verwaltet und erscheinen nicht mehr als eigene Spielereinstellung.
 
 ## Voraussetzungen
 
@@ -80,7 +80,7 @@ Ergebnisse und die Grenzen der Messung stehen in `docs/PERFORMANCE.md`.
 ```
 src/sim/                 headlesse Simulation
 src/main.gd              Menü, Takt, Aufträge
-src/ui/                  Startmenü und Spiel-Leiste
+src/ui/                  Startmenü, reduziertes HUD, klickbare Minimap
 src/render/              Kamera, Weltbild, Arbeiter, Koordinaten
 scenes/main.tscn
 tests/                   Test-Runner und Fälle
