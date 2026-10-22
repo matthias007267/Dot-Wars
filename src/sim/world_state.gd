@@ -27,6 +27,8 @@ var solid_count: int = 0
 var indestructible_count: int = 0
 ## Durch Spielmechanik (Abbau) entfernte Zellen. Generator-Aushub zählt nicht.
 var mined_count: int = 0
+## Leer gelegte Zellen, die nicht als Abbau zählen. Die Kern-Erweiterung nutzt das.
+var opened_count: int = 0
 
 var _chunk_dirty := PackedByteArray()
 var _dirty_chunks := PackedInt32Array()
@@ -110,9 +112,17 @@ func carve_rect(rect: Rect2i) -> void:
 			set_material(y * width + x, Materials.EMPTY)
 
 
+## Legt eine abbaubare Zelle leer, ohne sie als Abbau zu zählen.
+func open_without_mining(idx: int) -> void:
+	if not Materials.is_mineable(cells[idx]):
+		return
+	set_material(idx, Materials.EMPTY)
+	opened_count += 1
+
+
 ## Anteil der abgebauten Zellen an allen ursprünglich abbaubaren Zellen (0..1).
 func mined_fraction() -> float:
-	var minable := solid_count - indestructible_count + mined_count
+	var minable := solid_count - indestructible_count + mined_count + opened_count
 	return 0.0 if minable == 0 else float(mined_count) / minable
 
 
@@ -153,7 +163,7 @@ func note_progress(idx: int) -> void:
 
 
 func state_hash() -> int:
-	return hash([hash(cells), hash(progress), hash(progress_frac), mined_count, solid_count])
+	return hash([hash(cells), hash(progress), hash(progress_frac), mined_count, opened_count, solid_count])
 
 
 func _mark_dirty(idx: int) -> void:

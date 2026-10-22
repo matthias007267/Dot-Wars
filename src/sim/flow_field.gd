@@ -60,6 +60,8 @@ var full_rebuilds: int = 0
 var patches: int = 0
 ## Leere Zielzelle der Gruppe. -1 heißt: kein Laufziel, nur Abbaugebiete.
 var goal_cell: int = -1
+## 1 verbietet die Zelle für Arbeiter. Leer heißt: nichts gesperrt.
+var blocked := PackedByteArray()
 var _built_goal: int = -2
 
 
@@ -105,6 +107,13 @@ func step(budget: int) -> void:
 			remaining = _spread(remaining)
 		else:
 			remaining = _spread(remaining)
+
+
+## Der nächste Takt baut das Feld neu, auch wenn die Welt sich nicht geändert hat.
+func force_rebuild() -> void:
+	_built_world_revision = -1
+	_applied_changes = _world.change_log.size()
+	_applied_epoch = _world.change_epoch
 
 
 ## Baut das Feld vollständig (Tests, Benchmark).
@@ -168,14 +177,20 @@ func _scan_seeds(budget: int) -> int:
 				_seed(idx + w)
 		_rect_index += 1
 		_scan_pos = 0
-	if goal_cell >= 0 and goal_cell < cells.size() and cells[goal_cell] == Materials.EMPTY:
+	if goal_cell >= 0 and _open(goal_cell):
 		_seed(goal_cell)
 	_phase = Phase.SPREAD
 	return remaining
 
 
+func _open(idx: int) -> bool:
+	if idx < 0 or idx >= _world.cell_count() or _world.cells[idx] != Materials.EMPTY:
+		return false
+	return blocked.is_empty() or idx >= blocked.size() or blocked[idx] == 0
+
+
 func _seed(idx: int) -> void:
-	if _world.cells[idx] == Materials.EMPTY and _next_dist[idx] == UNREACHABLE:
+	if _open(idx) and _next_dist[idx] == UNREACHABLE:
 		_next_dist[idx] = 0
 		_next_dir[idx] = DIR_ARRIVED
 		_queue.append(idx)
@@ -207,7 +222,7 @@ func _spread(budget: int) -> int:
 
 
 func _relax(idx: int, distance: int, direction: int) -> void:
-	if _world.cells[idx] != Materials.EMPTY:
+	if not _open(idx):
 		return
 	if _improve:
 		if _next_dist[idx] != UNREACHABLE and _next_dist[idx] <= distance:
@@ -303,7 +318,7 @@ func _clear_dependents(roots: PackedInt32Array, cleared: PackedInt32Array) -> bo
 
 
 func _reseed_opened(idx: int) -> void:
-	if idx < 0 or idx >= _world.cell_count() or _world.cells[idx] != Materials.EMPTY:
+	if not _open(idx):
 		return
 	if _is_source(idx):
 		_next_dist[idx] = 0
@@ -320,7 +335,7 @@ func _reseed_opened(idx: int) -> void:
 
 
 func _is_source(idx: int) -> bool:
-	if _world.cells[idx] != Materials.EMPTY:
+	if not _open(idx):
 		return false
 	if idx == goal_cell:
 		return true

@@ -25,6 +25,8 @@ var max_units: int = 0
 var won: bool = false
 var win_tick: int = -1
 var upgrades := Upgrades.new()
+## 1 verbietet die Zelle für Arbeiter. Leer, solange der Kern noch nicht erweitert wurde.
+var core_mask := PackedByteArray()
 var group_names := PackedStringArray()
 var group_colors: Array[Color] = []
 var group_open := PackedByteArray()
@@ -79,7 +81,9 @@ func tick_once() -> void:
 		fields[g].step(config.field_budget_per_tick)
 	var t1 := Time.get_ticks_usec()
 	var speed_points := 0 if upgrades.speed_level == 0 else upgrades.move_points(config.move_period_ticks)
-	MovementSystem.step(tick_count, workers, world, areas, fields, config.move_period_ticks, speed_points)
+	MovementSystem.step(
+		tick_count, workers, world, areas, fields, config.move_period_ticks, speed_points, core_mask
+	)
 	var t2 := Time.get_ticks_usec()
 	if upgrades.dig_level == 0 and workers.max_size == 1:
 		MiningSystem.step(workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power)
@@ -89,9 +93,9 @@ func tick_once() -> void:
 			workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power, fraction.x, fraction.y
 		)
 	var t3 := Time.get_ticks_usec()
-	spawner.process(world, workers, quotas)
+	spawner.process(world, workers, quotas, core_mask)
 	FusionSystem.step(workers, world, desired_size)
-	upgrades.energy += energy_dots.step(world, workers, pit_index(), tick_count)
+	upgrades.energy += energy_dots.step(world, workers, energy_exits(), tick_count)
 	var mass_now := total_mass()
 	if mass_now > peak_mass:
 		peak_mass = mass_now
@@ -129,6 +133,8 @@ func set_move_goal(group_id: int, cell_idx: int) -> bool:
 	if group_id < 0 or group_id >= fields.size():
 		return false
 	if cell_idx < 0 or cell_idx >= world.cell_count() or world.cells[cell_idx] != Materials.EMPTY:
+		return false
+	if _in_core(cell_idx):
 		return false
 	fields[group_id].goal_cell = cell_idx
 	return true
@@ -230,6 +236,8 @@ func check_invariants() -> PackedStringArray:
 			errors.append("Arbeiter %d hat einen ungültigen Fußabdruck" % id)
 		if workers.state[id] == WorkerStore.STATE_MINING and not _touches_target(id, workers.target[id]):
 			errors.append("Arbeiter %d baut nicht an einer Nachbarzelle ab" % id)
+		if _footprint_hits_mask(id, core_mask):
+			errors.append("Arbeiter %d steht im Energiekern" % id)
 	for o in workers.occupant:
 		if o != WorkerStore.NO_WORKER:
 			occupied += 1
@@ -307,7 +315,9 @@ func add_group(group_name: String = "") -> int:
 	if not group_name.is_empty():
 		group_names[id] = group_name
 	areas.add_group()
-	fields.append(FlowField.new(world, areas, id))
+	var field := FlowField.new(world, areas, id)
+	field.blocked = core_mask
+	fields.append(field)
 	workers.ensure_groups(quotas.size())
 	return id
 
@@ -371,6 +381,8 @@ func set_sacrifice(group_id: int, enabled: bool) -> bool:
 	return true
 
 func buy(kind: int) -> bool:
+	if kind == Upgrades.KIND_CORE:
+		return _buy_core()
 	var before := upgrades.max_size()
 	if not upgrades.try_buy(kind):
 		return false
@@ -401,6 +413,18 @@ func open_group_count() -> int:
 	for flag in group_open:
 		total += int(flag)
 	return total
+
+
+## Ablage der Energie. Ohne Kern-Upgrade sind das die leeren Nachbarn des Kerns.
+## Danach ist die ganze freie Fläche um den Kern die Ablage.
+func energy_exits() -> PackedInt32Array:
+	if upgrades.core_level <= 0 or core_mask.is_empty():
+		return _delivery_cells()
+	var exits := PackedInt32Array()
+	for idx in core_mask.size():
+		if core_mask[idx] == 1 and world.cells[idx] == Materials.EMPTY:
+			exits.append(idx)
+	return exits
 
 
 func pit_index() -> int:
@@ -464,3 +488,165 @@ func _is_adjacent(a: int, b: int) -> bool:
 	var w := world.width
 	var delta := absi(a - b)
 	return delta == w or (delta == 1 and a / w == b / w)
+
+
+func _in_core(idx: int) -> bool:
+	return idx >= 0 and idx < core_mask.size() and core_mask[idx] == 1
+
+
+## Räumt die nächste Kernfläche, legt den Ring frei und sperrt sie für Arbeiter.
+## Schlägt die Räumung fehl, bleibt Welt und Guthaben unverändert.
+func _buy_core() -> bool:
+	var cost := upgrades.core_cost()
+	if cost < 0 or upgrades.energy < cost:
+		return false
+	if not _bind_core(upgrades.core_level + 1, true):
+		return false
+	return upgrades.try_buy(Upgrades.KIND_CORE)
+
+
+## Setzt die Kernfläche für eine Stufe. `apply_carve` legt neue Zellen leer, ohne sie als Abbau zu zählen.
+func _bind_core(radius: int, apply_carve: bool) -> bool:
+	var plan := CoreZone.plan(world, radius)
+	var carve: PackedInt32Array = plan.carve if apply_carve else PackedInt32Array()
+	if not _evict_workers(plan.mask, carve):
+		return false
+	if apply_carve:
+		for idx in plan.carve:
+			world.open_without_mining(idx)
+	core_mask = plan.mask
+	for field in fields:
+		field.blocked = core_mask
+		field.force_rebuild()
+	return true
+
+
+func _footprint_hits_mask(id: int, mask: PackedByteArray) -> bool:
+	if mask.is_empty():
+		return false
+	var unit_size := int(workers.size[id])
+	var anchor := workers.cell[id]
+	var width := world.width
+	var x0 := anchor % width
+	var y0 := anchor / width
+	if x0 + unit_size > width or y0 + unit_size > world.height:
+		return true
+	for dy in unit_size:
+		for dx in unit_size:
+			var idx := anchor + dy * width + dx
+			if idx < mask.size() and mask[idx] == 1:
+				return true
+	return false
+
+
+## Verschiebt jeden Arbeiter, dessen Fußabdruck in der Maske liegt, auf eine Zelle außerhalb.
+## Die Ziele werden zuerst vollständig gesucht. Erst dann wird bewegt.
+func _evict_workers(mask: PackedByteArray, carve: PackedInt32Array) -> bool:
+	if mask.is_empty():
+		return true
+	var count := world.cell_count()
+	var will_open := PackedByteArray()
+	will_open.resize(count)
+	for idx in count:
+		if world.cells[idx] == Materials.EMPTY:
+			will_open[idx] = 1
+	for idx in carve:
+		will_open[idx] = 1
+	var reserved := PackedByteArray()
+	reserved.resize(count)
+	var movers: Array[int] = []
+	for id in workers.count:
+		if _footprint_hits_mask(id, mask):
+			movers.append(id)
+		else:
+			_reserve_footprint(id, reserved)
+	var plans := PackedInt32Array()
+	for id in movers:
+		var dest := _evac_destination(id, mask, will_open, reserved)
+		if dest < 0:
+			return false
+		plans.append(id)
+		plans.append(dest)
+		_reserve_anchor(dest, int(workers.size[id]), reserved)
+	var cursor := 0
+	while cursor < plans.size():
+		var id := plans[cursor]
+		var dest := plans[cursor + 1]
+		cursor += 2
+		if int(workers.size[id]) <= 1:
+			workers.move_to(id, dest, tick_count)
+		else:
+			workers.move_footprint(id, dest, tick_count)
+	return true
+
+
+func _evac_destination(
+	id: int, mask: PackedByteArray, will_open: PackedByteArray, reserved: PackedByteArray
+) -> int:
+	var unit_size := int(workers.size[id])
+	var origin := workers.cell[id]
+	var stamp := PackedByteArray()
+	stamp.resize(world.cell_count())
+	var frontier := PackedInt32Array()
+	frontier.append(origin)
+	stamp[origin] = 1
+	var head := 0
+	var width := world.width
+	var size := world.cell_count()
+	while head < frontier.size():
+		var c := frontier[head]
+		head += 1
+		if _footprint_evac_ok(c, unit_size, mask, will_open, reserved):
+			return c
+		var x := c % width
+		if c >= width:
+			_evac_push(frontier, stamp, will_open, c - width)
+		if x < width - 1:
+			_evac_push(frontier, stamp, will_open, c + 1)
+		if c < size - width:
+			_evac_push(frontier, stamp, will_open, c + width)
+		if x > 0:
+			_evac_push(frontier, stamp, will_open, c - 1)
+	return -1
+
+
+func _evac_push(
+	frontier: PackedInt32Array, stamp: PackedByteArray, will_open: PackedByteArray, idx: int
+) -> void:
+	if stamp[idx] != 0 or will_open[idx] == 0:
+		return
+	stamp[idx] = 1
+	frontier.append(idx)
+
+
+func _footprint_evac_ok(
+	anchor: int,
+	unit_size: int,
+	mask: PackedByteArray,
+	will_open: PackedByteArray,
+	reserved: PackedByteArray,
+) -> bool:
+	var width := world.width
+	var x0 := anchor % width
+	var y0 := anchor / width
+	if x0 + unit_size > width or y0 + unit_size > world.height:
+		return false
+	for dy in unit_size:
+		for dx in unit_size:
+			var idx := anchor + dy * width + dx
+			if mask[idx] == 1 or will_open[idx] == 0 or reserved[idx] == 1:
+				return false
+			if workers.occupant[idx] != WorkerStore.NO_WORKER:
+				return false
+	return true
+
+
+func _reserve_footprint(id: int, reserved: PackedByteArray) -> void:
+	_reserve_anchor(workers.cell[id], int(workers.size[id]), reserved)
+
+
+func _reserve_anchor(anchor: int, unit_size: int, reserved: PackedByteArray) -> void:
+	var width := world.width
+	for dy in unit_size:
+		for dx in unit_size:
+			reserved[anchor + dy * width + dx] = 1

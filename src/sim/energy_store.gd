@@ -13,7 +13,7 @@ var delivered: int = 0
 var _dist := PackedInt32Array()
 var _revision := -1
 var _width := 0
-var _goal := -1
+var _exit_stamp := 0
 var _last_rebuild_tick := -1000
 
 
@@ -27,15 +27,16 @@ func enqueue(origin: int, count: int) -> void:
 	generated += count
 
 
-func step(world: WorldState, workers: WorkerStore, core: int, tick: int) -> int:
+func step(world: WorldState, workers: WorkerStore, gate: PackedInt32Array, tick: int) -> int:
 	if cells.is_empty():
 		return 0
 	if tick % MOVE_PERIOD != 0:
 		return 0
-	if _goal != core or _width != world.width or (_revision != world.revision and tick - _last_rebuild_tick >= 10):
-		_rebuild(world, core)
+	var stamp := hash(gate)
+	if stamp != _exit_stamp or _width != world.width or (_revision != world.revision and tick - _last_rebuild_tick >= 10):
+		_rebuild(world, gate)
+		_exit_stamp = stamp
 		_last_rebuild_tick = tick
-	var gate := SacrificeSystem.delivery_cells(world, core)
 	var exits := {}
 	for c in gate:
 		exits[c] = true
@@ -72,15 +73,16 @@ func _next_cell(c: int, world: WorldState, workers: WorkerStore) -> int:
 	return c
 
 
-func _rebuild(world: WorldState, core: int) -> void:
+func _rebuild(world: WorldState, gate: PackedInt32Array) -> void:
 	_revision = world.revision
 	_width = world.width
-	_goal = core
 	_dist.resize(world.cell_count())
 	_dist.fill(-1)
-	var frontier := SacrificeSystem.delivery_cells(world, core)
-	for c in frontier:
-		_dist[c] = 0
+	var frontier := PackedInt32Array()
+	for c in gate:
+		if c >= 0 and c < world.cell_count() and world.cells[c] == Materials.EMPTY:
+			_dist[c] = 0
+			frontier.append(c)
 	var head := 0
 	while head < frontier.size():
 		var c := frontier[head]

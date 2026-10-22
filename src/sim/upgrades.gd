@@ -6,17 +6,21 @@ const SPEED_BASE := 25
 const DIG_BASE := 50
 const FUSION2_COST := 100
 const FUSION3_COST := 250
+const CORE_BASE := 40
+const CORE_MAX := 4
 
 const KIND_SPEED := 0
 const KIND_DIG := 1
 const KIND_FUSION2 := 2
 const KIND_FUSION3 := 3
+const KIND_CORE := 4
 
 var energy: int = 0
 var speed_level: int = 0
 var dig_level: int = 0
 var fusion2: bool = false
 var fusion3: bool = false
+var core_level: int = 0
 var purchased: int = 0
 
 
@@ -34,6 +38,12 @@ func fusion2_cost() -> int:
 
 func fusion3_cost() -> int:
 	return FUSION3_COST
+
+
+func core_cost() -> int:
+	if core_level >= CORE_MAX:
+		return -1
+	return CORE_BASE * (core_level + 1)
 
 
 func max_size() -> int:
@@ -80,11 +90,13 @@ func try_buy(kind: int) -> bool:
 			fusion2 = true
 		KIND_FUSION3:
 			fusion3 = true
+		KIND_CORE:
+			core_level += 1
 	return true
 
 
 func state_hash() -> int:
-	return hash([energy, speed_level, dig_level, fusion2, fusion3, purchased])
+	return hash([energy, speed_level, dig_level, fusion2, fusion3, core_level, purchased])
 
 
 func _cost(kind: int) -> int:
@@ -97,4 +109,6 @@ func _cost(kind: int) -> int:
 			return -1 if fusion2 else FUSION2_COST
 		KIND_FUSION3:
 			return -1 if fusion3 or not fusion2 else FUSION3_COST
+		KIND_CORE:
+			return core_cost()
 	return -1

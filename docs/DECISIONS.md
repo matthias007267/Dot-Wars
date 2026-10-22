@@ -191,3 +191,12 @@ Die Massenbilanz lautet Startmasse plus gekaufte Masse. Die Energieerzeugungsbil
 Datum: 22. Oktober 2026.
 
 Energie-Dots blockieren einander nicht. Beliebig viele liegen auf derselben leeren Zelle und rücken gemeinsam vor, auch in einem Gang von einer Zelle Breite. Die nächste Zelle ist diejenige mit kürzerer Distanz zum Kern, in der Reihenfolge Nord, Ost, Süd, West. Ist diese Zelle von einem Arbeiter belegt, bleibt der Dot liegen. Arbeiter werden von Energie nicht verschoben. Die Kosten von 10 Energie je Arbeiter und 250 für 3×3 bleiben vorläufig. Die Siegbedingungen bleiben unverändert.
+
+
+### D-026 Kernfläche als Fähigkeit
+
+Datum: 22. Oktober 2026.
+
+Der Energiekern bleibt auf Stufe 0 so, wie er ist: zwei leere Nachbarzellen auf dem Startkreuz nehmen Energie an, und Arbeiter dürfen dort stehen. Jeder Kauf der Fähigkeit Kern vergrößert die Fläche um eine Chebyshev-Stufe, höchstens bis Radius 4. Die Fläche selbst, ohne die unzerstörbare Kernzelle, nimmt Energie an und ist für Arbeiter gesperrt, sowohl in der Zielsuche als auch in der Bewegung. Der Ring direkt außerhalb wird leer gelegt, damit die Tunnelarme verbunden bleiben. Diese Zellen zählen nicht als Abbau und erzeugen keine Energie. `opened_count` hält den Abbauanteil stabil. Die Kosten sind vorläufig 40, 80, 120 und 160 Energie. Steht ein Arbeiter in der neuen Fläche, wird er vorher auf eine freie Zelle außerhalb gesetzt. Gelingt das nicht für jeden betroffenen Arbeiter, passiert nichts: kein Aushub, keine Kosten. Neue Arbeiter entstehen neben der Fläche, nicht darauf.
+
+Weitere Fähigkeiten kommen in dasselbe Fenster, nicht als eigene Knöpfe in die Leiste. Die Leiste hat einen Knopf „Fähigkeiten“. Darin liegen die Zweige Kern und Schwarm. Speicherstände bleiben Version 2. `core_level`, `opened` und der letzte Bewegungstakt eines Arbeiters sind optionale Felder und fehlen in älteren Ständen als 0 beziehungsweise -1.

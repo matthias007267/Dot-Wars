@@ -28,6 +28,7 @@ static func step(
 	fields: Array[FlowField],
 	move_period: int,
 	speed_points: int = 0,
+	forbidden: PackedByteArray = PackedByteArray(),
 ) -> void:
 	var terrain := world.cells
 	var width := world.width
@@ -53,7 +54,7 @@ static func step(
 		if state[id] == WorkerStore.STATE_MINING:
 			continue
 		if workers.size[id] > 1:
-			_step_large(tick, workers, world, areas, fields, dirs, id)
+			_step_large(tick, workers, world, areas, fields, dirs, id, forbidden)
 			continue
 		var c := cell_of[id]
 		var direction := dirs[group[id]][c]
@@ -76,13 +77,17 @@ static func step(
 				n = c + 1
 		elif c % width > 0:
 			n = c - 1
-		if n < 0 or terrain[n] != Materials.EMPTY:
+		if n < 0 or terrain[n] != Materials.EMPTY or _in_zone(forbidden, n):
 			state[id] = WorkerStore.STATE_WAITING
 		elif occupant[n] == WorkerStore.NO_WORKER:
 			workers.move_to(id, n, tick)
 		elif not _try_swap(tick, workers, dirs, id, n, width, cell_count):
-			if not _try_detour(tick, workers, terrain, fields[group[id]], direction, id, width, cell_count):
+			if not _try_detour(tick, workers, terrain, fields[group[id]], direction, id, width, cell_count, forbidden):
 				state[id] = WorkerStore.STATE_BLOCKED
+
+
+static func _in_zone(forbidden: PackedByteArray, idx: int) -> bool:
+	return not forbidden.is_empty() and idx >= 0 and idx < forbidden.size() and forbidden[idx] == 1
 
 
 static func _step_large(
@@ -93,6 +98,7 @@ static func _step_large(
 	fields: Array[FlowField],
 	dirs: Array[PackedByteArray],
 	id: int,
+	forbidden: PackedByteArray,
 ) -> void:
 	var width := world.width
 	var unit_size := int(workers.size[id])
@@ -107,14 +113,14 @@ static func _step_large(
 		return
 	var field := fields[workers.group[id]]
 	var own_dist := field.dist[anchor]
-	if _try_large_step(tick, workers, world, id, unit_size, anchor, direction):
+	if _try_large_step(tick, workers, world, id, unit_size, anchor, direction, forbidden):
 		return
 	var vertical := direction == FlowField.DIR_UP or direction == FlowField.DIR_DOWN
 	var first := FlowField.DIR_LEFT if vertical else FlowField.DIR_UP
 	var second := FlowField.DIR_RIGHT if vertical else FlowField.DIR_DOWN
-	if _try_large_toward(tick, workers, world, field, id, unit_size, anchor, first, own_dist):
+	if _try_large_toward(tick, workers, world, field, id, unit_size, anchor, first, own_dist, forbidden):
 		return
-	if _try_large_toward(tick, workers, world, field, id, unit_size, anchor, second, own_dist):
+	if _try_large_toward(tick, workers, world, field, id, unit_size, anchor, second, own_dist, forbidden):
 		return
 	workers.state[id] = WorkerStore.STATE_BLOCKED
 
@@ -129,9 +135,10 @@ static func _try_large_toward(
 	anchor: int,
 	direction: int,
 	own_dist: int,
+	forbidden: PackedByteArray,
 ) -> bool:
 	var dest := _anchor_after(anchor, direction, unit_size, world.width, world.height)
-	if dest < 0 or not _footprint_open(workers, world, id, dest, unit_size):
+	if dest < 0 or not _footprint_open(workers, world, id, dest, unit_size, forbidden):
 		return false
 	var dist := field.dist[dest]
 	if dist < 0 or dist >= own_dist:
@@ -148,9 +155,10 @@ static func _try_large_step(
 	unit_size: int,
 	anchor: int,
 	direction: int,
+	forbidden: PackedByteArray,
 ) -> bool:
 	var dest := _anchor_after(anchor, direction, unit_size, world.width, world.height)
-	if dest < 0 or not _footprint_open(workers, world, id, dest, unit_size):
+	if dest < 0 or not _footprint_open(workers, world, id, dest, unit_size, forbidden):
 		return false
 	workers.move_footprint(id, dest, tick)
 	return true
@@ -175,13 +183,15 @@ static func _anchor_after(anchor: int, direction: int, unit_size: int, width: in
 	return y * width + x
 
 
-static func _footprint_open(workers: WorkerStore, world: WorldState, id: int, anchor: int, unit_size: int) -> bool:
+static func _footprint_open(
+	workers: WorkerStore, world: WorldState, id: int, anchor: int, unit_size: int, forbidden: PackedByteArray
+) -> bool:
 	var width := world.width
 	var cells := world.cells
 	for dy in unit_size:
 		for dx in unit_size:
 			var idx := anchor + dy * width + dx
-			if cells[idx] != Materials.EMPTY:
+			if cells[idx] != Materials.EMPTY or _in_zone(forbidden, idx):
 				return false
 			var occ := workers.occupant[idx]
 			if occ != WorkerStore.NO_WORKER and occ != id:
@@ -220,6 +230,7 @@ static func _try_detour(
 	id: int,
 	width: int,
 	cell_count: int,
+	forbidden: PackedByteArray,
 ) -> bool:
 	var vertical := blocked_direction == FlowField.DIR_UP or blocked_direction == FlowField.DIR_DOWN
 	var c := workers.cell[id]
@@ -227,8 +238,8 @@ static func _try_detour(
 	var first := FlowField.DIR_LEFT if vertical else FlowField.DIR_UP
 	var second := FlowField.DIR_RIGHT if vertical else FlowField.DIR_DOWN
 	return (
-		_step_if_closer(tick, workers, terrain, field, id, neighbor(c, first, width, cell_count), own_dist)
-		or _step_if_closer(tick, workers, terrain, field, id, neighbor(c, second, width, cell_count), own_dist)
+		_step_if_closer(tick, workers, terrain, field, id, neighbor(c, first, width, cell_count), own_dist, forbidden)
+		or _step_if_closer(tick, workers, terrain, field, id, neighbor(c, second, width, cell_count), own_dist, forbidden)
 	)
 
 
@@ -240,8 +251,9 @@ static func _step_if_closer(
 	id: int,
 	n: int,
 	own_dist: int,
+	forbidden: PackedByteArray,
 ) -> bool:
-	if n < 0 or terrain[n] != Materials.EMPTY or workers.occupant[n] != WorkerStore.NO_WORKER:
+	if n < 0 or terrain[n] != Materials.EMPTY or _in_zone(forbidden, n) or workers.occupant[n] != WorkerStore.NO_WORKER:
 		return false
 	var d := field.dist[n]
 	if d < 0 or d >= own_dist:

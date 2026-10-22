@@ -37,10 +37,16 @@ func enqueue(origin_cell: int) -> void:
 
 
 ## Platziert so viele wartende Arbeiter wie möglich. Gibt die Anzahl neuer Arbeiter zurück.
-func process(world: WorldState, workers: WorkerStore, quotas: PackedInt32Array) -> int:
+## `forbidden` markiert Zellen, die durchlaufen, aber nicht belegt werden dürfen.
+func process(
+	world: WorldState,
+	workers: WorkerStore,
+	quotas: PackedInt32Array,
+	forbidden: PackedByteArray = PackedByteArray(),
+) -> int:
 	var spawned := 0
 	while _head < _queue.size():
-		var cell := find_free_cell(world, workers, _queue[_head])
+		var cell := find_free_cell(world, workers, _queue[_head], forbidden)
 		if cell < 0:
 			break
 		workers.add(cell, GroupQuotas.pick_group(workers.group_mass, quotas))
@@ -53,18 +59,26 @@ func process(world: WorldState, workers: WorkerStore, quotas: PackedInt32Array) 
 
 
 ## Nächste freie leere Zelle ab `origin` (inklusive) oder -1.
-func find_free_cell(world: WorldState, workers: WorkerStore, origin: int) -> int:
-	var found := find_free_cells(world, workers, origin, 1, _search_limit)
+func find_free_cell(
+	world: WorldState, workers: WorkerStore, origin: int, forbidden: PackedByteArray = PackedByteArray()
+) -> int:
+	var found := find_free_cells(world, workers, origin, 1, _search_limit, forbidden)
 	return -1 if found.is_empty() else found[0]
 
 
 ## Bis zu `want` freie leere Zellen in BFS-Reihenfolge (N, O, S, W) ab `origin`.
 ## `limit` begrenzt die Zahl untersuchter Zellen. Die Zellen werden nicht belegt.
+## Verbotene leere Zellen werden durchquert, aber nicht als Ergebnis genommen.
 func find_free_cells(
-	world: WorldState, workers: WorkerStore, origin: int, want: int, limit: int
+	world: WorldState,
+	workers: WorkerStore,
+	origin: int,
+	want: int,
+	limit: int,
+	forbidden: PackedByteArray = PackedByteArray(),
 ) -> PackedInt32Array:
 	var result := PackedInt32Array()
-	if world.cells[origin] != Materials.EMPTY:
+	if origin < 0 or origin >= world.cell_count() or world.cells[origin] != Materials.EMPTY:
 		return result
 	_stamp_generation += 1
 	_frontier.clear()
@@ -77,7 +91,7 @@ func find_free_cells(
 	while head < _frontier.size() and head < limit:
 		var c := _frontier[head]
 		head += 1
-		if workers.is_free(c):
+		if workers.is_free(c) and not _forbidden(forbidden, c):
 			result.append(c)
 			if result.size() == want:
 				return result
@@ -97,3 +111,7 @@ func _visit(cells: PackedByteArray, c: int) -> void:
 	if _stamp[c] != _stamp_generation and cells[c] == Materials.EMPTY:
 		_stamp[c] = _stamp_generation
 		_frontier.append(c)
+
+
+func _forbidden(forbidden: PackedByteArray, idx: int) -> bool:
+	return idx >= 0 and idx < forbidden.size() and forbidden[idx] == 1

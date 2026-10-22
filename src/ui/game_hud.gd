@@ -40,6 +40,7 @@ var _swarm_ids: Array[int] = []
 var _swarm_labels: Array[Label] = []
 var _upgrade_panel: PanelContainer
 var _upgrade_buttons: Array[Button] = []
+var _upgrade_kinds: Array[int] = []
 var _size_buttons: Array[Button] = []
 var _map: WorldMinimap
 
@@ -198,7 +199,7 @@ func _build_goals(layer: Control) -> void:
 	var mass := _objective(content, "100 Masse", UiTheme.ACCENT, 100)
 	_goal_mass_value = mass[0]
 	_goal_mass = mass[1]
-	var upgrades := _objective(content, "2 Upgrades", Color8(0x53, 0xC7, 0xFF), 2)
+	var upgrades := _objective(content, "2 Fähigkeiten", Color8(0x53, 0xC7, 0xFF), 2)
 	_goal_upgrade_value = upgrades[0]
 	_goal_upgrade = upgrades[1]
 	var mining := _objective(content, "90 % Welt abbauen", Materials.COLORS[Materials.SOFT], 90)
@@ -251,8 +252,8 @@ func _build_dock(layer: Control) -> void:
 		_size_buttons.append(button)
 
 	_divider(buttons)
-	var upgrades := _button(buttons, "UPGRADES", _toggle_upgrades)
-	upgrades.tooltip_text = "Verbesserungen mit Energie kaufen."
+	var upgrades := _button(buttons, "FÄHIGKEITEN", _toggle_upgrades)
+	upgrades.tooltip_text = "Fähigkeiten kaufen. Weitere Zweige bleiben in diesem Fenster."
 	_pause_button = _button(buttons, "PAUSE", _pause_game)
 	_pause_button.tooltip_text = "Leertaste pausiert ebenfalls."
 	_speed_button = _button(buttons, "1×", _cycle_speed)
@@ -269,28 +270,26 @@ func _build_upgrade_panel(layer: Control) -> void:
 	center.anchor_right = 1.0
 	center.anchor_top = 1.0
 	center.anchor_bottom = 1.0
-	center.offset_top = -326
+	center.offset_top = -470
 	center.offset_bottom = -94
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(center)
 
 	_upgrade_panel = _panel(center)
-	_upgrade_panel.custom_minimum_size = Vector2(346, 0)
+	_upgrade_panel.custom_minimum_size = Vector2(360, 0)
 	var content := _column(_upgrade_panel, 7)
 	var head := HBoxContainer.new()
 	content.add_child(head)
-	var caption := _label(head, "VERBESSERUNGEN", 16, UiTheme.ACCENT)
+	var caption := _label(head, "FÄHIGKEITEN", 16, UiTheme.ACCENT)
 	caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_button(head, "SCHLIESSEN", _toggle_upgrades)
-	for kind in [
-		Upgrades.KIND_SPEED,
-		Upgrades.KIND_DIG,
-		Upgrades.KIND_FUSION2,
-		Upgrades.KIND_FUSION3,
-	]:
-		var button := _button(content, "", _buy.bind(kind))
-		button.custom_minimum_size = Vector2(310, 34)
-		_upgrade_buttons.append(button)
+	_label(content, "KERN", 12, UiTheme.MUTED)
+	_add_upgrade_button(content, Upgrades.KIND_CORE, 0)
+	_label(content, "SCHWARM", 12, UiTheme.MUTED)
+	_add_upgrade_button(content, Upgrades.KIND_SPEED, 0)
+	_add_upgrade_button(content, Upgrades.KIND_DIG, 0)
+	_add_upgrade_button(content, Upgrades.KIND_FUSION2, 0)
+	_add_upgrade_button(content, Upgrades.KIND_FUSION3, 22)
 	_upgrade_panel.visible = false
 
 
@@ -451,9 +450,28 @@ func _toggle_upgrades() -> void:
 	_upgrade_panel.visible = not _upgrade_panel.visible
 
 
+func _add_upgrade_button(parent: Node, kind: int, indent: int) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 0)
+	parent.add_child(row)
+	if indent > 0:
+		var spacer := Control.new()
+		spacer.custom_minimum_size = Vector2(indent, 0)
+		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(spacer)
+	var button := _button(row, "", _buy.bind(kind))
+	button.custom_minimum_size = Vector2(310 - indent, 34)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_upgrade_buttons.append(button)
+	_upgrade_kinds.append(kind)
+
+
 func _buy(kind: int) -> void:
 	if sim.buy(kind):
-		_notice("Upgrade gekauft.")
+		if kind == Upgrades.KIND_CORE:
+			_notice("Energiekern erweitert. Arbeiter betreten die Fläche nicht.")
+		else:
+			_notice("Fähigkeit gekauft.")
 	else:
 		_notice("Nicht verfügbar oder zu wenig Energie.")
 	refresh()
@@ -461,22 +479,37 @@ func _buy(kind: int) -> void:
 
 func _refresh_upgrades() -> void:
 	var u := sim.upgrades
-	var labels := [
-		"TEMPO   Stufe %d    •    %d Energie" % [u.speed_level + 1, u.speed_cost()],
-		"ABBAU   Stufe %d    •    %d Energie" % [u.dig_level + 1, u.dig_cost()],
-		"VERSCHMELZUNG 2×2    •    %d Energie" % u.fusion2_cost(),
-		"VERSCHMELZUNG 3×3    •    %d Energie" % u.fusion3_cost(),
-	]
-	var cost := [u.speed_cost(), u.dig_cost(), u.fusion2_cost(), u.fusion3_cost()]
 	for i in _upgrade_buttons.size():
 		var button := _upgrade_buttons[i]
-		button.text = labels[i]
-		var locked := (i == 2 and u.fusion2) or (i == 3 and (u.fusion3 or not u.fusion2))
-		button.disabled = locked or u.energy < cost[i]
-		if i == 2 and u.fusion2:
-			button.text = "VERSCHMELZUNG 2×2   FREIGESCHALTET"
-		if i == 3 and u.fusion3:
-			button.text = "VERSCHMELZUNG 3×3   FREIGESCHALTET"
+		var kind := _upgrade_kinds[i]
+		var cost := -1
+		var locked := false
+		match kind:
+			Upgrades.KIND_CORE:
+				cost = u.core_cost()
+				locked = cost < 0
+				if locked:
+					button.text = "KERN   Stufe %d    VOLL" % u.core_level
+				else:
+					button.text = "KERN   Stufe %d    •    %d Energie" % [u.core_level + 1, cost]
+			Upgrades.KIND_SPEED:
+				cost = u.speed_cost()
+				button.text = "TEMPO   Stufe %d    •    %d Energie" % [u.speed_level + 1, cost]
+			Upgrades.KIND_DIG:
+				cost = u.dig_cost()
+				button.text = "ABBAU   Stufe %d    •    %d Energie" % [u.dig_level + 1, cost]
+			Upgrades.KIND_FUSION2:
+				cost = u.fusion2_cost()
+				locked = u.fusion2
+				button.text = "VERSCHMELZUNG 2×2   FREIGESCHALTET" if locked else "VERSCHMELZUNG 2×2    •    %d Energie" % cost
+			Upgrades.KIND_FUSION3:
+				cost = u.fusion3_cost()
+				locked = u.fusion3 or not u.fusion2
+				if u.fusion3:
+					button.text = "VERSCHMELZUNG 3×3   FREIGESCHALTET"
+				else:
+					button.text = "VERSCHMELZUNG 3×3    •    %d Energie" % cost
+		button.disabled = locked or cost < 0 or u.energy < cost
 
 
 func _refresh_selection() -> void:

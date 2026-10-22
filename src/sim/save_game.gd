@@ -15,6 +15,7 @@ static func snapshot(sim: Simulation) -> Dictionary:
 			"size": sim.workers.size[id],
 			"state": sim.workers.state[id],
 			"target": sim.workers.target[id],
+			"moved": sim.workers.last_move_tick[id],
 		})
 	var groups: Array[Dictionary] = []
 	for g in sim.quotas.size():
@@ -49,6 +50,8 @@ static func snapshot(sim: Simulation) -> Dictionary:
 		"progress": sim.world.progress.duplicate(),
 		"progress_frac": sim.world.progress_frac.duplicate(),
 		"mined": sim.world.mined_count,
+		"opened": sim.world.opened_count,
+		"core_level": sim.upgrades.core_level,
 		"units": units,
 		"groups": groups,
 		"queue": sim.spawner.export_queue(),
@@ -106,6 +109,7 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 		world.progress[idx] = progress[idx]
 		world.progress_frac[idx] = frac[idx]
 	world.mined_count = int(data.get("mined", 0))
+	world.opened_count = int(data.get("opened", 0))
 	var sim := Simulation.from_world(config, world, PackedInt32Array(), false)
 	if sim == null:
 		return null
@@ -147,6 +151,7 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 			id = sim.workers.add_sized(int(unit["cell"]), int(unit["group"]), int(unit.get("faction", 0)), unit_size)
 		sim.workers.state[id] = int(unit.get("state", 0))
 		sim.workers.target[id] = int(unit.get("target", -1))
+		sim.workers.last_move_tick[id] = int(unit.get("moved", -1))
 	var queue: PackedInt32Array = data.get("queue", PackedInt32Array())
 	sim.spawner.import_queue(queue)
 	sim.upgrades.energy = int(data.get("energy", 0))
@@ -155,6 +160,9 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 	sim.upgrades.fusion2 = bool(data.get("fusion2", false))
 	sim.upgrades.fusion3 = bool(data.get("fusion3", false))
 	sim.upgrades.purchased = int(data.get("purchased", 0))
+	sim.upgrades.core_level = int(data.get("core_level", 0))
+	if sim.upgrades.core_level > 0 and not sim._bind_core(sim.upgrades.core_level, false):
+		return null
 	if not sim.check_invariants().is_empty():
 		return null
 	return sim

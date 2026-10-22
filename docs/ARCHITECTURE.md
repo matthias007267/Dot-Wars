@@ -42,9 +42,10 @@ docs/             verbindliche Dokumentation
 | `MovementSystem` | orthogonale Schritte |
 | `MiningSystem` | Zielwahl und Fortschritt an der Zelle; Abschluss erzeugt Energie-Dots nach Härte |
 | `EnergyStore` | Energie-Dots auf dem Weg zum Kern, Arbeiter haben Vorrang |
+| `CoreZone` | freie Fläche um den Kern, Maske und Aushub ohne Abbau |
 | `FusionSystem` | Wunschgröße, Masse bleibt erhalten |
 | `SacrificeSystem` | leere Nachbarzellen des Energiekerns als Ablage |
-| `Upgrades` | Energie, Kosten, Tempo, Abbau, Verschmelzungsstufen |
+| `Upgrades` | Energie, Kosten, Tempo, Abbau, Verschmelzung, Kernfläche |
 | `SaveGame` | Speicherstand Version 2; Version 1 wird abgelehnt |
 | `SpawnSystem` | gekaufte Arbeiter, Warteschlange am Kern |
 | `GroupQuotas` | Quotenprüfung und Defizitverfahren |
@@ -81,7 +82,7 @@ Bis zu 32 Materialänderungen korrigieren das letzte veröffentlichte Feld. Grö
 
 Abbau schreibt keine Arbeiter in die Warteschlange. Ein gekaufter Arbeiter ist ein FIFO-Eintrag an einer Zelle beim Energiekern. Ist der Ort belegt, sucht eine BFS in der Reihenfolge Nord, Ost, Süd, West die nächste freie leere Zelle. Findet sie keine, bleibt der Eintrag liegen. Die Gruppe wählt `GroupQuotas.pick_group`: kleinster Quotient Anzahl/Quote, bei Gleichstand die größere Quote, danach der kleinere Index. Quote 0 wird nie gewählt.
 
-Ein abgebautes Feld der Härte 1, 3 oder 8 legt ebenso viele Energie-Dots auf diese Zelle. Sie laufen über ein gemeinsames Distanzfeld zu den leeren Nachbarn des Kerns und zählen erst dort. Mehrere Energie-Dots teilen eine Zelle. Ein Energie-Dot betritt keine Zelle, auf der ein Arbeiter steht. Das Distanzfeld wird bei Tunneländerungen höchstens alle zehn Takte neu gerechnet.
+Ein abgebautes Feld der Härte 1, 3 oder 8 legt ebenso viele Energie-Dots auf diese Zelle. Sie laufen über ein gemeinsames Distanzfeld zu den leeren Nachbarn des Kerns und zählen erst dort. Ab Kernstufe 1 ist die ganze freie Kernfläche die Ablage. Mehrere Energie-Dots teilen eine Zelle. Ein Energie-Dot betritt keine Zelle, auf der ein Arbeiter steht. Das Distanzfeld wird bei Tunneländerungen höchstens alle zehn Takte neu gerechnet. `CoreZone.plan` beschreibt Maske und Aushub. `Simulation._buy_core` setzt Arbeiter vorher nach außen, legt den Ring mit `open_without_mining` leer und sperrt die Maske in Zielsuche, Bewegung und Entstehung.
 
 Masseninvariante: lebende Masse plus wartende Käufe = Startmasse plus gekaufte Arbeiter. Energieinvariante: erzeugt = geliefert + unterwegs. `Simulation.check_invariants()` prüft beides zusammen mit der Belegung.
 
@@ -93,7 +94,7 @@ Masseninvariante: lebende Masse plus wartende Käufe = Startmasse plus gekaufte 
 
 `EnergyRenderer` zeichnet jede Zelle mit mindestens einem Energie-Dot als `#53C7FF`. `WorkerRenderer` liegt darüber und schreibt die Arbeiter in eine zweite RGBA-Textur. Alle Gruppenfarben in `Simulation.GROUP_PALETTE` sind Gelb `#FFE45E`. Die Textur wird neu gefüllt, wenn ein neuer Simulationstakt gezeichnet wird. Es gibt keine Node pro Dot. Die Energiekernzelle wird beim Malen `#C77AFF`, ohne den Materialwert zu ändern.
 
-Die Hauptszene erzeugt die Simulation, zeichnet Welt und Arbeiter und treibt `TickClock` mit 20 Hz. `GameHud` bündelt Spielerbefehle für alle arbeitenden internen Farbgruppen und zeigt die Schwarmfarben. Abbau zieht ein Gebiet auf, Bewegung setzt per Linksklick einen gemeinsamen Sammelpunkt; eine Teilgruppe übernimmt auf Anforderung die Opferung. `OrderOverlay` zeichnet diese Aufträge. Quotenverwaltung existiert nur noch intern. `WorldMinimap` zeigt die vorhandene Welttextur und lässt die Kamera zum angeklickten Punkt springen. Die Leertaste schaltet die Pause. Eine ungültige Konfiguration oder eine verletzte Startinvariante beendet das Programm mit Code 1.
+Die Hauptszene erzeugt die Simulation, zeichnet Welt und Arbeiter und treibt `TickClock` mit 20 Hz. `GameHud` bündelt Spielerbefehle für alle arbeitenden internen Farbgruppen und zeigt die Schwarmfarben. Die Leiste hat einen Knopf für das Fähigkeiten-Fenster. Die Knoten stehen in diesem Fenster, gruppiert nach Kern und Schwarm. Abbau zieht ein Gebiet auf, Bewegung setzt per Linksklick einen gemeinsamen Sammelpunkt; eine Teilgruppe übernimmt auf Anforderung die Opferung. `OrderOverlay` zeichnet diese Aufträge. Quotenverwaltung existiert nur noch intern. `WorldMinimap` zeigt die vorhandene Welttextur und lässt die Kamera zum angeklickten Punkt springen. Die Leertaste schaltet die Pause. Eine ungültige Konfiguration oder eine verletzte Startinvariante beendet das Programm mit Code 1.
 
 ## Tests
 
