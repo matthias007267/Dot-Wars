@@ -148,7 +148,6 @@ func refresh() -> void:
 	_pause_button.text = "WEITER" if clock.paused else "PAUSE"
 	_speed_button.text = "%d×" % clock.speed
 	_buy_worker_button.disabled = sim.upgrades.energy < Simulation.WORKER_COST
-	_refresh_swarm()
 
 	_refresh_selection()
 	_refresh_upgrades()
@@ -176,7 +175,6 @@ func _build_stats(layer: Control) -> void:
 
 	_message = _label(content, "Ziehen markiert den Abbau. Bewegen setzt einen Punkt im Tunnel.", 12, UiTheme.MUTED)
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_build_swarm(content)
 
 
 func _build_goals(layer: Control) -> void:
