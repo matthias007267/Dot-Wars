@@ -71,12 +71,23 @@ func test_chunk_repaint_leaves_other_chunks_unchanged() -> void:
 	world.set_material(changed, Materials.HARD)
 	WorldRenderer.paint_rect(bytes, world, palette, world.chunk_rect(1))
 	check_eq(bytes[untouched * 4], before, "anderer Chunk bleibt")
-	check_eq(bytes[changed * 4], palette[Materials.HARD * 4], "geänderte Zelle")
-	check_eq(bytes[changed * 4 + 2], palette[Materials.HARD * 4 + 2], "Blaukanal")
+	var variance := WorldRenderer.material_variation(changed, Materials.HARD)
+	check_eq(bytes[changed * 4], clampi(int(palette[Materials.HARD * 4]) + variance, 0, 255), "geänderte Zelle")
+	check_eq(bytes[changed * 4 + 2], clampi(int(palette[Materials.HARD * 4 + 2]) + variance, 0, 255), "Blaukanal")
 
 
 func _check_pixel(image: Image, cell: Vector2i, material: int, label: String) -> void:
 	var pixel := image.get_pixel(cell.x, cell.y)
 	var expected := Materials.COLORS[material]
 	var distance := absf(pixel.r - expected.r) + absf(pixel.g - expected.g) + absf(pixel.b - expected.b)
-	check(distance < 0.02, "%s Farbe (Abstand %.3f)" % [label, distance])
+	var tolerance := 0.085 if Materials.is_mineable(material) else 0.02
+	check(distance < tolerance, "%s Farbe (Abstand %.3f)" % [label, distance])
+
+
+func test_material_variation_is_bounded_and_reproducible() -> void:
+	for material in [Materials.SOFT, Materials.MEDIUM, Materials.HARD]:
+		for index in [0, 17, 1024, 65535, 999999]:
+			var a := WorldRenderer.material_variation(index, material)
+			var b := WorldRenderer.material_variation(index, material)
+			check_eq(a, b, "Zellvariation deterministisch")
+			check(a >= -6 and a <= 6, "Variation bleibt subtil")
