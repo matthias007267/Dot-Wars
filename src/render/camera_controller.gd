@@ -87,6 +87,12 @@ func _zoom_at(screen: Vector2, factor: float) -> void:
 	_clamp_position()
 
 
+## Verschiebt die Kamera durch die Minimap, mit denselben Weltgrenzen wie bei WASD.
+func focus_world(target: Vector2) -> void:
+	position = target
+	_clamp_position()
+
+
 func _clamp_position() -> void:
 	var viewport := get_viewport_rect().size
 	var half := viewport / zoom.x * 0.5
