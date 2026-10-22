@@ -2,7 +2,7 @@ class_name SaveGame
 extends RefCounted
 ## Versionierter Speicherstand. Beschädigte Daten ergeben null, keinen Absturz.
 
-const VERSION := 1
+const VERSION := 2
 
 
 static func snapshot(sim: Simulation) -> Dictionary:
@@ -36,6 +36,10 @@ static func snapshot(sim: Simulation) -> Dictionary:
 		"tick": sim.tick_count,
 		"initial_mass": sim.initial_mass,
 		"sacrificed": sim.sacrificed_mass,
+		"purchased_workers": sim.purchased_workers,
+		"energy_cells": sim.energy_dots.cells.duplicate(),
+		"energy_generated": sim.energy_dots.generated,
+		"energy_delivered": sim.energy_dots.delivered,
 		"peak_mass": sim.peak_mass,
 		"max_units": sim.max_units,
 		"won": sim.won,
@@ -107,6 +111,10 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 		return null
 	sim.initial_mass = int(data.get("initial_mass", 0))
 	sim.sacrificed_mass = int(data.get("sacrificed", 0))
+	sim.purchased_workers = int(data.get("purchased_workers", 0))
+	sim.energy_dots.cells = data.get("energy_cells", PackedInt32Array()).duplicate()
+	sim.energy_dots.generated = int(data.get("energy_generated", 0))
+	sim.energy_dots.delivered = int(data.get("energy_delivered", 0))
 	sim.peak_mass = int(data.get("peak_mass", 0))
 	sim.max_units = int(data.get("max_units", 0))
 	sim.won = bool(data.get("won", false))
@@ -121,7 +129,7 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 		sim.quotas[g] = int(group.get("quota", 0))
 		sim.group_open[g] = int(group.get("open", 1))
 		sim.desired_size[g] = int(group.get("desired", 1))
-		sim.sacrifice_on[g] = int(group.get("sacrifice", 0))
+		sim.sacrifice_on[g] = 0
 		var rects: Array = group.get("rects", [])
 		for rect in rects:
 			sim.areas.assign_rect(g, rect)
