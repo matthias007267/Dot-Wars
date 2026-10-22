@@ -47,6 +47,11 @@ func _draw() -> void:
 		_draw_grid()
 
 
+## Gibt der Minimap die bereits vorhandene, aktualisierte Welttextur.
+func current_texture() -> Texture2D:
+	return _texture
+
+
 static func palette_bytes() -> PackedByteArray:
 	var bytes := PackedByteArray()
 	bytes.resize(Materials.COUNT * 4)
