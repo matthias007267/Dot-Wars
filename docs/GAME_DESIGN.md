@@ -52,7 +52,7 @@ Zustände bleiben wenige und klar, zum Beispiel Warten, Bewegen, Abbauen, Blocki
 * Neue Arbeiter entstehen nie auf einer ungültigen Zelle.
 * Der Spieler setzt nur Auftrag und Zielgebiet.
 
-Die Wegfindung gilt für den Schwarm gemeinsam: Distanzfelder oder Flow-Fields, zwischengespeichert, bei Tunneländerungen gezielt aktualisiert, über mehrere Takte verteilt. Eine einzelne Zellenänderung löst keine vollständige Neuberechnung der ganzen Welt aus, sobald die Zielphase das umsetzt. Der jetzige Prototyp baut das Feld einer Gruppe bei einer Weltänderung noch neu auf. Das ist eine bekannte Abweichung, kein Soll.
+Die Wegfindung gilt für den Schwarm gemeinsam: Distanzfelder oder Flow-Fields, zwischengespeichert, bei Tunneländerungen gezielt aktualisiert, über mehrere Takte verteilt. Bis zu 32 geänderte Zellen korrigieren das bestehende Feld. Ein neues Gebiet, ein neues Laufziel oder eine größere Änderung berechnet es neu. Die Grenzen stehen in D-020.
 
 Unerreichbare Ziele lassen die Arbeiter warten. Es wird kein Weg durch Material erfunden. Ein Feld wird nur einmal abgebaut. Gleichzeitige Versuche erzeugen die Ressource nicht doppelt. Fortschritt liegt an der Zelle. Abgebaute Zellen werden begehbar.
 

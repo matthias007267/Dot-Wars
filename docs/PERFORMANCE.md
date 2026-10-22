@@ -40,10 +40,9 @@ Der Engpass ist die Bewegung, nicht der Abbau. Fast alle Arbeiter stehen sich im
 Mögliche spätere Hebel, ohne die Spielregeln zu ändern:
 
 * Blockierte Arbeiter seltener anfassen.
-* Das Flow-Field nur in der betroffenen Region neu berechnen.
 * Die Bewegungsschleife in eine GDExtension verlegen, wenn das Profiling das nach den strukturellen Änderungen noch zeigt.
 
-Diese Hebel gehören nicht zu Phase 1 und sind hier nicht umgesetzt.
+Die regionale Korrektur des Flow-Fields ist umgesetzt und unten gemessen. Die beiden übrigen Hebel sind nicht umgesetzt.
 
 
 ## Darstellung vom 22. Oktober 2026
@@ -111,3 +110,14 @@ Kein Takt über 50 ms. Das 10-ms-Ziel bei 10.000 Arbeitern ist nicht erreicht. D
 Stresstest, 40 Takte, 50.000 Arbeiter, Welt 256: Ø 87,4 ms, p95 91,0 ms, Maximum 97,0 ms, alle 40 Takte über 50 ms. Bewegung 77,6 ms. Am Ende 50.061 Einheiten, Invarianten ohne Fehler, RSS 94 MB. 50.000 Einheiten laufen, aber nicht mit 20 Takten pro Sekunde.
 
 Welt 1.000 × 1.000, 1.000 Arbeiter, 20 Takte: Ø 1,36 ms, weil in diesem kurzen Fenster kein Tunnel entstand und die Zielsuche ihr Budget kaum anrührte. Eine vollständige Feldberechnung dauerte 458 ms. Erzeugung der Welt 2,2 s, statischer Speicher am Ende 56 MB, RSS 126 MB. Invarianten ohne Fehler. Abgebaut wurde in den 20 Takten nichts, weil der Benchmark auf dieser Größe das Gebiet nicht rechtzeitig in Reichweite hatte. Der Lauf belegt das Anlegen und die leeren Takte, nicht eine wachsende Million-Zellen-Partie.
+
+## Lokale Feldkorrektur vom 22. Oktober 2026
+
+Dieselbe Maschine, Seed 1337, eine Gruppe, die linke Hälfte als Abbaugebiet markiert, kein Arbeiter. Drei vollständige Berechnungen, danach eine abgebaute Randzelle neben einer leeren Zelle. Die Korrektur lief in einem Aufruf zu Ende.
+
+| Welt | Vollständige Berechnung, Median | Eine Randzelle | Geänderte Distanzen | Pfad |
+|---:|---:|---:|---:|---|
+| 256 × 256 | 29,8 ms | 0,08 ms | 2 | lokale Korrektur |
+| 1.000 × 1.000 | 455 ms | 0,72 ms | 2 | lokale Korrektur |
+
+Das ist eine einzelne Randzelle, kein großer aufgerissener Tunnel. Mehr als 32 Zellen, ein neues Gebiet, ein neues Laufziel oder ein Abhängigkeitskegel über 8192 Zellen bauen das Feld weiterhin vollständig neu.

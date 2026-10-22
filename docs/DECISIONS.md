@@ -134,12 +134,18 @@ Datum: 22. Oktober 2026.
 
 Formatversion 1, geschrieben mit `var_to_bytes`. Manuell unter `user://slot.dw` (F5, F9), automatisch alle 600 Simulationstakte unter `user://autosave.dw`. Eine falsche Version oder ein verletzter Zustand wird abgelehnt. Nach dem Laden setzt dieselbe Befehlsfolge die Simulation gleich fort.
 
+### D-020 Lokale Korrektur der Zielsuche
+
+Datum: 22. Oktober 2026.
+
+Bis zu 32 Materialänderungen seit dem letzten veröffentlichten Feld korrigieren dieses Feld an Ort und Stelle. Verlorene Abbaupositionen nehmen die Zellen mit, deren nächster Schritt auf sie zulief. Geöffnete Zellen und diese Nachbarschaft werden neu angesetzt; ein kürzerer Weg ersetzt einen längeren. Das Ergebnis bleibt unsichtbar, bis die budgetierte Ausbreitung fertig ist. Öffnet sich währenddessen eine weitere Zelle, beginnt die Korrektur erneut beim letzten veröffentlichten Feld, solange zusammen höchstens 32 Änderungen betroffen sind.
+
+Vollständig neu aufgebaut wird das Feld beim ersten Mal, bei einem neuen Gebiet, bei einem neuen Laufziel, ab 33 Änderungen, wenn das Änderungsprotokoll verworfen wird, und wenn der Abhängigkeitskegel 8192 Zellen überschreitet. Der letzte Fall begrenzt die Arbeit in einem Takt. Ein leeres Abbaurechteck wird beim Veröffentlichen entfernt und löst keinen Neuaufbau aus.
+
+Gemessen am 22. Oktober 2026, Seed 1337, markierte linke Hälfte, eine abgebaute Randzelle neben einer leeren Zelle: 0,08 ms auf der 256er-Welt und 0,72 ms auf der 1.000er-Welt. Dieselbe vollständige Berechnung dauerte im Median 29,8 ms bzw. 455 ms. Geändert haben sich zwei Distanzen. Der Lauf nahm die lokale Korrektur, nicht den Neuaufbau.
+
 ## Offen
 
 ### O-002 Weitere Fraktionen
 
 Die Fraktions-ID liegt neben der Gruppe. Neue Arbeiter bekommen Fraktion 0, und die Ansicht verwendet nur diese Fraktion. Mehrere Fraktionen, Besitz und getrennte Aufträge je Fraktion sind nicht umgesetzt.
-
-### O-004 Neuaufbau der Zielsuche
-
-Der Prototyp plant bei jeder Weltänderung und bei einem neuen Laufziel einen vollständigen Neuaufbau des Flow-Fields der Gruppe. Fortschritt ohne Tunneländerung löst ihn nicht aus. Eine vollständige Berechnung der 256er-Welt liegt bei etwa 30 bis 40 ms und wird über das Taktbudget verteilt. Auf der 1.000er-Welt wurde eine vollständige Berechnung mit 458 ms gemessen. Der Takt selbst bleibt dadurch kurz, solange sich die Tunnel nicht ändern. Eine gezielte Aktualisierung nur um den neuen Tunnel ist nicht umgesetzt: der gemessene Engpass bei 10.000 Arbeitern ist die Bewegung, nicht die Zielsuche.

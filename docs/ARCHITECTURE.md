@@ -72,7 +72,7 @@ Pro Gruppe gibt es ein Flow-Field. Quellen sind leere Zellen neben festem, marki
 
 Das Feld ist ein Hinweis. Bewegung und Abbau prüfen den aktuellen Weltzustand. Zellen ohne Verbindung bleiben ohne Richtung, der Arbeiter wartet.
 
-Bekannte Abweichung von der Zielarchitektur: eine Weltänderung oder ein neues Laufziel setzt den Neuaufbau des ganzen Feldes an, nicht nur der betroffenen Region. Das bleibt offen.
+Bis zu 32 Materialänderungen korrigieren das letzte veröffentlichte Feld. Größere Änderungen, ein neues Gebiet und ein neues Laufziel bauen es vollständig neu auf. Die Grenze und der Abhängigkeitskegel stehen in D-020.
 
 ## Entstehung
 

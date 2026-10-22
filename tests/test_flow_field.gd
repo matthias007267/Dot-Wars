@@ -140,6 +140,135 @@ func test_area_change_during_build_restarts_it() -> void:
 	check_eq(field.dist.count(FlowField.UNREACHABLE), field.dist.size(), "ohne Gebiet gibt es keine Quellen")
 
 
+func test_one_opened_cell_matches_a_fresh_field() -> void:
+	var s := _scenario()
+	var world: WorldState = s["world"]
+	var areas: DigAreas = s["areas"]
+	var field := FlowField.new(world, areas, 0)
+	field.rebuild_blocking()
+	var opened := _marked_solids(world, areas, 6)
+	var rebuilds := field.full_rebuilds
+	var local := field.patches
+	for cell in opened:
+		world.mine_cell(cell)
+		field.step(1 << 30)
+		var fresh := FlowField.new(world, areas, 0)
+		fresh.rebuild_blocking()
+		check_eq(field.dist, fresh.dist, "lokale Korrektur, Zelle %d" % cell)
+		var walked := 0
+		for start in world.cell_count():
+			if field.dist[start] <= 0:
+				continue
+			var step := MovementSystem.neighbor(start, field.dir[start], world.width, world.cell_count())
+			check(step >= 0, "Richtung bleibt in der Welt")
+			check_eq(field.dist[step], field.dist[start] - 1, "Richtung senkt die Distanz")
+			walked += 1
+			if walked == 30:
+				break
+	check_eq(field.patches, local + opened.size(), "jede einzelne Zelle bleibt eine lokale Korrektur")
+	check_eq(field.full_rebuilds, rebuilds, "eine Zelle startet keinen vollständigen Neuaufbau")
+	check(field.generation > 1, "jede Öffnung veröffentlicht ein Feld")
+
+
+func test_patch_stays_local_when_another_cell_opens_midway() -> void:
+	var s := _scenario()
+	var world: WorldState = s["world"]
+	var areas: DigAreas = s["areas"]
+	var field := FlowField.new(world, areas, 0)
+	field.rebuild_blocking()
+	var opened := _marked_solids(world, areas, 2)
+	var rebuilds := field.full_rebuilds
+	var before := field.dist.duplicate()
+	world.mine_cell(opened[0])
+	field.step(0)
+	check(field.is_building(), "ohne Budget bleibt die Korrektur unsichtbar")
+	check_eq(field.generation, 1, "halbfertige Korrektur ist nicht veröffentlicht")
+	check_eq(field.dist, before, "veröffentlichtes Feld bleibt das alte")
+	world.mine_cell(opened[1])
+	field.step(1 << 30)
+	check(not field.is_building(), "Korrektur schließt ab")
+	check_eq(field.full_rebuilds, rebuilds, "weitere Zelle während der Korrektur bleibt lokal")
+	check_eq(field.patches, 1, "beide Zellen landen in einer Korrektur")
+	var fresh := FlowField.new(world, areas, 0)
+	fresh.rebuild_blocking()
+	check_eq(field.dist, fresh.dist, "zwei Zellen entsprechen einem frischen Feld")
+
+
+func test_several_opened_cells_patch_in_one_step() -> void:
+	var s := _scenario()
+	var world: WorldState = s["world"]
+	var areas: DigAreas = s["areas"]
+	var field := FlowField.new(world, areas, 0)
+	field.rebuild_blocking()
+	var opened := _marked_solids(world, areas, 8)
+	var rebuilds := field.full_rebuilds
+	for cell in opened:
+		world.mine_cell(cell)
+	field.step(1 << 30)
+	check_eq(field.patches, 1, "acht Zellen sind eine Korrektur")
+	check_eq(field.full_rebuilds, rebuilds, "acht Zellen bleiben unter der Grenze")
+	var fresh := FlowField.new(world, areas, 0)
+	fresh.rebuild_blocking()
+	check_eq(field.dist, fresh.dist, "Sammelkorrektur entspricht einem frischen Feld")
+
+
+func test_many_opened_cells_fall_back_to_a_full_rebuild() -> void:
+	var s := _scenario()
+	var world: WorldState = s["world"]
+	var areas: DigAreas = s["areas"]
+	var field := FlowField.new(world, areas, 0)
+	field.rebuild_blocking()
+	var opened := _marked_solids(world, areas, FlowField.PATCH_CELL_LIMIT + 1)
+	check_eq(opened.size(), FlowField.PATCH_CELL_LIMIT + 1, "genug abbaubare Zellen")
+	var rebuilds := field.full_rebuilds
+	for cell in opened:
+		world.mine_cell(cell)
+	field.step(1 << 30)
+	check_eq(field.full_rebuilds, rebuilds + 1, "über der Grenze wird vollständig neu aufgebaut")
+	check_eq(field.patches, 0, "der Fallback ist keine lokale Korrektur")
+	var fresh := FlowField.new(world, areas, 0)
+	fresh.rebuild_blocking()
+	check_eq(field.dist, fresh.dist, "Fallback entspricht einem frischen Feld")
+
+
+func test_empty_rect_is_dropped_by_a_patch() -> void:
+	var s := _scenario()
+	var world: WorldState = s["world"]
+	var areas: DigAreas = s["areas"]
+	var lone := -1
+	for c in world.cell_count():
+		if world.cells[c] != Materials.EMPTY and not areas.is_marked(0, c):
+			lone = c
+			break
+	check(lone >= 0, "einzelne feste Zelle außerhalb der Gebiete")
+	var x := lone % world.width
+	var y := lone / world.width
+	areas.assign_rect(0, Rect2i(x, y, 1, 1))
+	var field := FlowField.new(world, areas, 0)
+	field.rebuild_blocking()
+	var rects: Array[Rect2i] = areas.rects[0]
+	var before := rects.size()
+	var rebuilds := field.full_rebuilds
+	world.mine_cell(lone)
+	field.step(1 << 30)
+	check_eq(rects.size(), before - 1, "leeres Gebiet verschwindet ohne Neuaufbau")
+	check_eq(field.full_rebuilds, rebuilds, "das Leeren eines Gebiets bleibt lokal")
+	check_eq(field.patches, 1, "das Leeren zählt als Korrektur")
+	var fresh := FlowField.new(world, areas, 0)
+	fresh.rebuild_blocking()
+	check_eq(field.dist, fresh.dist, "nach dem Entfernen stimmen die Distanzen")
+
+
+func _marked_solids(world: WorldState, areas: DigAreas, limit: int) -> PackedInt32Array:
+	var opened := PackedInt32Array()
+	for c in world.cell_count():
+		if Materials.is_mineable(world.cells[c]) and areas.is_marked(0, c):
+			opened.append(c)
+			if opened.size() == limit:
+				break
+	return opened
+
+
 func test_groups_have_independent_fields() -> void:
 	var s := _scenario()
 	var areas: DigAreas = s["areas"]

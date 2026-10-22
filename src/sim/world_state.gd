@@ -16,6 +16,12 @@ var progress_frac := PackedInt32Array()
 
 ## Zählt jede Änderung an `cells`. Abgeleitete Daten erkennen damit Veralterung.
 var revision: int = 0
+## Indizes der Zellen, deren Material sich geändert hat, in derselben Reihenfolge.
+var change_log := PackedInt32Array()
+## Material vor der Änderung, gleiche Indizes wie `change_log`.
+var change_from := PackedInt32Array()
+## Steigt, wenn das Protokoll verworfen wird. Wer es liest, muss dann neu aufbauen.
+var change_epoch: int = 0
 var solid_count: int = 0
 ## Unzerstörbare Zellen. Sie zählen zu solid_count, aber nicht zum abbaubaren Bestand.
 var indestructible_count: int = 0
@@ -79,6 +85,12 @@ func set_material(idx: int, material: int) -> void:
 	progress[idx] = 0
 	progress_frac[idx] = 0
 	revision += 1
+	change_log.append(idx)
+	change_from.append(old)
+	if change_log.size() > 100000:
+		change_log = PackedInt32Array()
+		change_from = PackedInt32Array()
+		change_epoch += 1
 	_mark_dirty(idx)
 
 
