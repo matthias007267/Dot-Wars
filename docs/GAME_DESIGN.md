@@ -4,7 +4,7 @@ Verbindliche Regeln stehen im Präsens. Vorläufige Balancingwerte und offene Pu
 
 ## Spielidee
 
-DOT WARS ist ein minimalistisches Echtzeit-Strategiespiel. Die Welt ist ein quadratisches Raster aus farbigen Punkten. Der Spieler steuert keine einzelnen Arbeiter. Er vergibt globale Abbau- und Bewegungsaufträge; Farbgruppen und ihre Quoten bleiben interne Simulationsmechanismen. Arbeiter bewegen sich selbst, bauen angrenzendes Material ab, und jedes vollständig abgebaute Feld erzeugt genau einen neuen Basis-Arbeiter.
+DOT WARS ist ein minimalistisches Echtzeit-Strategiespiel. Die Welt ist ein quadratisches Raster aus farbigen Punkten. Der Spieler steuert keine einzelnen Arbeiter. Er vergibt globale Abbau- und Bewegungsaufträge; Farbgruppen und ihre Quoten bleiben interne Simulationsmechanismen. Arbeiter bewegen sich selbst und bauen angrenzendes Material ab. Jedes vollständig abgebaute Feld erzeugt Energie-Dots in Höhe seiner Härte. Neue Arbeiter entstehen ausschließlich durch Kauf am Energiekern.
 
 Zielplattform ist Windows über Steam. Der erste verbindliche Umfang ist Singleplayer mit einer Fraktion und einer prozeduralen Welt pro Durchlauf. KI-Gegner, Kampf und Multiplayer gehören nicht zu den zehn Phasen, solange sie nicht ausdrücklich Teil einer Phase sind.
 
@@ -51,26 +51,27 @@ Zustände bleiben wenige und klar, zum Beispiel Warten, Bewegen, Abbauen, Blocki
 * Kein Weg durch Material. Tunnel entstehen durch Abbau.
 * Abbau nur von einer orthogonal benachbarten, begehbaren Zelle.
 * Größere Dots brauchen entsprechend breite, freie Durchgänge.
-* Neue Arbeiter entstehen nie auf einer ungültigen Zelle.
+* Gekaufte Arbeiter entstehen nur auf freien Tunnelzellen in der Nähe des Energiekerns.
 * Der Spieler setzt nur Auftrag und Zielgebiet.
 
 Die Wegfindung gilt für den Schwarm gemeinsam: Distanzfelder oder Flow-Fields, zwischengespeichert, bei Tunneländerungen gezielt aktualisiert, über mehrere Takte verteilt. Bis zu 32 geänderte Zellen korrigieren das bestehende Feld. Ein neues Gebiet, ein neues Laufziel oder eine größere Änderung berechnet es neu. Die Grenzen stehen in D-020.
 
 Unerreichbare Ziele lassen die Arbeiter warten. Es wird kein Weg durch Material erfunden. Ein Feld wird nur einmal abgebaut. Gleichzeitige Versuche erzeugen die Ressource nicht doppelt. Fortschritt liegt an der Zelle. Abgebaute Zellen werden begehbar.
 
-## Wachstum und Masse
+## Energie, Transport und Wachstum
 
-Jedes vollständig abgebaute Materialfeld erzeugt genau einen Basis-Arbeiter. Ist die Zelle belegt, wartet die Entstehung in einer deterministischen Warteschlange. Wartende Arbeiter zählen zur Masse und handeln erst nach der Platzierung.
+Es gibt vorerst genau zwei bewegliche Dot-Arten: **gelbe Arbeiter-Dots** und **cyanfarbene Energie-Dots**. Rote Krieger-Dots sind eine spätere Erweiterung und derzeit nicht Bestandteil der Simulation.
 
-Zu jedem Zeitpunkt:
+Ein vollständig abgebautes Feld der Härte 1, 3 oder 8 erzeugt genau 1, 3 oder 8 Energie-Dots. Sie bewegen sich orthogonal durch bestehende Tunnel zum zentralen **Energiekern** (vormals Opferloch). Erst bei Ankunft zählt ihre Energie als verfügbares Guthaben. Der Energiekern erzeugt für **10 Energie** einen neuen Basis-Arbeiter im Starttunnel; wenn dort kein Platz ist, wartet der gekaufte Arbeiter in der Spawn-Warteschlange. Arbeiter werden niemals durch Abbau automatisch erzeugt.
 
-**Gesamtmasse = Anfangsmasse + vollständig abgebaute Felder − geopferte Masse**
+Arbeiter haben bei Bewegungskonflikten Vorrang. Energie-Dots berücksichtigen die aktuelle Arbeiterbelegung und warten oder weichen aus; die Energie-Dots selbst blockieren niemals die Bewegungslogik der Arbeiter. Sie werden als separate Texturebene unter den Arbeitern gezeichnet. Energie-Dots dürfen sich vorübergehend am selben Ursprung sammeln, damit Härte 8 stets exakt acht Energieeinheiten liefert. Transport erfolgt deterministisch über ein gemeinsames Distanzfeld.
 
-Zur Gesamtmasse gehören aktive Arbeiter, die Masse verschmolzener Einheiten und noch nicht platzierte Arbeiter. Verschmelzung, Aufteilung, Gruppenwechsel, Weltgenerierung und das Laden eines Spielstands ändern diese Bilanz nicht unbeabsichtigt.
+**Arbeitermasse = Startmasse + gekaufte Arbeiter**. Noch nicht platzierte, aber bezahlte Arbeiter zählen mit. **Erzeugte Energie = zugestellte Energie + unterwegs befindliche Energie**. Guthaben und für Upgrades/Arbeiter ausgegebene Energie sind getrennt zu bilanzieren.
+
 
 ## Farbgruppen
 
-Eine interne Gruppe hat ID, Farbe, optionalen Namen, Zielquote, Auftrag, optionales Zielgebiet, Verschmelzungseinstellung und aktuelle Masse. Gruppen werden im Standard-HUD nicht angezeigt und nicht einzeln verwaltet. Die Aktionsleiste bedient den arbeitenden Schwarm gemeinsam; ein interner Quotenanteil kann über die Aktion „Opfern“ zum Opferloch geschickt werden. Neue Arbeiter gehen an die Gruppe mit dem größten relativen Defizit gegenüber ihrer Zielquote. Das Verfahren ist deterministisch. Gleichstände haben eine feste Reihenfolge. Gruppen mit 0 % bekommen keine neuen Arbeiter. Die Summe der Quoten ist 100 %. Bestehende Arbeiter wechseln bei einer Quotenänderung nicht die Gruppe. Verschmolzene Einheiten zählen mit ihrer vollen Masse. Opferung senkt die Gruppenmasse.
+Eine interne Gruppe hat ID, Farbe, optionalen Namen, Zielquote, Auftrag, optionales Zielgebiet, Verschmelzungseinstellung und aktuelle Masse. Gruppen werden im Standard-HUD nicht angezeigt und nicht einzeln verwaltet. Die Aktionsleiste bedient den arbeitenden Schwarm gemeinsam; ein interner Quotenanteil kann über die Aktion „Opfern“ zum Opferloch geschickt werden. Gekaufte Arbeiter gehen an die interne Gruppe mit dem größten relativen Defizit gegenüber ihrer Zielquote. Das Verfahren ist deterministisch. Gleichstände haben eine feste Reihenfolge. Gruppen mit 0 % bekommen keine neuen Arbeiter. Die Summe der Quoten ist 100 %. Bestehende Arbeiter wechseln bei einer Quotenänderung nicht die Gruppe. Verschmolzene Einheiten zählen mit ihrer vollen Masse. Opferung senkt die Gruppenmasse.
 
 Im Prototyp gilt bei Gleichstand: die größere Quote gewinnt, danach der kleinere Gruppenindex. Eine Summe ungleich 100 % wird abgelehnt und nicht normalisiert. Ob eine Eingabe später auf 100 % normalisiert werden darf, ist offen.
 
@@ -84,9 +85,9 @@ Diese Regeln sind verbindlich für ihre Phasen. Sie sind im Prototyp nicht imple
 | 2 | 2×2 | 4 | 6 | vorläufig |
 | 3 | 3×3 | 9 | 15 | vorläufig |
 
-Verschmelzung erhält die Masse, bleibt in Fraktion und Gruppe und braucht den Platz. Große Dots können mehrere erreichbare Felder gleichzeitig bearbeiten, erzeugen aber nie mehr Arbeiter, als Felder entfernt wurden. Sie lassen sich wieder zerlegen. Der Spieler setzt pro Gruppe eine Wunschgröße.
+Verschmelzung erhält die Masse, bleibt in Fraktion und Gruppe und braucht den Platz. Große Dots können mehrere erreichbare Felder gleichzeitig bearbeiten, erzeugen beim Abbau nur Energie entsprechend der Härte der entfernten Felder. Sie lassen sich wieder zerlegen. Der Spieler setzt pro Gruppe eine Wunschgröße.
 
-Das Opferloch steht im Startbereich, ist unzerstörbar, und eine Einlieferung opfert die Einheit genau einmal. Energie ist gleich der geopferten Masse. Das Spiel verhindert, dass eine versehentliche Opferung aller Arbeiter die Runde unspielbar macht. Die konkrete Schutzregel wird in Phase 7 festgelegt und getestet.
+Der Energiekern steht im Startbereich und ist unzerstörbar. Ankommende Energie-Dots werden eingelagert. Arbeiter können nicht mehr geopfert werden.
 
 | Upgrade | Startkosten | Effekt | Wiederholung |
 |---|---:|---|---|
@@ -97,7 +98,7 @@ Das Opferloch steht im Startbereich, ist unzerstörbar, und eine Einlieferung op
 
 Kostenformeln sind zentral und testbar. Effekte gelten global und konsistent. Die Abbildung von +25 % auf den Ganzzahl-Takt ist noch offen.
 
-Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 Gesamtmasse, mindestens zwei gekaufte Upgrades, mindestens 90 % des ursprünglich abbaubaren Materials. Leer und unzerstörbar zählen nicht zur Bezugsmenge. Nach dem Sieg kann weiter abgebaut werden. Die Statistik zeigt Spielzeit, abgebaute Zellen, höchste Masse, geopferte Masse, gekaufte Upgrades und die maximale Zahl Einheiten. 20 bis 40 Minuten auf der Standardwelt sind ein Balancingziel, kein belegtes Ergebnis.
+Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 gekaufte und vorhandene Arbeitermasse, mindestens zwei gekaufte Upgrades, mindestens 90 % des ursprünglich abbaubaren Materials. Leer und unzerstörbar zählen nicht zur Bezugsmenge. Nach dem Sieg kann weiter abgebaut werden. Die Statistik zeigt Spielzeit, abgebaute Zellen, höchste Masse, geopferte Masse, gekaufte Upgrades und die maximale Zahl Einheiten. 20 bis 40 Minuten auf der Standardwelt sind ein Balancingziel, kein belegtes Ergebnis.
 
 ## Simulation
 
@@ -125,3 +126,7 @@ Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 Gesam
 * Mehrere Fraktionen mit eigenem Besitz.
 * Ein geprüfter Windows-Release-Build und eine Steam-Veröffentlichung. Die Vorbereitung steht in `docs/RELEASE.md` und `docs/STEAM.md`.
 * Hintergrundmusik. Es liegt kein lizenziertes Stück bei. Abgeschlossener Abbau spielt einen kurzen erzeugten Ton, wenn ein Audiogerät vorhanden ist.
+
+## Umsetzung 2026-10-22
+
+Die Wirtschaft wurde auf Energie-Dots und kostenpflichtige Arbeiter umgestellt. Vorhandene Speicherstände der Version 1 sind wegen der neuen Massen- und Energiebilanz nicht mit Version 2 kompatibel. Alte Aussagen im Abschnitt „Was der Stand heute bereits tut“ zu Opferung und automatischer Arbeiterentstehung gelten nicht mehr; maßgeblich sind die neuen Abschnitte Energie, Transport und Wachstum.
