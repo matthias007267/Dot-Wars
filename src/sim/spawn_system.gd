@@ -46,35 +46,46 @@ func process(world: WorldState, workers: WorkerStore, quotas: PackedInt32Array) 
 
 ## Nächste freie leere Zelle ab `origin` (inklusive) oder -1.
 func find_free_cell(world: WorldState, workers: WorkerStore, origin: int) -> int:
+	var found := find_free_cells(world, workers, origin, 1, _search_limit)
+	return -1 if found.is_empty() else found[0]
+
+
+## Bis zu `want` freie leere Zellen in BFS-Reihenfolge (N, O, S, W) ab `origin`.
+## `limit` begrenzt die Zahl untersuchter Zellen. Die Zellen werden nicht belegt.
+func find_free_cells(
+	world: WorldState, workers: WorkerStore, origin: int, want: int, limit: int
+) -> PackedInt32Array:
+	var result := PackedInt32Array()
 	if world.cells[origin] != Materials.EMPTY:
-		return -1
-	if workers.is_free(origin):
-		return origin
+		return result
 	_stamp_generation += 1
 	_frontier.clear()
 	_frontier.append(origin)
 	_stamp[origin] = _stamp_generation
+	var cells := world.cells
 	var w := world.width
 	var size := world.cell_count()
 	var head := 0
-	while head < _frontier.size() and head < _search_limit:
+	while head < _frontier.size() and head < limit:
 		var c := _frontier[head]
 		head += 1
+		if workers.is_free(c):
+			result.append(c)
+			if result.size() == want:
+				return result
 		var x := c % w
-		var neighbors := PackedInt32Array()
 		if c >= w:
-			neighbors.append(c - w)
+			_visit(cells, c - w)
 		if x < w - 1:
-			neighbors.append(c + 1)
+			_visit(cells, c + 1)
 		if c < size - w:
-			neighbors.append(c + w)
+			_visit(cells, c + w)
 		if x > 0:
-			neighbors.append(c - 1)
-		for n in neighbors:
-			if _stamp[n] == _stamp_generation or world.cells[n] != Materials.EMPTY:
-				continue
-			_stamp[n] = _stamp_generation
-			if workers.is_free(n):
-				return n
-			_frontier.append(n)
-	return -1
+			_visit(cells, c - 1)
+	return result
+
+
+func _visit(cells: PackedByteArray, c: int) -> void:
+	if _stamp[c] != _stamp_generation and cells[c] == Materials.EMPTY:
+		_stamp[c] = _stamp_generation
+		_frontier.append(c)

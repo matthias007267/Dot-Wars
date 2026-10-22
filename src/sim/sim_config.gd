@@ -28,7 +28,7 @@ var dig_power: int = 1
 var move_period_ticks: int = 2
 
 ## Zellbesuche pro Tick und Gruppe für die Zielsuche.
-var field_budget_per_tick: int = 8192
+var field_budget_per_tick: int = 2048
 ## Maximale Zahl untersuchter Zellen bei der Suche nach einem freien Entstehungsort.
 var spawn_search_limit: int = 2048
 

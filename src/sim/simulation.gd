@@ -176,11 +176,11 @@ func _place_initial_workers(start_cells: PackedInt32Array) -> bool:
 	if origin < 0:
 		push_error("Die Welt enthält keine leere Zelle für Startarbeiter")
 		return false
-	for i in config.initial_workers:
-		var c := spawner.find_free_cell(world, workers, origin)
-		if c < 0:
-			push_error("Nicht genug freie Startpositionen für %d Arbeiter" % config.initial_workers)
-			return false
+	var cells := spawner.find_free_cells(world, workers, origin, config.initial_workers, world.cell_count())
+	if cells.size() < config.initial_workers:
+		push_error("Nicht genug freie Startpositionen für %d Arbeiter" % config.initial_workers)
+		return false
+	for c in cells:
 		workers.add(c, GroupQuotas.pick_group(workers.group_counts, quotas))
 	return true
 
