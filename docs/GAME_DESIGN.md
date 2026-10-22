@@ -4,7 +4,7 @@ Verbindliche Regeln stehen im Präsens. Vorläufige Balancingwerte und offene Pu
 
 ## Spielidee
 
-DOT WARS ist ein minimalistisches Echtzeit-Strategiespiel. Die Welt ist ein quadratisches Raster aus farbigen Punkten. Der Spieler steuert keine einzelnen Arbeiter, sondern Farbgruppen und deren Aufträge. Arbeiter bewegen sich selbst, bauen angrenzendes Material ab, und jedes vollständig abgebaute Feld erzeugt genau einen neuen Basis-Arbeiter.
+DOT WARS ist ein minimalistisches Echtzeit-Strategiespiel. Die Welt ist ein quadratisches Raster aus farbigen Punkten. Der Spieler steuert keine einzelnen Arbeiter. Er vergibt globale Abbau- und Bewegungsaufträge; Farbgruppen und ihre Quoten bleiben interne Simulationsmechanismen. Arbeiter bewegen sich selbst, bauen angrenzendes Material ab, und jedes vollständig abgebaute Feld erzeugt genau einen neuen Basis-Arbeiter.
 
 Zielplattform ist Windows über Steam. Der erste verbindliche Umfang ist Singleplayer mit einer Fraktion und einer prozeduralen Welt pro Durchlauf. KI-Gegner, Kampf und Multiplayer gehören nicht zu den zehn Phasen, solange sie nicht ausdrücklich Teil einer Phase sind.
 
@@ -70,7 +70,7 @@ Zur Gesamtmasse gehören aktive Arbeiter, die Masse verschmolzener Einheiten und
 
 ## Farbgruppen
 
-Eine Gruppe hat ID, Farbe, optionalen Namen, Zielquote, Auftrag, optionales Zielgebiet, Verschmelzungseinstellung und aktuelle Masse. Neue Arbeiter gehen an die Gruppe mit dem größten relativen Defizit gegenüber ihrer Zielquote. Das Verfahren ist deterministisch. Gleichstände haben eine feste Reihenfolge. Gruppen mit 0 % bekommen keine neuen Arbeiter. Die Summe der Quoten ist 100 %. Bestehende Arbeiter wechseln bei einer Quotenänderung nicht die Gruppe. Verschmolzene Einheiten zählen mit ihrer vollen Masse. Opferung senkt die Gruppenmasse.
+Eine interne Gruppe hat ID, Farbe, optionalen Namen, Zielquote, Auftrag, optionales Zielgebiet, Verschmelzungseinstellung und aktuelle Masse. Gruppen werden im Standard-HUD nicht angezeigt und nicht einzeln verwaltet. Die Aktionsleiste bedient den arbeitenden Schwarm gemeinsam; ein interner Quotenanteil kann über die Aktion „Opfern“ zum Opferloch geschickt werden. Neue Arbeiter gehen an die Gruppe mit dem größten relativen Defizit gegenüber ihrer Zielquote. Das Verfahren ist deterministisch. Gleichstände haben eine feste Reihenfolge. Gruppen mit 0 % bekommen keine neuen Arbeiter. Die Summe der Quoten ist 100 %. Bestehende Arbeiter wechseln bei einer Quotenänderung nicht die Gruppe. Verschmolzene Einheiten zählen mit ihrer vollen Masse. Opferung senkt die Gruppenmasse.
 
 Im Prototyp gilt bei Gleichstand: die größere Quote gewinnt, danach der kleinere Gruppenindex. Eine Summe ungleich 100 % wird abgelehnt und nicht normalisiert. Ob eine Eingabe später auf 100 % normalisiert werden darf, ist offen.
 
@@ -111,8 +111,8 @@ Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 Gesam
 * Die Welt wird als eine Textur gezeichnet. Teilweise abgebaute Zellen dunkeln ab. Kamera, Zoom und Debug-Raster sind im Fenster.
 * Arbeiter werden als zweite Textur gezeichnet, große Einheiten über ihr Quadrat.
 * Das Startmenü startet ein Spiel mit drei Gruppen (40/30/30) oder lädt einen Speicherstand.
-* Ein Zug mit der linken Taste markiert das Abbaugebiet der gewählten Gruppe. Ein kurzer Klick setzt ihr Laufziel.
-* Gruppen lassen sich benennen, anlegen und schließen. Die Quote muss 100 % ergeben, sonst bleibt der alte Stand.
+* Das HUD bietet zwei Modi: „Abbau“ markiert ein Gebiet per Linksklick/Ziehen, „Bewegen“ setzt einen gemeinsamen Sammelpunkt in einem Tunnel. Die Farbgruppen-Auswahl ist nicht sichtbar.
+* Die Gruppenverwaltung existiert weiterhin als interne API. Die Quoten bleiben in der Simulation exakt 100 %, aber die Standardoberfläche zeigt keine Quotenregler und keine Gruppenliste.
 * Verschmelzung auf 2×2 und 3×3 ist nach dem passenden Upgrade die Wunschgröße der Gruppe. Masse bleibt erhalten, enge Tunnel sind nicht passierbar.
 * Energie kauft Tempo, Abbauleistung und die beiden Verschmelzungsstufen. Die Kosten stehen in `docs/DECISIONS.md`.
 * Gewonnen ist, wenn Masse, zwei Upgrades und 90 % Abbau zusammen erreicht sind. Danach läuft das Spiel weiter, die Statistik bleibt sichtbar.
