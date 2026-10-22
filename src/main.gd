@@ -1,48 +1,83 @@
 extends Node
-## Zeigt die Welt und die Arbeiter. Linksklick setzt ein gemeinsames Laufziel.
-## Ohne Abbauauftrag wird nichts abgebaut.
+## Menü, Welt, Arbeiter und Aufträge. Die Simulation bleibt headless testbar.
 
 var sim: Simulation
 var world: WorldState
 var renderer: WorldRenderer
 var workers_view: WorkerRenderer
 var camera: CameraController
+var hud: GameHud
 var clock := TickClock.new()
 
-var _status: Label
+var _menu: MainMenu
 var _frames_left := -1
 var _warmup := 30
 var _measured := 0
 var _measured_time := 0.0
 var _screenshot := ""
 var _screenshot_in := -1
+var _drag_from := Vector2.ZERO
+var _dragging := false
+var _last_mined := 0
+var _tone: AudioStreamPlayer
+var _autosave_tick := 0
 
 
 func _ready() -> void:
-	var config := SimConfig.from_cmdline(OS.get_cmdline_user_args())
+	_read_launch_flags()
+	if _autostart():
+		var config := SimConfig.from_cmdline(OS.get_cmdline_user_args())
+		_boot(config)
+		return
+	_menu = MainMenu.new()
+	_menu.start_requested.connect(_boot)
+	_menu.load_requested.connect(_boot_from_save)
+	add_child(_menu)
+
+
+func _boot(config: SimConfig) -> void:
 	var errors := config.validate()
 	if not errors.is_empty():
 		push_error("Konfiguration ungültig: " + ", ".join(errors))
 		get_tree().quit(1)
 		return
-	_read_launch_flags()
-
 	var started := Time.get_ticks_usec()
-	sim = Simulation.create(config)
-	if sim == null or not sim.check_invariants().is_empty():
+	var created := Simulation.create(config)
+	if created == null or not created.check_invariants().is_empty():
 		push_error("Startprüfung fehlgeschlagen")
 		get_tree().quit(1)
 		return
-	world = sim.world
 	var generation_ms := (Time.get_ticks_usec() - started) / 1000.0
-	print("DOT WARS bereit: %dx%d Seed %d" % [world.width, world.height, config.world_seed])
-	print("Welt erzeugt in %.0f ms, Arbeiter %d" % [generation_ms, sim.workers.count])
+	print("DOT WARS bereit: %dx%d Seed %d" % [created.world.width, created.world.height, config.world_seed])
+	print("Welt erzeugt in %.0f ms, Arbeiter %d" % [generation_ms, created.workers.count])
+	_attach(created)
 
+
+func _boot_from_save(path: String) -> void:
+	var loaded := SaveGame.read_file(path)
+	if loaded == null:
+		push_error("Speicherstand ungültig")
+		return
+	print("DOT WARS bereit: %dx%d Seed %d" % [loaded.world.width, loaded.world.height, loaded.config.world_seed])
+	print("Spielstand geladen, Arbeiter %d" % loaded.workers.count)
+	_attach(loaded)
+
+
+func _attach(next: Simulation) -> void:
+	if _menu != null:
+		_menu.queue_free()
+		_menu = null
+	_clear_playfield()
+	sim = next
+	world = sim.world
+	_last_mined = world.mined_count
+	_autosave_tick = sim.tick_count
 	renderer = WorldRenderer.new()
 	renderer.world = world
 	workers_view = WorkerRenderer.new()
 	workers_view.world = world
 	workers_view.workers = sim.workers
+	workers_view.colors = sim.group_colors
 	camera = CameraController.new()
 	camera.world_size = Vector2(world.width, world.height)
 	renderer.camera = camera
@@ -53,117 +88,143 @@ func _ready() -> void:
 	add_child(renderer)
 	add_child(workers_view)
 	add_child(camera)
-	_build_hud(config)
+	hud = GameHud.new()
+	hud.sim = sim
+	hud.clock = clock
+	add_child(hud)
 	workers_view.show_tick(sim.tick_count)
+	_prepare_tone()
+
+
+func _clear_playfield() -> void:
+	for node in [renderer, workers_view, camera, hud, _tone]:
+		if node != null and is_instance_valid(node):
+			node.queue_free()
+	renderer = null
+	workers_view = null
+	camera = null
+	hud = null
+	_tone = null
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_set_goal_under_cursor(event.position)
+	if sim == null:
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_drag_from = event.position
+			_dragging = true
+		elif _dragging:
+			_dragging = false
+			_finish_drag(event.position)
 		return
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
-	if event.keycode == KEY_G:
+	if event.keycode == KEY_G and renderer != null:
 		renderer.show_grid = not renderer.show_grid
 		renderer.queue_redraw()
-	elif event.keycode == KEY_C:
+	elif event.keycode == KEY_C and renderer != null:
 		renderer.show_chunks = not renderer.show_chunks
 		renderer.queue_redraw()
 	elif event.keycode == KEY_SPACE:
 		clock.paused = not clock.paused
-		_refresh_status()
+	elif event.keycode == KEY_F11:
+		_toggle_fullscreen()
+	elif event.keycode == KEY_F5:
+		SaveGame.write_file("user://slot.dw", sim)
+	elif event.keycode == KEY_F9:
+		_boot_from_save("user://slot.dw")
+	elif event.keycode >= KEY_1 and event.keycode <= KEY_8:
+		var index := int(event.keycode) - int(KEY_1)
+		if index < sim.group_open.size() and sim.group_open[index] == 1:
+			sim.selected_group = index
+	if hud != null:
+		hud.refresh()
 
 
 func _process(delta: float) -> void:
+	if sim == null:
+		return
 	var ticks := clock.advance(delta)
 	if ticks > 0:
 		sim.run_ticks(ticks)
 		workers_view.show_tick(sim.tick_count)
-		_refresh_status()
+		if world.mined_count != _last_mined:
+			_last_mined = world.mined_count
+			_play_tone()
+		if sim.tick_count - _autosave_tick >= 600 and not _headless():
+			_autosave_tick = sim.tick_count
+			SaveGame.write_file("user://autosave.dw", sim)
+		if hud != null:
+			hud.refresh()
 	_capture_screenshot()
 	_measure_frames(delta)
 
 
-func _set_goal_under_cursor(screen: Vector2) -> void:
+func _finish_drag(screen: Vector2) -> void:
+	var start := _cell_at(_drag_from)
+	var end := _cell_at(screen)
+	if start.x < 0 or end.x < 0:
+		return
+	var group_id := sim.selected_group
+	if _drag_from.distance_to(screen) < 8.0:
+		if sim.set_move_goal(group_id, world.index(end.x, end.y)):
+			hud.refresh()
+		return
+	var rect := Rect2i(start, Vector2i.ZERO).expand(end)
+	rect.size += Vector2i.ONE
+	if sim.assign_area(group_id, rect):
+		hud.refresh()
+
+
+func _cell_at(screen: Vector2) -> Vector2i:
 	var viewport := get_viewport().get_visible_rect().size
 	var world_pos := WorldCoordinates.screen_to_world(screen, camera.position, camera.zoom.x, viewport)
-	var cell := WorldCoordinates.world_to_cell(world_pos, world.width, world.height)
-	if cell.x < 0:
-		return
-	var index := world.index(cell.x, cell.y)
-	var placed := false
-	for group_id in sim.quotas.size():
-		placed = sim.set_move_goal(group_id, index) or placed
-	if placed:
-		_refresh_status()
+	return WorldCoordinates.world_to_cell(world_pos, world.width, world.height)
 
 
-func _refresh_status() -> void:
-	if _status == null:
-		return
-	var goal := sim.move_goal(0)
-	var goal_text := "kein Ziel"
-	if goal >= 0:
-		goal_text = "Ziel %d,%d" % [goal % world.width, goal / world.width]
-	var pause := "Pause" if clock.paused else "läuft"
-	_status.text = "Arbeiter %d  ·  Tick %d  ·  %s  ·  %s" % [sim.workers.count, sim.tick_count, pause, goal_text]
+func _toggle_fullscreen() -> void:
+	var mode := DisplayServer.window_get_mode()
+	if mode == DisplayServer.WINDOW_MODE_FULLSCREEN or mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	else:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 
-func _build_hud(config: SimConfig) -> void:
-	var layer := CanvasLayer.new()
-	add_child(layer)
-	var margin := MarginContainer.new()
-	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	for side in ["margin_left", "margin_top", "margin_right"]:
-		margin.add_theme_constant_override(side, 16)
-	layer.add_child(margin)
-
-	var box := VBoxContainer.new()
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_theme_constant_override("separation", 6)
-	margin.add_child(box)
-
-	_label(box, "DOT WARS  ·  %d × %d  ·  Seed %d" % [world.width, world.height, config.world_seed], 20)
-	_label(box, "Linksklick ins Leere setzt das Ziel  ·  Leertaste Pause  ·  Mausrad Zoom  ·  Rechte Taste oder WASD verschieben", 15)
-	_label(box, "G Raster  ·  C Chunks  ·  Gelb und Cyan sind die beiden Gruppen", 15)
-	_status = _label(box, "", 16)
-	_refresh_status()
-
-	var row := HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", 14)
-	box.add_child(row)
-	_swatch(row, Materials.SOFT, "Weich")
-	_swatch(row, Materials.MEDIUM, "Mittel")
-	_swatch(row, Materials.HARD, "Hart")
-	_swatch(row, Materials.INDESTRUCTIBLE, "Unzerstörbar")
+func _autostart() -> bool:
+	if _headless():
+		return true
+	if not _screenshot.is_empty() or _frames_left >= 0:
+		return true
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--size=") or arg.begins_with("--seed=") or arg == "--play":
+			return true
+	return false
 
 
-func _label(parent: Node, text: String, size: int) -> Label:
-	var label := Label.new()
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.text = text
-	label.add_theme_font_size_override("font_size", size)
-	label.add_theme_color_override("font_color", Color(0.93, 0.94, 0.9))
-	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.75))
-	label.add_theme_constant_override("shadow_offset_x", 1)
-	label.add_theme_constant_override("shadow_offset_y", 1)
-	parent.add_child(label)
-	return label
+func _headless() -> bool:
+	return DisplayServer.get_name() == "headless"
 
 
-func _swatch(parent: Node, material: int, title: String) -> void:
-	var row := HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", 6)
-	parent.add_child(row)
-	var chip := ColorRect.new()
-	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	chip.custom_minimum_size = Vector2(14, 14)
-	chip.color = Materials.COLORS[material]
-	row.add_child(chip)
-	_label(row, title, 15)
+func _prepare_tone() -> void:
+	_tone = AudioStreamPlayer.new()
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_8_BITS
+	wav.mix_rate = 8000
+	wav.stereo = false
+	var bytes := PackedByteArray()
+	bytes.resize(240)
+	for i in bytes.size():
+		bytes[i] = 180 if i % 8 < 4 else 70
+	wav.data = bytes
+	_tone.stream = wav
+	_tone.volume_db = -18.0
+	add_child(_tone)
+
+
+func _play_tone() -> void:
+	if _tone != null and not _headless():
+		_tone.play()
 
 
 func _read_launch_flags() -> void:

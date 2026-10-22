@@ -2,18 +2,18 @@ class_name WorkerRenderer
 extends Node2D
 ## Zeichnet alle Arbeiter in eine Textur, ein Pixel pro Zelle. Keine Node pro Arbeiter.
 
-const GROUP_COLORS: Array[Color] = [
+var world: WorldState
+var workers: WorkerStore
+var colors: Array[Color] = [
 	Color(0.98, 0.86, 0.12),
 	Color(0.25, 0.88, 0.95),
 ]
-
-var world: WorldState
-var workers: WorkerStore
 
 var _bytes := PackedByteArray()
 var _image: Image
 var _texture: ImageTexture
 var _drawn_tick := -1
+var _painted := PackedInt32Array()
 
 
 func _ready() -> void:
@@ -26,17 +26,31 @@ func _ready() -> void:
 func show_tick(tick: int) -> void:
 	if tick == _drawn_tick:
 		return
-	_bytes.fill(0)
+	for idx in _painted:
+		var dst := idx * 4
+		_bytes[dst] = 0
+		_bytes[dst + 1] = 0
+		_bytes[dst + 2] = 0
+		_bytes[dst + 3] = 0
+	_painted.clear()
 	var palette := _palette()
+	var width := world.width
 	for id in workers.count:
 		var group_id := int(workers.group[id])
-		var color_index := group_id if group_id < GROUP_COLORS.size() else 0
+		var color_index := group_id if group_id < colors.size() else 0
 		var src := color_index * 4
-		var dst := workers.cell[id] * 4
-		_bytes[dst] = palette[src]
-		_bytes[dst + 1] = palette[src + 1]
-		_bytes[dst + 2] = palette[src + 2]
-		_bytes[dst + 3] = 255
+		var unit_size := int(workers.size[id])
+		var anchor := workers.cell[id]
+		for dy in unit_size:
+			var row := anchor + dy * width
+			for dx in unit_size:
+				var cell := row + dx
+				var dst := cell * 4
+				_bytes[dst] = palette[src]
+				_bytes[dst + 1] = palette[src + 1]
+				_bytes[dst + 2] = palette[src + 2]
+				_bytes[dst + 3] = 255
+				_painted.append(cell)
 	_upload()
 	_drawn_tick = tick
 	queue_redraw()
@@ -57,9 +71,9 @@ func _upload() -> void:
 
 func _palette() -> PackedByteArray:
 	var bytes := PackedByteArray()
-	bytes.resize(GROUP_COLORS.size() * 4)
-	for index in GROUP_COLORS.size():
-		var color := GROUP_COLORS[index]
+	bytes.resize(colors.size() * 4)
+	for index in colors.size():
+		var color := colors[index]
 		var offset := index * 4
 		bytes[offset] = _channel(color.r)
 		bytes[offset + 1] = _channel(color.g)

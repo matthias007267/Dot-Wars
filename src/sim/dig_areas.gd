@@ -44,6 +44,15 @@ func assign_rect(group_id: int, rect: Rect2i) -> bool:
 	return true
 
 
+func add_group() -> void:
+	rects.append([] as Array[Rect2i])
+	var mask := PackedByteArray()
+	mask.resize(width * height)
+	mask.fill(0)
+	masks.append(mask)
+	group_count += 1
+
+
 func clear_group(group_id: int) -> void:
 	if group_id < 0 or group_id >= group_count:
 		return

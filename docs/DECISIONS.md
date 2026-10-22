@@ -74,7 +74,65 @@ Die Abbaulogik bleibt in der Simulation und in den Tests. Die Hauptszene weist k
 
 Die Leertaste schaltet `TickClock.paused`. In der Pause wird keine Zeit gesammelt.
 
-Arbeiter liegen weiter in `WorkerStore`. `faction` ist ein zusätzliches Byte und steht beim Anlegen auf 0. Gezeichnet werden sie in einer zweiten Textur, ein Pixel pro Zelle, Gelb für Gruppe 0 und Cyan für Gruppe 1. Es gibt keine Node pro Arbeiter.
+Arbeiter liegen weiter in `WorkerStore`. `faction` ist ein zusätzliches Byte und steht beim Anlegen auf 0. Gezeichnet werden sie in einer zweiten Textur, ein Pixel pro Zelle. Es gibt keine Node pro Arbeiter.
+
+### D-011 Aufträge je gewählter Gruppe
+
+Datum: 22. Oktober 2026.
+
+Ein kurzer Linksklick setzt das Laufziel nur für die gewählte Gruppe. Ein Zug mit der linken Taste markiert ihr Abbaugebiet. Die Tasten 1 bis 8 wählen die Gruppe. Rechte und mittlere Taste verschieben weiterhin die Kamera. D-010 gilt für den Stand von Phase 3; die spätere Bedienung ersetzt das gemeinsame Ziel.
+
+### D-012 Gruppen anlegen und schließen
+
+Datum: 22. Oktober 2026.
+
+Eine neue Gruppe beginnt mit Quote 0 %, damit die Summe 100 % bleibt. Schließen ist nur möglich, solange eine andere Gruppe offen bleibt. Ihre Arbeiter und ihre Quote gehen an die offene Gruppe mit dem kleinsten Index. Die Gesamtmasse ändert sich nicht.
+
+### D-013 Quoteneingabe
+
+Datum: 22. Oktober 2026. Schließt O-006.
+
+Die Oberfläche normalisiert eine Summe ungleich 100 % nicht. Der Versuch wird abgelehnt und der bisherige Stand bleibt.
+
+### D-014 Schutzregel am Opferloch
+
+Datum: 22. Oktober 2026. Schließt O-005.
+
+Eine Einheit wird nur geopfert, wenn danach mindestens Masse 1 im Spiel bleibt. Wartende Entstehungen zählen mit. Würde die Opferung die letzte Masse entfernen, unterbleibt sie und der Opferauftrag dieser Gruppe endet. Energie ist gleich der geopferten Masse.
+
+### D-015 Bewegungs-Upgrade
+
+Datum: 22. Oktober 2026.
+
+Der Grundtakt bleibt unverändert: ein Schritt alle `move_period_ticks` Takte, versetzt nach Arbeiter-ID. Ab der ersten gekauften Stufe sammelt jede Einheit Punkte. 100 Punkte sind ein Schritt, höchstens einer je Takt. Startwert ist `100 / move_period_ticks`. Jede Stufe multipliziert mit 6/5, ganzzahlig. Bei Periode 2 sind das 50, 60, 72, 86 und danach 100.
+
+Kosten: 25 × (gekaufte Stufe + 1).
+
+### D-016 Abbau-Upgrade
+
+Datum: 22. Oktober 2026. Schließt O-003.
+
+Die Haltbarkeit aus D-001 bleibt. Jede Stufe multipliziert die Leistung mit 5/4, als Bruch ohne Rundungsverlust. Eine Stufe macht aus einem Punkt je Takt 5/4 Punkte. Härte 1 dauert dann 16 Takte statt 20. Große Einheiten nutzen dieselbe Bruchrechnung auf ihrer eigenen Grundleistung.
+
+Kosten: 50 × (gekaufte Stufe + 1).
+
+### D-017 Verschmelzungs-Upgrades
+
+Datum: 22. Oktober 2026.
+
+2×2 kostet einmalig 100 Energie und schaltet die Wunschgröße 2 frei. 3×3 kostet einmalig 250, setzt 2×2 voraus und schaltet die Wunschgröße 3 frei. 250 ist ein vorläufiger Balancingwert. Ohne diese Käufe bleibt die Wunschgröße 1.
+
+### D-018 Verschmelzung
+
+Datum: 22. Oktober 2026.
+
+Größe 1 hat Masse 1 und Leistung 1, Größe 2 hat Masse 4 und Leistung 6, Größe 3 hat Masse 9 und Leistung 15. Verschmolzen wird nur innerhalb derselben Gruppe und Fraktion, auf ein freies Quadrat, höchstens vier Mal je Gruppe und Takt. Eine andere Wunschgröße zerlegt die Einheit zuerst in Basis-Arbeiter auf ihrer eigenen Fläche. Enge Lücken, die das Quadrat nicht fassen, sind nicht passierbar.
+
+### D-019 Speicherstand
+
+Datum: 22. Oktober 2026.
+
+Formatversion 1, geschrieben mit `var_to_bytes`. Manuell unter `user://slot.dw` (F5, F9), automatisch alle 600 Simulationstakte unter `user://autosave.dw`. Eine falsche Version oder ein verletzter Zustand wird abgelehnt. Nach dem Laden setzt dieselbe Befehlsfolge die Simulation gleich fort.
 
 ## Offen
 
@@ -82,18 +140,6 @@ Arbeiter liegen weiter in `WorkerStore`. `faction` ist ein zusätzliches Byte un
 
 Die Fraktions-ID liegt neben der Gruppe. Neue Arbeiter bekommen Fraktion 0, und die Ansicht verwendet nur diese Fraktion. Mehrere Fraktionen, Besitz und getrennte Aufträge je Fraktion sind nicht umgesetzt.
 
-### O-003 Prozent-Upgrades auf dem Ganzzahl-Takt
-
-+25 % Abbauleistung sind 1,25 Punkte pro Tick, wenn ein Punkt ein Zwanzigstel einer Arbeitseinheit ist. Phase 7 legt die Rundung fest, bevor das Upgrade wirkt. Die Abbauzeit aus D-001 wird dafür nicht wieder verändert.
-
 ### O-004 Neuaufbau der Zielsuche
 
-Der Prototyp plant bei jeder Weltänderung und bei einem neuen Laufziel einen vollständigen Neuaufbau des Flow-Fields der Gruppe. Die Regel will eine selektive Aktualisierung. Das bleibt eine Aufgabe der Wegfindungs- und Performancephasen.
-
-### O-005 Schutzregel am Opferloch
-
-Es muss unmöglich sein, versehentlich alle handlungsfähigen Arbeiter zu opfern. Die konkrete Regel ist noch nicht gewählt.
-
-### O-006 Normalisierung der Quoten in der Oberfläche
-
-Die Summe muss 100 % ergeben. Ob die Oberfläche eine Eingabe auf 100 % normalisiert oder sie ablehnt, ist für Phase 5 offen. Der Prototyp lehnt ab.
+Der Prototyp plant bei jeder Weltänderung und bei einem neuen Laufziel einen vollständigen Neuaufbau des Flow-Fields der Gruppe. Fortschritt ohne Tunneländerung löst ihn nicht aus. Eine vollständige Berechnung der 256er-Welt liegt bei etwa 30 bis 40 ms und wird über das Taktbudget verteilt. Auf der 1.000er-Welt wurde eine vollständige Berechnung mit 458 ms gemessen. Der Takt selbst bleibt dadurch kurz, solange sich die Tunnel nicht ändern. Eine gezielte Aktualisierung nur um den neuen Tunnel ist nicht umgesetzt: der gemessene Engpass bei 10.000 Arbeitern ist die Bewegung, nicht die Zielsuche.

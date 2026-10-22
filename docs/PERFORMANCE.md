@@ -87,4 +87,27 @@ Dieselbe Maschine und dasselbe Fensterverfahren wie bei der statischen Welt. Fü
 | 1.000 × 1.000 | 1920 × 1080 | 2.214 ms | 59,1 |
 | 500 × 500 | 1280 × 720 | 532 ms | 110,7 |
 
-60 FPS bei 1080p sind auf dieser Maschine nicht mehr erreicht, sobald die Simulation läuft. Die statische Welt lag bei 64 bis 68 FPS. Bei 1280 × 720 bleiben 110 FPS. Die Arbeitertextur wird je neuem Takt vollständig geleert und hochgeladen. Diese Kosten wachsen mit der Weltgröße. Eine engere Aktualisierung gehört in die Performance-Phase und ist hier nicht umgesetzt.
+60 FPS bei 1080p sind auf dieser Maschine nicht mehr erreicht, sobald die Simulation läuft. Die statische Welt lag bei 64 bis 68 FPS. Bei 1280 × 720 bleiben 110 FPS. Die Arbeitertextur wurde in diesem Lauf je neuem Takt vollständig geleert. Der folgende Lauf ändert das.
+
+## Nach den Phasen 4 bis 10, 22. Oktober 2026
+
+Dieselbe Maschine. Die Arbeitertextur löscht und zeichnet nur noch die belegten Zellen. Fünf Arbeiter, Simulation läuft, HUD ist sichtbar. 120 Frames nach 30 Frames Warmup, Fenster 1920 × 1080, Welt 256.
+
+| Welt | Fenster | FPS |
+|---:|---|---:|
+| 256 × 256 | 1920 × 1080 | 70,3 |
+
+60 FPS bei 1080p sind in diesem kurzen Lauf mit fünf Arbeitern erreicht. Das gilt nicht für einen großen Schwarm und nicht für die 1.000er-Welt; die wurde hier nicht erneut im Fenster gemessen.
+
+Headless, 200 Takte, Welt 256:
+
+| Arbeiter am Start | Ø Tick | p95 | Maximum | nachhaltig | Zielsuche Ø | Bewegung Ø | Abbau Ø | Entstehung Ø |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1.000 | 4,45 ms | 5,59 ms | 5,71 ms | 225 Takte/s | 2,71 ms | 1,53 ms | 0,04 ms | 0,17 ms |
+| 10.000 | 18,07 ms | 21,72 ms | 22,72 ms | 55 Takte/s | 2,76 ms | 13,50 ms | 0,19 ms | 1,62 ms |
+
+Kein Takt über 50 ms. Das 10-ms-Ziel bei 10.000 Arbeitern ist nicht erreicht. Der Engpass bleibt die Bewegung, vor allem blockierte Arbeiter. Daran wurde nichts geändert, weil eine seltenere Prüfung Blockierter die Kollisionsregeln verändern könnte und nicht gemessen als korrekt belegt ist.
+
+Stresstest, 40 Takte, 50.000 Arbeiter, Welt 256: Ø 87,4 ms, p95 91,0 ms, Maximum 97,0 ms, alle 40 Takte über 50 ms. Bewegung 77,6 ms. Am Ende 50.061 Einheiten, Invarianten ohne Fehler, RSS 94 MB. 50.000 Einheiten laufen, aber nicht mit 20 Takten pro Sekunde.
+
+Welt 1.000 × 1.000, 1.000 Arbeiter, 20 Takte: Ø 1,36 ms, weil in diesem kurzen Fenster kein Tunnel entstand und die Zielsuche ihr Budget kaum anrührte. Eine vollständige Feldberechnung dauerte 458 ms. Erzeugung der Welt 2,2 s, statischer Speicher am Ende 56 MB, RSS 126 MB. Invarianten ohne Fehler. Abgebaut wurde in den 20 Takten nichts, weil der Benchmark auf dieser Größe das Gebiet nicht rechtzeitig in Reichweite hatte. Der Lauf belegt das Anlegen und die leeren Takte, nicht eine wachsende Million-Zellen-Partie.

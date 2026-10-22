@@ -14,7 +14,8 @@ Die Simulation läuft mit 20 Takten pro Sekunde. Spielregeln rechnen mit ganzen 
 
 ```
 src/sim/          Simulation, headless
-src/main.gd       Hauptszene, Takt, Laufziel, Pause
+src/main.gd       Menü, Takt, Mausaufträge, Pause
+src/ui/           Startmenü und Spiel-Leiste
 src/render/       Kamera, Weltbild, Arbeiter, Koordinaten
 scenes/main.tscn
 tests/            projekteigener Test-Runner und Tests
@@ -29,15 +30,19 @@ docs/             verbindliche Dokumentation
 | `Materials` | Härte 1, 3, 8, unzerstörbar, Farben |
 | `WorldCoordinates` | Zelle, Welt, Bildschirm |
 | `WorldRenderer` | eine Textur, Chunk-Aktualisierung, Raster |
-| `WorkerRenderer` | zweite Textur, ein Pixel pro Arbeiter |
+| `WorkerRenderer` | zweite Textur, Fußabdruck je Einheit, nur geänderte Pixel |
 | `CameraController` | Zoom, Verschieben, Grenzen |
 | `WorldState` | Zellen, Fortschritt, Chunk-Dirty-Flags |
 | `WorldGenerator` | reproduzierbare Welt und Starttunnel |
-| `WorkerStore` | Arbeiter als Struct-of-Arrays, Zelle, Gruppe, Fraktion |
+| `WorkerStore` | Einheiten als Struct-of-Arrays, Zelle, Gruppe, Fraktion, Größe, Masse |
 | `DigAreas` | Rechtecke und Masken je Gruppe |
 | `FlowField` | gemeinsame, budgetierte Zielsuche je Gruppe, plus Laufziel |
 | `MovementSystem` | orthogonale Schritte |
-| `MiningSystem` | Zielwahl und Fortschritt an der Zelle |
+| `MiningSystem` | Zielwahl und Fortschritt an der Zelle, Bruchleistung großer Einheiten |
+| `FusionSystem` | Wunschgröße, Masse bleibt erhalten |
+| `SacrificeSystem` | Einlieferung am Opferloch, letzte Masse bleibt |
+| `Upgrades` | Energie, Kosten, Tempo, Abbau, Verschmelzungsstufen |
+| `SaveGame` | Speicherstand Version 1 |
 | `SpawnSystem` | ein neuer Arbeiter pro Feld, Warteschlange |
 | `GroupQuotas` | Quotenprüfung und Defizitverfahren |
 | `TickClock` | feste Takte, Pause ohne Nachholen |

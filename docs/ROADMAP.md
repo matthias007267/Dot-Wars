@@ -9,10 +9,10 @@ Der Simulationsprototyp auf diesem Branch (Welt, Arbeiter, Bewegung, Abbau, zwei
 | 1 Projektgrundlage | Review | `cursor/phase-01-foundation-9244` | https://github.com/matthias007267/Dot-Wars/pull/1 | — | Die Fraktions-ID wird seit Phase 3 gespeichert. Verwendet wird nur Fraktion 0. |
 | 2 Welt und Darstellung | Review | `cursor/phase-01-foundation-9244` | https://github.com/matthias007267/Dot-Wars/pull/1 | — | Dieselbe PR wie Phase 1, weil sie noch nicht gemerged ist. |
 | 3 Arbeiter und Wegfindung | Review | `cursor/phase-01-foundation-9244` | https://github.com/matthias007267/Dot-Wars/pull/1 | — | Dieselbe PR. Die Ansicht vergibt keinen Abbauauftrag. Das Flow-Field wird bei einer Änderung noch vollständig neu aufgebaut. 60 FPS bei 1080p sind auf der Messmaschine mit laufender Simulation nicht erreicht. |
-| 4 Abbau und Wachstum | Nicht begonnen | — | — | — | Prototyp baut headless ab. Die Ansicht hat noch keine Abbauauswahl. Abbauzeit ist auf die beschlossene Regel gestellt. |
-| 5 Farbgruppen | Nicht begonnen | — | — | — | Prototyp verteilt auf zwei Gruppen. Keine Namen, kein Anlegen oder Löschen. |
-| 6 Verschmelzung | Nicht begonnen | — | — | — | — |
-| 7 Opferloch und Upgrades | Nicht begonnen | — | — | — | Ganzzahlregel für +25 % Abbauleistung ist noch offen. |
-| 8 Ziele und Oberfläche | Nicht begonnen | — | — | — | — |
-| 9 Performance und Speicherstände | Nicht begonnen | — | — | — | Ein headless Benchmark existiert. Speicherstände fehlen. 10-ms-Ziel bei 10.000 Arbeitern ist nicht erreicht. |
-| 10 Polish und Steam | Nicht begonnen | — | — | — | — |
+| 4 Abbau und Wachstum | Review | `cursor/phase-01-foundation-9244` | https://github.com/matthias007267/Dot-Wars/pull/1 | — | Dieselbe PR. Ziehen markiert das Abbaugebiet der gewählten Gruppe. |
+| 5 Farbgruppen | Review | `cursor/phase-01-foundation-9244` | https://github.com/matthias007267/Dot-Wars/pull/1 | — | Mindestens drei Gruppen. Neue Gruppe startet bei 0 %. Ungültige Quoten werden abgelehnt. |
+| 6 Verschmelzung | Review | `cursor/phase-01-foundation-9244` | https://github.com/matthias007267/Dot-Wars/pull/1 | — | 2×2 und 3×3 sind im Spiel erst nach dem Upgrade benutzbar. |
+| 7 Opferloch und Upgrades | Review | `cursor/phase-01-foundation-9244` | https://github.com/matthias007267/Dot-Wars/pull/1 | — | Schutzregel und Ganzzahlregeln sind in `docs/DECISIONS.md` festgehalten. |
+| 8 Ziele und Oberfläche | Review | `cursor/phase-01-foundation-9244` | https://github.com/matthias007267/Dot-Wars/pull/1 | — | Ein voller Durchlauf bis 90 % Abbau ist auf der Standardwelt lang und hier nicht gespielt worden. |
+| 9 Performance und Speicherstände | Review | `cursor/phase-01-foundation-9244` | https://github.com/matthias007267/Dot-Wars/pull/1 | — | 10.000 Arbeiter bleiben über 10 ms. 50.000 wurden gemessen. Speicherstände sind Version 1. |
+| 10 Polish und Steam | Review | `cursor/phase-01-foundation-9244` | https://github.com/matthias007267/Dot-Wars/pull/1 | — | Kein Windows-Build in dieser Umgebung. Keine Steam-Veröffentlichung. Siehe `docs/RELEASE.md`. |

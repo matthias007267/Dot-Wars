@@ -61,7 +61,7 @@ static func palette_bytes() -> PackedByteArray:
 static func paint_all(bytes: PackedByteArray, world: WorldState, palette: PackedByteArray) -> void:
 	var cells := world.cells
 	for idx in cells.size():
-		_write(bytes, palette, idx, cells[idx])
+		_write_cell(bytes, palette, world, idx, cells[idx])
 
 
 static func paint_rect(bytes: PackedByteArray, world: WorldState, palette: PackedByteArray, rect: Rect2i) -> void:
@@ -71,7 +71,7 @@ static func paint_rect(bytes: PackedByteArray, world: WorldState, palette: Packe
 		var row := y * width
 		for x in range(rect.position.x, rect.end.x):
 			var idx := row + x
-			_write(bytes, palette, idx, cells[idx])
+			_write_cell(bytes, palette, world, idx, cells[idx])
 
 
 func _upload() -> void:
@@ -127,12 +127,25 @@ func _visible_world() -> Rect2:
 	return visible.intersection(Rect2(0, 0, world.width, world.height))
 
 
-static func _write(bytes: PackedByteArray, palette: PackedByteArray, idx: int, material: int) -> void:
+static func _write_cell(
+	bytes: PackedByteArray, palette: PackedByteArray, world: WorldState, idx: int, material: int
+) -> void:
 	var src := material * 4
 	var dst := idx * 4
-	bytes[dst] = palette[src]
-	bytes[dst + 1] = palette[src + 1]
-	bytes[dst + 2] = palette[src + 2]
+	var red := int(palette[src])
+	var green := int(palette[src + 1])
+	var blue := int(palette[src + 2])
+	var dug := world.progress[idx]
+	if dug > 0 and Materials.is_mineable(material):
+		var durability := Materials.durability(material, SimConfig.TICKS_PER_SECOND)
+		var shade := 0.0 if durability <= 0 else clampf(float(dug) / float(durability), 0.0, 1.0)
+		var empty := Materials.EMPTY * 4
+		red = int(round(lerpf(red, palette[empty], shade)))
+		green = int(round(lerpf(green, palette[empty + 1], shade)))
+		blue = int(round(lerpf(blue, palette[empty + 2], shade)))
+	bytes[dst] = red
+	bytes[dst + 1] = green
+	bytes[dst + 2] = blue
 	bytes[dst + 3] = 255
 
 

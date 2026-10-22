@@ -27,6 +27,7 @@ static func step(
 	areas: DigAreas,
 	fields: Array[FlowField],
 	move_period: int,
+	speed_points: int = 0,
 ) -> void:
 	var terrain := world.cells
 	var width := world.width
@@ -39,9 +40,20 @@ static func step(
 	for field in fields:
 		dirs.append(field.dir)
 	# Arbeiter id ist in diesem Takt dran, wenn (tick + id) % move_period == 0.
-	var first_id := posmod(-tick, move_period)
-	for id in range(first_id, workers.count, move_period):
+	# speed_points > 0 ersetzt den Grundtakt: 100 Punkte sind ein Schritt.
+	var use_speed := speed_points > 0
+	var first_id := 0 if use_speed else posmod(-tick, move_period)
+	var stride := 1 if use_speed else move_period
+	for id in range(first_id, workers.count, stride):
+		if use_speed:
+			workers.move_credit[id] += speed_points
+			if workers.move_credit[id] < 100:
+				continue
+			workers.move_credit[id] -= 100
 		if state[id] == WorkerStore.STATE_MINING:
+			continue
+		if workers.size[id] > 1:
+			_step_large(tick, workers, world, areas, fields, dirs, id)
 			continue
 		var c := cell_of[id]
 		var direction := dirs[group[id]][c]
@@ -71,6 +83,110 @@ static func step(
 		elif not _try_swap(tick, workers, dirs, id, n, width, cell_count):
 			if not _try_detour(tick, workers, terrain, fields[group[id]], direction, id, width, cell_count):
 				state[id] = WorkerStore.STATE_BLOCKED
+
+
+static func _step_large(
+	tick: int,
+	workers: WorkerStore,
+	world: WorldState,
+	areas: DigAreas,
+	fields: Array[FlowField],
+	dirs: Array[PackedByteArray],
+	id: int,
+) -> void:
+	var width := world.width
+	var unit_size := int(workers.size[id])
+	var anchor := workers.cell[id]
+	var direction := dirs[workers.group[id]][anchor]
+	if direction == FlowField.DIR_ARRIVED:
+		if not MiningSystem.acquire_target(workers, world, areas, id):
+			workers.state[id] = WorkerStore.STATE_WAITING
+		return
+	if direction == FlowField.DIR_NONE:
+		workers.state[id] = WorkerStore.STATE_WAITING
+		return
+	var field := fields[workers.group[id]]
+	var own_dist := field.dist[anchor]
+	if _try_large_step(tick, workers, world, id, unit_size, anchor, direction):
+		return
+	var vertical := direction == FlowField.DIR_UP or direction == FlowField.DIR_DOWN
+	var first := FlowField.DIR_LEFT if vertical else FlowField.DIR_UP
+	var second := FlowField.DIR_RIGHT if vertical else FlowField.DIR_DOWN
+	if _try_large_toward(tick, workers, world, field, id, unit_size, anchor, first, own_dist):
+		return
+	if _try_large_toward(tick, workers, world, field, id, unit_size, anchor, second, own_dist):
+		return
+	workers.state[id] = WorkerStore.STATE_BLOCKED
+
+
+static func _try_large_toward(
+	tick: int,
+	workers: WorkerStore,
+	world: WorldState,
+	field: FlowField,
+	id: int,
+	unit_size: int,
+	anchor: int,
+	direction: int,
+	own_dist: int,
+) -> bool:
+	var dest := _anchor_after(anchor, direction, unit_size, world.width, world.height)
+	if dest < 0 or not _footprint_open(workers, world, id, dest, unit_size):
+		return false
+	var dist := field.dist[dest]
+	if dist < 0 or dist >= own_dist:
+		return false
+	workers.move_footprint(id, dest, tick)
+	return true
+
+
+static func _try_large_step(
+	tick: int,
+	workers: WorkerStore,
+	world: WorldState,
+	id: int,
+	unit_size: int,
+	anchor: int,
+	direction: int,
+) -> bool:
+	var dest := _anchor_after(anchor, direction, unit_size, world.width, world.height)
+	if dest < 0 or not _footprint_open(workers, world, id, dest, unit_size):
+		return false
+	workers.move_footprint(id, dest, tick)
+	return true
+
+
+static func _anchor_after(anchor: int, direction: int, unit_size: int, width: int, height: int) -> int:
+	var x := anchor % width
+	var y := anchor / width
+	match direction:
+		FlowField.DIR_UP:
+			y -= 1
+		FlowField.DIR_DOWN:
+			y += 1
+		FlowField.DIR_LEFT:
+			x -= 1
+		FlowField.DIR_RIGHT:
+			x += 1
+		_:
+			return -1
+	if x < 0 or y < 0 or x + unit_size > width or y + unit_size > height:
+		return -1
+	return y * width + x
+
+
+static func _footprint_open(workers: WorkerStore, world: WorldState, id: int, anchor: int, unit_size: int) -> bool:
+	var width := world.width
+	var cells := world.cells
+	for dy in unit_size:
+		for dx in unit_size:
+			var idx := anchor + dy * width + dx
+			if cells[idx] != Materials.EMPTY:
+				return false
+			var occ := workers.occupant[idx]
+			if occ != WorkerStore.NO_WORKER and occ != id:
+				return false
+	return true
 
 
 ## Frontaler Gegenverkehr: Der Blockierende will genau auf unsere Zelle.

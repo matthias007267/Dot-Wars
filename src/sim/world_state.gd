@@ -11,6 +11,8 @@ var chunks_y: int
 var cells := PackedByteArray()
 ## Abbaufortschritt je Zelle in Arbeitspunkten (immer kleiner als die Haltbarkeit).
 var progress := PackedInt32Array()
+## Restbrüche der Abbauleistung, kleiner als der aktuelle Nenner.
+var progress_frac := PackedInt32Array()
 
 ## Zählt jede Änderung an `cells`. Abgeleitete Daten erkennen damit Veralterung.
 var revision: int = 0
@@ -34,6 +36,8 @@ func _init(p_width: int, p_height: int, p_chunk_size: int = 32, fill_material: i
 	cells.fill(fill_material)
 	progress.resize(width * height)
 	progress.fill(0)
+	progress_frac.resize(width * height)
+	progress_frac.fill(0)
 	solid_count = 0 if fill_material == Materials.EMPTY else width * height
 	indestructible_count = width * height if fill_material == Materials.INDESTRUCTIBLE else 0
 	_chunk_dirty.resize(chunks_x * chunks_y)
@@ -73,6 +77,7 @@ func set_material(idx: int, material: int) -> void:
 		indestructible_count += 1
 	cells[idx] = material
 	progress[idx] = 0
+	progress_frac[idx] = 0
 	revision += 1
 	_mark_dirty(idx)
 
@@ -131,8 +136,12 @@ func consume_dirty_chunks() -> PackedInt32Array:
 	return result
 
 
+func note_progress(idx: int) -> void:
+	_mark_dirty(idx)
+
+
 func state_hash() -> int:
-	return hash([hash(cells), hash(progress), mined_count, solid_count])
+	return hash([hash(cells), hash(progress), hash(progress_frac), mined_count, solid_count])
 
 
 func _mark_dirty(idx: int) -> void:

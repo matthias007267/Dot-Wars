@@ -24,6 +24,15 @@ func pending() -> int:
 	return _queue.size() - _head
 
 
+func export_queue() -> PackedInt32Array:
+	return _queue.slice(_head)
+
+
+func import_queue(items: PackedInt32Array) -> void:
+	_queue = items.duplicate()
+	_head = 0
+
+
 func enqueue(origin_cell: int) -> void:
 	_queue.append(origin_cell)
 
@@ -35,7 +44,7 @@ func process(world: WorldState, workers: WorkerStore, quotas: PackedInt32Array) 
 		var cell := find_free_cell(world, workers, _queue[_head])
 		if cell < 0:
 			break
-		workers.add(cell, GroupQuotas.pick_group(workers.group_counts, quotas))
+		workers.add(cell, GroupQuotas.pick_group(workers.group_mass, quotas))
 		_head += 1
 		spawned += 1
 	if _head > 1024 and _head * 2 > _queue.size():

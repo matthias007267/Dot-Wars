@@ -99,26 +99,27 @@ Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 Gesam
 
 ## Simulation
 
-20 Simulationstakte sind eine Simulationssekunde. Die Bildrate ändert die Abbaugeschwindigkeit nicht. Pause, Fortsetzen, Spielgeschwindigkeit und reproduzierbare Läufe gehören zum Spiel. Spielgeschwindigkeit ist noch nicht im Prototyp.
+20 Simulationstakte sind eine Simulationssekunde. Die Bildrate ändert die Abbaugeschwindigkeit nicht. Pause, Fortsetzen, die Stufen 1×, 2× und 4× und reproduzierbare Läufe gehören zum Spiel.
 
 ## Was der Stand heute bereits tut
 
 * Quadratische Welt in 256, 500 und 1.000, gleicher Seed, drei abbaubare Materialien mit Härte 1, 3 und 8.
 * Farben Grün, Braun/Orange, Blau/Grau. Unzerstörbares Material ist dunkelgrau und wird nicht abgebaut.
-* Eine Zelle neben dem Starttunnel ist für das spätere Opferloch reserviert. Das Opferloch selbst gibt es noch nicht.
-* Die Welt wird als eine Textur gezeichnet. Kamera, Zoom und Debug-Raster sind im Fenster.
-* Fünf Arbeiter stehen auf dem Starttunnel und werden als zweite Textur gezeichnet. Gelb und Cyan sind die beiden Gruppen.
-* Ein Linksklick auf eine leere Zelle setzt dasselbe Laufziel für jede Gruppe. Die Arbeiter laufen orthogonal durch vorhandene leere Zellen. Am Ziel bleiben sie stehen.
-* Unerreichbare Ziele lassen die Arbeiter warten. Die Leertaste pausiert, ohne Zeit nachzuholen.
+* Das Opferloch liegt auf der reservierten Zelle im Startbereich. Eine Einlieferung opfert die Einheit einmal. Die letzte Masse bleibt.
+* Die Welt wird als eine Textur gezeichnet. Teilweise abgebaute Zellen dunkeln ab. Kamera, Zoom und Debug-Raster sind im Fenster.
+* Arbeiter werden als zweite Textur gezeichnet, große Einheiten über ihr Quadrat.
+* Das Startmenü startet ein Spiel mit drei Gruppen (40/30/30) oder lädt einen Speicherstand.
+* Ein Zug mit der linken Taste markiert das Abbaugebiet der gewählten Gruppe. Ein kurzer Klick setzt ihr Laufziel.
+* Gruppen lassen sich benennen, anlegen und schließen. Die Quote muss 100 % ergeben, sonst bleibt der alte Stand.
+* Verschmelzung auf 2×2 und 3×3 ist nach dem passenden Upgrade die Wunschgröße der Gruppe. Masse bleibt erhalten, enge Tunnel sind nicht passierbar.
+* Energie kauft Tempo, Abbauleistung und die beiden Verschmelzungsstufen. Die Kosten stehen in `docs/DECISIONS.md`.
+* Gewonnen ist, wenn Masse, zwei Upgrades und 90 % Abbau zusammen erreicht sind. Danach läuft das Spiel weiter, die Statistik bleibt sichtbar.
+* Pause, Spielgeschwindigkeit 1×, 2× und 4×, Speichern und Laden.
 * Die Fraktions-ID liegt am Arbeiter und ist beim Start 0. Nur diese eine Fraktion wird verwendet.
-* Abbau in der beschlossenen Dauer, gemeinsamer Abbau, ein Arbeiter pro Feld, Warteschlange, Massenprüfung. Das läuft in der Simulation und in den Tests. Die aktuelle Ansicht vergibt keinen Abbauauftrag, deshalb wird im Fenster nichts abgebaut.
-* Orthogonale Bewegung, gemeinsames Flow-Field, Warten bei unerreichbaren Zielen.
-* Zwei Farbgruppen mit Quoten. Neue Arbeiter folgen dem Defizitverfahren.
 
 ## Was noch nicht da ist
 
 * Mehrere Fraktionen mit eigenem Besitz.
-* Abbau per Mausauswahl und ein HUD für Wachstum.
-* Namen, Anlegen und Löschen von Gruppen. Mindestens drei Gruppen als Bedienung.
-* Verschmelzung, Opferung, Upgrades, Siegbedingungen, Speicherstände.
-* Gezielte statt vollständiger Neuaufbau der Wegfindung nach einem einzelnen Abbau.
+* Eine Zielsuche, die nach einem einzelnen Abbau nur die betroffene Tunnelumgebung neu rechnet.
+* Ein geprüfter Windows-Release-Build und eine Steam-Veröffentlichung. Die Vorbereitung steht in `docs/RELEASE.md` und `docs/STEAM.md`.
+* Hintergrundmusik. Es liegt kein lizenziertes Stück bei. Abgeschlossener Abbau spielt einen kurzen erzeugten Ton, wenn ein Audiogerät vorhanden ist.

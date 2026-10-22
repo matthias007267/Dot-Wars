@@ -4,7 +4,7 @@ Diese Datei gilt für jede Änderung an DOT WARS. Die Dokumentation unter `docs/
 
 ## Phasen
 
-1. Es wird immer nur eine ausdrücklich freigegebene Phase bearbeitet.
+1. Es wird immer nur eine ausdrücklich freigegebene Phase bearbeitet. Am 22. Oktober 2026 sind die Phasen 4 bis 10 als Folge freigegeben worden. Sie liegen zusammen in Review. Alles danach wartet wieder auf eine eigene Freigabe.
 2. Die nächste Phase beginnt nicht von selbst, auch wenn sie technisch naheliegend ist.
 3. Nach Abschluss einer Phase endet die Arbeit. Es wird auf die nächste Freigabe gewartet.
 4. Ein Pull Request enthält nur die freigegebene Phase. Vorhandener, bereits funktionierender Code wird dabei nicht gelöscht und nicht neu geschrieben.
