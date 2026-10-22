@@ -81,7 +81,7 @@ Bis zu 32 Materialänderungen korrigieren das letzte veröffentlichte Feld. Grö
 
 Abbau schreibt keine Arbeiter in die Warteschlange. Ein gekaufter Arbeiter ist ein FIFO-Eintrag an einer Zelle beim Energiekern. Ist der Ort belegt, sucht eine BFS in der Reihenfolge Nord, Ost, Süd, West die nächste freie leere Zelle. Findet sie keine, bleibt der Eintrag liegen. Die Gruppe wählt `GroupQuotas.pick_group`: kleinster Quotient Anzahl/Quote, bei Gleichstand die größere Quote, danach der kleinere Index. Quote 0 wird nie gewählt.
 
-Ein abgebautes Feld der Härte 1, 3 oder 8 legt ebenso viele Energie-Dots auf diese Zelle. Sie laufen über ein gemeinsames Distanzfeld zu den leeren Nachbarn des Kerns und zählen erst dort. Arbeiter belegen Vorrang. Ein Energie-Dot betritt keine Zelle, auf der ein Arbeiter oder ein anderer Energie-Dot steht. Das Distanzfeld wird bei Tunneländerungen höchstens alle zehn Takte neu gerechnet.
+Ein abgebautes Feld der Härte 1, 3 oder 8 legt ebenso viele Energie-Dots auf diese Zelle. Sie laufen über ein gemeinsames Distanzfeld zu den leeren Nachbarn des Kerns und zählen erst dort. Mehrere Energie-Dots teilen eine Zelle. Ein Energie-Dot betritt keine Zelle, auf der ein Arbeiter steht. Das Distanzfeld wird bei Tunneländerungen höchstens alle zehn Takte neu gerechnet.
 
 Masseninvariante: lebende Masse plus wartende Käufe = Startmasse plus gekaufte Arbeiter. Energieinvariante: erzeugt = geliefert + unterwegs. `Simulation.check_invariants()` prüft beides zusammen mit der Belegung.
 

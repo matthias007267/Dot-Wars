@@ -1,8 +1,8 @@
 class_name EnergyStore
 extends RefCounted
-## Bewegliche Energie-Dots. Arbeiter haben Vorrang, Energiedots warten bei belegten
-## Zellen. Für den Weg zum Kern wird ein gemeinsames Distanzfeld verwendet.
-## Jeder Punkt ist genau eine Energieeinheit. Keine Nodes je Punkt.
+## Bewegliche Energie-Dots. Mehrere Dots teilen eine Zelle. Ein Arbeiter auf der
+## nächsten Zelle zum Kern hält sie auf. Für den Weg wird ein gemeinsames Distanzfeld
+## verwendet. Jeder Punkt ist genau eine Energieeinheit. Keine Nodes je Punkt.
 
 const COLOR := Color8(0x53, 0xC7, 0xFF)
 const MOVE_PERIOD := 2
@@ -39,27 +39,19 @@ func step(world: WorldState, workers: WorkerStore, core: int, tick: int) -> int:
 	var exits := {}
 	for c in gate:
 		exits[c] = true
-	var occupied := {}
-	for c in cells:
-		occupied[c] = int(occupied.get(c, 0)) + 1
 	var gained := 0
 	var next := PackedInt32Array()
 	for c in cells:
 		if exits.has(c):
 			gained += 1
-			occupied[c] -= 1
 			continue
-		var target := _next_cell(c, world, workers, occupied)
-		if target != c:
-			occupied[c] -= 1
-			occupied[target] = int(occupied.get(target, 0)) + 1
-		next.append(target)
+		next.append(_next_cell(c, world, workers))
 	cells = next
 	delivered += gained
 	return gained
 
 
-func _next_cell(c: int, world: WorldState, workers: WorkerStore, occupied: Dictionary) -> int:
+func _next_cell(c: int, world: WorldState, workers: WorkerStore) -> int:
 	if c < 0 or c >= _dist.size() or _dist[c] < 0:
 		return c
 	var width := world.width
@@ -75,7 +67,7 @@ func _next_cell(c: int, world: WorldState, workers: WorkerStore, occupied: Dicti
 		options.append(c - 1)
 	for target in options:
 		if _dist[target] >= 0 and _dist[target] < _dist[c] and world.cells[target] == Materials.EMPTY:
-			if workers.is_free(target) and int(occupied.get(target, 0)) == 0:
+			if workers.is_free(target):
 				return target
 	return c
 

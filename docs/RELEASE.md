@@ -4,17 +4,18 @@ Stand: 22. Oktober 2026. Version in `project.godot`: 0.3.0, Test-Beta mit Energi
 
 ## Was hier geprüft wurde
 
-* 119 automatisierte Tests, 21 765 Prüfungen, headless, Godot 4.3. Kein Fehler.
+* 121 automatisierte Tests, 21 780 Prüfungen, headless, Godot 4.3. Kein Fehler.
 * Headless-Start schreibt `DOT WARS bereit`.
 * Startmenü und die Spielansicht wurden in dieser Linux-Umgebung geöffnet.
 * Simulation mit 1.000, 10.000 und 50.000 Arbeitern, dazu eine 1.000×1.000-Welt. Zahlen in `docs/PERFORMANCE.md`.
 * Speicherstand Version 2: speichern, laden, gleiche Fortsetzung. Version 1 wird abgelehnt und nicht umgerechnet.
+* 4 000 Energie-Dots auf einer leeren 64er-Welt, 20 Takte, im Schnitt 2,34 ms. Ein enger Gang mit 24 Dots ist als Test festgehalten. Zahlen in `docs/PERFORMANCE.md`.
 
 ## Was hier nicht geprüft wurde
 
 * Ein Windows-Rechner. Exportvorlagen für Godot 4.3 sind in dieser Umgebung nicht installiert, deshalb gibt es keine `build/dotwars.exe`.
 * Eine komplette Partie bis zu den drei Siegzielen. 90 % einer 256er- oder 500er-Welt sind ein langer Lauf. Die Arbeitermasse wächst nur noch durch Käufe.
-* Das Verhalten sehr vieler Energie-Dots und ihr Stau in engen Tunneln.
+* Eine volle Partie, in der Abbau und mehrere tausend Energie-Dots gleichzeitig laufen.
 * Ton auf einem echten Audiogerät. Diese Maschine fällt auf den Dummy-Treiber zurück.
 
 ## Windows-Build
@@ -33,7 +34,7 @@ Die Vorgabe liegt in `export_presets.cfg`. Der Export bettet das PCK ein und zie
 * Kleine Tunneländerungen korrigieren die Zielsuche lokal. Große Änderungen und neue Ziele rechnen die erreichbare Fläche neu, verteilt über mehrere Takte.
 * Es gibt eine Fraktion. Kampf, KI und Mehrspieler fehlen.
 * 3×3 kostet 250 Energie. Ein Arbeiter kostet vorläufig 10 Energie. Beides sind vorläufige Werte.
-* Energie-Dots warten, wenn die nächste Zelle zum Kern von einem Arbeiter oder einem anderen Energie-Dot belegt ist. In einem engen Tunnel können sie stehen bleiben.
+* Energie-Dots warten, wenn ein Arbeiter auf der nächsten Zelle zum Kern steht. Untereinander teilen sie die Zelle.
 * Speicherstände der Version 1 sind mit dieser Wirtschaft nicht lesbar.
 * Musik fehlt, weil kein lizenziertes Stück beiliegt.
 

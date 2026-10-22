@@ -27,6 +27,8 @@ var _goal_mass_value: Label
 var _goal_upgrade_value: Label
 var _goal_mining_value: Label
 var _victory: Label
+var _report: PanelContainer
+var _report_labels: Array[Label] = []
 
 var _message: Label
 var _mine_button: Button
@@ -145,6 +147,12 @@ func refresh() -> void:
 	_goal_upgrade_value.text = "%d / 2" % sim.upgrades.purchased
 	_goal_mining_value.text = "%d / 90 %%" % percent
 	_victory.visible = sim.won
+	if _report != null:
+		_report.visible = sim.won
+		if sim.won:
+			var lines := sim.victory_lines()
+			for index in mini(lines.size(), _report_labels.size()):
+				_report_labels[index].text = lines[index]
 	_pause_button.text = "WEITER" if clock.paused else "PAUSE"
 	_speed_button.text = "%d×" % clock.speed
 	_buy_worker_button.disabled = sim.upgrades.energy < Simulation.WORKER_COST
@@ -198,6 +206,21 @@ func _build_goals(layer: Control) -> void:
 	_goal_mining = mining[1]
 	_victory = _label(content, "WELT EROBERT – WEITERSPIELEN MÖGLICH", 12, UiTheme.ACCENT)
 	_victory.visible = false
+	_build_report(layer)
+
+
+func _build_report(layer: Control) -> void:
+	_report = _panel(layer)
+	_report.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_report.offset_left = -332
+	_report.offset_right = -16
+	_report.offset_top = 232
+	_report.offset_bottom = 444
+	_report.visible = false
+	var content := _column(_report, 4)
+	_label(content, "AUSWERTUNG", 16, UiTheme.ACCENT)
+	for _index in 7:
+		_report_labels.append(_label(content, "", 13, UiTheme.TEXT))
 
 
 func _build_dock(layer: Control) -> void:

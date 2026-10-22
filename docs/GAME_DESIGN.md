@@ -64,7 +64,7 @@ Es gibt vorerst genau zwei bewegliche Dot-Arten: **gelbe Arbeiter-Dots** und **c
 
 Ein vollständig abgebautes Feld der Härte 1, 3 oder 8 erzeugt genau 1, 3 oder 8 Energie-Dots. Sie bewegen sich orthogonal durch bestehende Tunnel zum zentralen **Energiekern** (vormals Opferloch). Erst bei Ankunft zählt ihre Energie als verfügbares Guthaben. Der Energiekern erzeugt für **10 Energie** einen neuen Basis-Arbeiter im Starttunnel; wenn dort kein Platz ist, wartet der gekaufte Arbeiter in der Spawn-Warteschlange. Arbeiter werden niemals durch Abbau automatisch erzeugt.
 
-Arbeiter haben bei Bewegungskonflikten Vorrang. Energie-Dots berücksichtigen die aktuelle Arbeiterbelegung und warten oder weichen aus; die Energie-Dots selbst blockieren niemals die Bewegungslogik der Arbeiter. Sie werden als separate Texturebene unter den Arbeitern gezeichnet. Energie-Dots dürfen sich vorübergehend am selben Ursprung sammeln, damit Härte 8 stets exakt acht Energieeinheiten liefert. Transport erfolgt deterministisch über ein gemeinsames Distanzfeld.
+Arbeiter haben bei Bewegungskonflikten Vorrang. Energie-Dots teilen eine Tunnelzelle und blockieren einander nicht. Steht ein Arbeiter auf der nächsten Zelle zum Kern, warten sie, bis die Zelle frei ist. Sie werden als separate Texturebene unter den Arbeitern gezeichnet. Transport erfolgt deterministisch über ein gemeinsames Distanzfeld.
 
 **Arbeitermasse = Startmasse + gekaufte Arbeiter**. Noch nicht platzierte, aber bezahlte Arbeiter zählen mit. **Erzeugte Energie = zugestellte Energie + unterwegs befindliche Energie**. Guthaben und für Upgrades/Arbeiter ausgegebene Energie sind getrennt zu bilanzieren.
 
@@ -116,7 +116,7 @@ Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 gekau
 * Die Gruppenverwaltung existiert weiterhin als interne API. Die Quoten bleiben in der Simulation exakt 100 %, aber die Standardoberfläche zeigt keine Quotenregler und keine Gruppenliste.
 * Verschmelzung auf 2×2 und 3×3 ist nach dem passenden Upgrade die Wunschgröße der Gruppe. Masse bleibt erhalten, enge Tunnel sind nicht passierbar.
 * Energie kauft Tempo, Abbauleistung und die beiden Verschmelzungsstufen. Die Kosten stehen in `docs/DECISIONS.md`.
-* Gewonnen ist, wenn Arbeitermasse, zwei Upgrades und 90 % Abbau zusammen erreicht sind. Danach läuft das Spiel weiter. Die Masse wächst nur durch Käufe.
+* Gewonnen ist, wenn Arbeitermasse, zwei Upgrades und 90 % Abbau zusammen erreicht sind. Danach läuft das Spiel weiter. Die Auswertung nennt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades und die höchste Zahl gleichzeitiger Einheiten. Die Masse wächst nur durch Käufe.
 * Pause, Spielgeschwindigkeit 1×, 2× und 4×, Speichern und Laden.
 * Kleine Tunneländerungen korrigieren die Zielsuche lokal. Ab 33 Zellen, bei einem neuen Gebiet oder einem neuen Laufziel wird das Feld neu aufgebaut.
 * Die Fraktions-ID liegt am Arbeiter und ist beim Start 0. Nur diese eine Fraktion wird verwendet.
@@ -124,7 +124,6 @@ Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 gekau
 ## Was noch nicht da ist
 
 * Rote Krieger-Dots.
-* Eine Ausweichlogik, die Energie-Dots in engen Tunneln zuverlässig am Arbeiter vorbeiführt. Sie können dort vorerst stecken bleiben.
 * Mehrere Fraktionen mit eigenem Besitz.
 * Ein geprüfter Windows-Release-Build und eine Steam-Veröffentlichung. Die Vorbereitung steht in `docs/RELEASE.md` und `docs/STEAM.md`.
 * Hintergrundmusik. Es liegt kein lizenziertes Stück bei. Abgeschlossener Abbau spielt einen kurzen erzeugten Ton, wenn ein Audiogerät vorhanden ist.

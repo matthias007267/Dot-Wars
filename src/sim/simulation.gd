@@ -163,6 +163,24 @@ func expected_mass() -> int:
 	return initial_mass + purchased_workers
 
 
+## Zeilen der Sieganzeige. Die Zeit ist die Simulationszeit bis zum Sieg, 20 Takte je Sekunde.
+func victory_lines() -> PackedStringArray:
+	var ticks := tick_count
+	if won and win_tick >= 0:
+		ticks = win_tick
+	var seconds := ticks / 20
+	var clock := "%d:%02d" % [seconds / 60, seconds % 60]
+	return PackedStringArray([
+		"Spielzeit  %s" % clock,
+		"Abgebaut  %d" % world.mined_count,
+		"Höchste Masse  %d" % peak_mass,
+		"Gekaufte Arbeiter  %d" % purchased_workers,
+		"Gelieferte Energie  %d" % energy_dots.delivered,
+		"Upgrades  %d" % upgrades.purchased,
+		"Einheiten zugleich  %d" % max_units,
+	])
+
+
 func stats() -> Dictionary:
 	var group_total := quotas.size()
 	var waiting := PackedInt32Array()

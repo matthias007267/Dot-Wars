@@ -121,3 +121,13 @@ Dieselbe Maschine, Seed 1337, eine Gruppe, die linke Hälfte als Abbaugebiet mar
 | 1.000 × 1.000 | 455 ms | 0,72 ms | 2 | lokale Korrektur |
 
 Das ist eine einzelne Randzelle, kein großer aufgerissener Tunnel. Mehr als 32 Zellen, ein neues Gebiet, ein neues Laufziel oder ein Abhängigkeitskegel über 8192 Zellen bauen das Feld weiterhin vollständig neu.
+
+## Energietransport vom 22. Oktober 2026
+
+Dieselbe Maschine. Leere Welt 64 × 64, ein Arbeiter, 4 000 Energie-Dots, 20 Takte. Die Dots teilen Zellen und warten nur auf Arbeiter.
+
+| Dots am Start | Takte | Gesamt | Ø Tick | Geliefert | Unterwegs |
+|---:|---:|---:|---:|---:|---:|
+| 4 000 | 20 | 46,70 ms | 2,34 ms | 221 | 3 779 |
+
+Invarianten ohne Fehler. Ein Gang von einer Zelle Breite mit 24 Dots und einem Arbeiter davor ist als Test festgehalten: nichts kommt an, solange der Arbeiter die Zelle hält; danach kommt jede Einheit an. Die Messung ersetzt keine volle Partie.

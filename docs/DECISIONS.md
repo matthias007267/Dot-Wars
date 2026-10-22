@@ -183,4 +183,11 @@ Datum: 22. Oktober 2026.
 
 Es gibt vorerst ausschließlich gelbe Arbeiter-Dots und cyanfarbene Energie-Dots. Rote Krieger-Dots sind ausdrücklich für eine spätere Entwicklungsphase reserviert. Abbau erzeugt keine Arbeiter mehr, sondern genau so viele Energie-Dots wie die Materialhärte (1, 3, 8). Energie bewegt sich autonom durch Tunnel zum zentralen Energiekern, dem umbenannten Opferloch, und wird erst bei Ankunft verfügbar. Arbeiter werden für zunächst 10 Energie am Kern gekauft und über die vorhandene Spawn-Warteschlange im Zentrum erzeugt. Opferung von Arbeitern ist deaktiviert. Transportierte Energie und Arbeiter haben getrennte Belegungsdaten; Energie wartet bei Arbeiterbelegung, Arbeiter werden nie durch Energie blockiert. Die Darstellung zeichnet Energie unter den Arbeitern.
 
-Die Massenbilanz lautet Startmasse plus gekaufte Masse. Die Energieerzeugungsbilanz lautet erzeugt gleich geliefert plus unterwegs. Speichern und Laden verwenden Version 2; Version 1 wird bewusst nicht automatisch migriert. Die Ausweich-/Engstellenlogik und die Performance großer Energietransportmengen müssen noch in Praxistests validiert werden.
+Die Massenbilanz lautet Startmasse plus gekaufte Masse. Die Energieerzeugungsbilanz lautet erzeugt gleich geliefert plus unterwegs. Speichern und Laden verwenden Version 2; Version 1 wird bewusst nicht automatisch migriert.
+
+
+### D-025 Energie teilt Zellen, Arbeiter halten den Gang
+
+Datum: 22. Oktober 2026.
+
+Energie-Dots blockieren einander nicht. Beliebig viele liegen auf derselben leeren Zelle und rücken gemeinsam vor, auch in einem Gang von einer Zelle Breite. Die nächste Zelle ist diejenige mit kürzerer Distanz zum Kern, in der Reihenfolge Nord, Ost, Süd, West. Ist diese Zelle von einem Arbeiter belegt, bleibt der Dot liegen. Arbeiter werden von Energie nicht verschoben. Die Kosten von 10 Energie je Arbeiter und 250 für 3×3 bleiben vorläufig. Die Siegbedingungen bleiben unverändert.
