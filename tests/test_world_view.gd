@@ -40,13 +40,18 @@ func test_pixels_use_the_material_colors() -> void:
 	var palette := WorldRenderer.palette_bytes()
 	var bytes := PackedByteArray()
 	bytes.resize(world.cell_count() * 4)
-	WorldRenderer.paint_all(bytes, world, palette)
-	var image := Image.create_from_data(world.width, world.height, false, Image.FORMAT_RGBA8, bytes)
 	var pit := WorldGenerator.sacrifice_cell(world)
-	_check_pixel(image, pit, Materials.INDESTRUCTIBLE, "Opferloch")
+	var pit_index := world.index(pit.x, pit.y)
+	WorldRenderer.paint_all(bytes, world, palette, pit_index)
+	var image := Image.create_from_data(world.width, world.height, false, Image.FORMAT_RGBA8, bytes)
+	var pit_pixel := image.get_pixel(pit.x, pit.y)
+	var pit_distance := absf(pit_pixel.r - Materials.PIT_COLOR.r) + absf(pit_pixel.g - Materials.PIT_COLOR.g) + absf(pit_pixel.b - Materials.PIT_COLOR.b)
+	check(pit_distance < 0.02, "Opferloch hebt sich ab (Abstand %.3f)" % pit_distance)
 	_check_pixel(image, Vector2i(world.width / 2, world.height / 2), Materials.EMPTY, "Tunnel")
 	var seen := {}
 	for idx in world.cell_count():
+		if idx == pit_index:
+			continue
 		seen[world.cells[idx]] = Vector2i(idx % world.width, idx / world.width)
 		if seen.size() == Materials.COUNT:
 			break

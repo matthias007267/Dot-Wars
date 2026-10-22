@@ -5,8 +5,8 @@ extends Node2D
 var world: WorldState
 var workers: WorkerStore
 var colors: Array[Color] = [
-	Color(0.98, 0.86, 0.12),
-	Color(0.25, 0.88, 0.95),
+	Color8(0xFF, 0xE4, 0x5E),
+	Color8(0x53, 0xC7, 0xFF),
 ]
 
 var _bytes := PackedByteArray()

@@ -11,7 +11,7 @@ var _size := 256
 
 func _ready() -> void:
 	var backdrop := ColorRect.new()
-	backdrop.color = Color(0.07, 0.08, 0.10)
+	backdrop.color = Materials.BACKDROP
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(backdrop)
 
@@ -26,43 +26,52 @@ func _ready() -> void:
 	var title := Label.new()
 	title.text = "DOT WARS"
 	title.add_theme_font_size_override("font_size", 42)
+	title.add_theme_color_override("font_color", UiTheme.TEXT)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 
 	var hint := Label.new()
 	hint.text = "Ziehe Abbaugebiete, wähle Farbgruppen, opfere Masse für Upgrades."
+	hint.add_theme_color_override("font_color", UiTheme.MUTED)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hint)
 
 	var sizes := HBoxContainer.new()
 	sizes.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.add_child(sizes)
+	var selected: Button
 	for value in [256, 500, 1000]:
 		var button := Button.new()
 		button.text = str(value)
+		button.toggle_mode = true
 		button.pressed.connect(_select_size.bind(value, button))
 		sizes.add_child(button)
 		if value == 256:
-			button.button_pressed = true
-			button.set_pressed_no_signal(true)
+			selected = button
+	_select_size(256, selected)
 
 	_seed.placeholder_text = "Seed"
 	_seed.text = "1337"
 	_seed.custom_minimum_size = Vector2(220, 0)
+	_seed.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UiTheme.style_line(_seed)
 	box.add_child(_seed)
 
 	var play := Button.new()
 	play.text = "Neues Spiel"
 	play.pressed.connect(_play)
+	UiTheme.style_button(play, true)
 	box.add_child(play)
 
 	var load := Button.new()
 	load.text = "Spielstand laden"
 	load.pressed.connect(_load)
+	UiTheme.style_button(load)
 	box.add_child(load)
 
 	var note := Label.new()
 	note.text = "Drei Gruppen, Quoten 40 / 30 / 30. Leertaste pausiert."
+	note.add_theme_color_override("font_color", UiTheme.MUTED)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(note)
 
@@ -70,8 +79,10 @@ func _ready() -> void:
 func _select_size(value: int, button: Button) -> void:
 	_size = value
 	for child in button.get_parent().get_children():
-		if child is Button and child != button:
-			child.button_pressed = false
+		if child is Button:
+			var selected := child == button
+			child.button_pressed = selected
+			UiTheme.style_button(child, selected)
 
 
 func _play() -> void:

@@ -22,10 +22,17 @@ func _ready() -> void:
 	margin.add_theme_constant_override("margin_right", 12)
 	add_child(margin)
 
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	panel.add_theme_stylebox_override("panel", UiTheme.panel())
+	margin.add_child(panel)
+
 	var root := VBoxContainer.new()
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_theme_constant_override("separation", 4)
-	margin.add_child(root)
+	panel.add_child(root)
 
 	_label(root, "DOT WARS  ·  Linksklick Ziel  ·  Ziehen Abbau  ·  1–8 Gruppe  ·  Leertaste Pause  ·  F11 Vollbild", 16)
 	_status = _label(root, "", 16)
@@ -36,10 +43,11 @@ func _ready() -> void:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_theme_constant_override("separation", 8)
 	root.add_child(row)
-	_chip(row, Materials.SOFT, "Weich")
-	_chip(row, Materials.MEDIUM, "Mittel")
-	_chip(row, Materials.HARD, "Hart")
-	_chip(row, Materials.INDESTRUCTIBLE, "Unzerstörbar")
+	_chip(row, Materials.COLORS[Materials.SOFT], "Weich")
+	_chip(row, Materials.COLORS[Materials.MEDIUM], "Mittel")
+	_chip(row, Materials.COLORS[Materials.HARD], "Hart")
+	_chip(row, Materials.COLORS[Materials.INDESTRUCTIBLE], "Unzerstörbar")
+	_chip(row, Materials.PIT_COLOR, "Opferloch")
 
 	var actions := HBoxContainer.new()
 	actions.add_theme_constant_override("separation", 6)
@@ -114,6 +122,7 @@ func _rebuild_groups() -> void:
 		var select := Button.new()
 		select.custom_minimum_size = Vector2(160, 0)
 		select.pressed.connect(_select.bind(g))
+		UiTheme.style_button(select)
 		row.add_child(select)
 		var spin := SpinBox.new()
 		spin.min_value = 0
@@ -121,6 +130,7 @@ func _rebuild_groups() -> void:
 		spin.value = sim.quotas[g]
 		spin.custom_minimum_size = Vector2(90, 0)
 		row.add_child(spin)
+		UiTheme.style_line(spin.get_line_edit())
 		_spins.append(spin)
 		_label(row, "", 14)
 		_button(row, "1", _set_size.bind(g, 1))
@@ -228,7 +238,7 @@ func _label(parent: Node, text: String, size: int) -> Label:
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.text = text
 	label.add_theme_font_size_override("font_size", size)
-	label.add_theme_color_override("font_color", Color(0.93, 0.94, 0.9))
+	label.add_theme_color_override("font_color", UiTheme.TEXT)
 	parent.add_child(label)
 	return label
 
@@ -237,17 +247,18 @@ func _button(parent: Node, text: String, action: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.pressed.connect(action)
+	UiTheme.style_button(button)
 	parent.add_child(button)
 	return button
 
 
-func _chip(parent: Node, material: int, title: String) -> void:
+func _chip(parent: Node, color: Color, title: String) -> void:
 	var row := HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(row)
 	var chip := ColorRect.new()
 	chip.custom_minimum_size = Vector2(12, 12)
-	chip.color = Materials.COLORS[material]
+	chip.color = color
 	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(chip)
 	_label(row, title, 14)

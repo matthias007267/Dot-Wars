@@ -12,13 +12,17 @@ const COUNT := 5
 
 const HARDNESS: Array[int] = [0, 1, 3, 8, -1]
 
+## Premium Pixel Tactics. Leer ist der Tunnel, nicht der Hintergrund hinter der Welt.
 const COLORS: Array[Color] = [
-	Color(0.07, 0.08, 0.10),
-	Color(0.30, 0.74, 0.32),
-	Color(0.78, 0.46, 0.16),
-	Color(0.38, 0.52, 0.74),
-	Color(0.20, 0.20, 0.22),
+	Color8(0x16, 0x1C, 0x24),
+	Color8(0x57, 0xC9, 0x6D),
+	Color8(0xD3, 0x82, 0x2C),
+	Color8(0x5C, 0x86, 0xDB),
+	Color8(0x39, 0x3F, 0x49),
 ]
+## Nur die Darstellung. Die Zelle bleibt unzerstörbares Material.
+const PIT_COLOR := Color8(0xC7, 0x7A, 0xFF)
+const BACKDROP := Color8(0x0D, 0x10, 0x15)
 
 
 static func hardness(material: int) -> int:

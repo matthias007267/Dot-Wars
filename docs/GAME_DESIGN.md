@@ -26,10 +26,12 @@ Härte ist der Arbeitsaufwand in Arbeitseinheiten. Ein Basis-Arbeiter leistet ei
 
 | Material | Härte | Farbe | Arbeitseinheiten | Dauer, ein Basis-Arbeiter |
 |---|---:|---|---:|---:|
-| Weich | 1 | Grün | 1 | 1 Sekunde |
-| Mittel | 3 | Braun/Orange | 3 | 3 Sekunden |
-| Hart | 8 | Blau/Grau | 8 | 8 Sekunden |
-| Unzerstörbar | — | Dunkelgrau | nicht abbaubar | — |
+| Weich | 1 | `#57C96D` | 1 | 1 Sekunde |
+| Mittel | 3 | `#D3822C` | 3 | 3 Sekunden |
+| Hart | 8 | `#5C86DB` | 8 | 8 Sekunden |
+| Unzerstörbar | — | `#393F49` | nicht abbaubar | — |
+| Tunnel | — | `#161C24` | — | — |
+| Opferloch | — | `#C77AFF`, nur gezeichnet | nicht abbaubar | — |
 
 Die Farben liegen später in einer zentralen Konfiguration. Die Dauer ist beschlossen (`docs/DECISIONS.md`). Im Code entsprechen 20 Fortschrittspunkte einer Arbeitseinheit, bei 20 Simulationstakten pro Sekunde und einem Punkt pro Tick.
 
@@ -104,7 +106,7 @@ Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 Gesam
 ## Was der Stand heute bereits tut
 
 * Quadratische Welt in 256, 500 und 1.000, gleicher Seed, drei abbaubare Materialien mit Härte 1, 3 und 8.
-* Farben Grün, Braun/Orange, Blau/Grau. Unzerstörbares Material ist dunkelgrau und wird nicht abgebaut.
+* Premium-Pixel-Farben: Grün, Orange, Blau, dunkles Grau. Der Tunnel ist `#161C24`, der Hintergrund `#0D1015`. Das Opferloch wird magenta gezeichnet und bleibt unzerstörbar.
 * Das Opferloch liegt auf der reservierten Zelle im Startbereich. Eine Einlieferung opfert die Einheit einmal. Die letzte Masse bleibt.
 * Die Welt wird als eine Textur gezeichnet. Teilweise abgebaute Zellen dunkeln ab. Kamera, Zoom und Debug-Raster sind im Fenster.
 * Arbeiter werden als zweite Textur gezeichnet, große Einheiten über ihr Quadrat.

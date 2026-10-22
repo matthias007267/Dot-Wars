@@ -119,6 +119,30 @@ func test_material_colors_are_distinct() -> void:
 			var right := Materials.COLORS[b]
 			var distance := absf(left.r - right.r) + absf(left.g - right.g) + absf(left.b - right.b)
 			check(distance > 0.25, "Farbe %d und %d sind getrennt (%.2f)" % [a, b, distance])
+	var backdrop := Materials.BACKDROP
+	var tunnel := Materials.COLORS[Materials.EMPTY]
+	var separated := absf(backdrop.r - tunnel.r) + absf(backdrop.g - tunnel.g) + absf(backdrop.b - tunnel.b)
+	check(separated > 0.08, "Tunnel hebt sich vom Hintergrund ab")
+
+
+func test_material_colors_match_the_premium_palette() -> void:
+	var expected := [
+		[0x16, 0x1C, 0x24],
+		[0x57, 0xC9, 0x6D],
+		[0xD3, 0x82, 0x2C],
+		[0x5C, 0x86, 0xDB],
+		[0x39, 0x3F, 0x49],
+	]
+	var bytes := WorldRenderer.palette_bytes()
+	for material in Materials.COUNT:
+		var offset := material * 4
+		check_eq(int(bytes[offset]), expected[material][0], "Rot %d" % material)
+		check_eq(int(bytes[offset + 1]), expected[material][1], "Grün %d" % material)
+		check_eq(int(bytes[offset + 2]), expected[material][2], "Blau %d" % material)
+	check_eq(WorldRenderer._channel(Materials.PIT_COLOR.r), 0xC7, "Opferloch Rot")
+	check_eq(WorldRenderer._channel(Materials.PIT_COLOR.g), 0x7A, "Opferloch Grün")
+	check_eq(WorldRenderer._channel(Materials.PIT_COLOR.b), 0xFF, "Opferloch Blau")
+	check_eq(WorldRenderer._channel(Materials.BACKDROP.r), 0x0D, "Hintergrund")
 
 
 func test_standard_and_target_world_sizes() -> void:

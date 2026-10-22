@@ -18,7 +18,7 @@ var _texture: ImageTexture
 func _ready() -> void:
 	texture_filter = TEXTURE_FILTER_NEAREST
 	_bytes.resize(world.cell_count() * 4)
-	paint_all(_bytes, world, palette_bytes())
+	paint_all(_bytes, world, palette_bytes(), _pit_index())
 	_upload()
 	world.consume_dirty_chunks()
 	queue_redraw()
@@ -30,7 +30,7 @@ func _process(_delta: float) -> void:
 		return
 	var palette := palette_bytes()
 	for chunk in dirty:
-		paint_rect(_bytes, world, palette, world.chunk_rect(chunk))
+		paint_rect(_bytes, world, palette, world.chunk_rect(chunk), _pit_index())
 	_upload()
 	queue_redraw()
 
@@ -58,20 +58,24 @@ static func palette_bytes() -> PackedByteArray:
 	return bytes
 
 
-static func paint_all(bytes: PackedByteArray, world: WorldState, palette: PackedByteArray) -> void:
+static func paint_all(
+	bytes: PackedByteArray, world: WorldState, palette: PackedByteArray, pit: int = -1
+) -> void:
 	var cells := world.cells
 	for idx in cells.size():
-		_write_cell(bytes, palette, world, idx, cells[idx])
+		_write_cell(bytes, palette, world, idx, cells[idx], pit)
 
 
-static func paint_rect(bytes: PackedByteArray, world: WorldState, palette: PackedByteArray, rect: Rect2i) -> void:
+static func paint_rect(
+	bytes: PackedByteArray, world: WorldState, palette: PackedByteArray, rect: Rect2i, pit: int = -1
+) -> void:
 	var cells := world.cells
 	var width := world.width
 	for y in range(rect.position.y, rect.end.y):
 		var row := y * width
 		for x in range(rect.position.x, rect.end.x):
 			var idx := row + x
-			_write_cell(bytes, palette, world, idx, cells[idx])
+			_write_cell(bytes, palette, world, idx, cells[idx], pit)
 
 
 func _upload() -> void:
@@ -127,11 +131,23 @@ func _visible_world() -> Rect2:
 	return visible.intersection(Rect2(0, 0, world.width, world.height))
 
 
+func _pit_index() -> int:
+	var pit := WorldGenerator.sacrifice_cell(world)
+	return world.index(pit.x, pit.y)
+
+
 static func _write_cell(
-	bytes: PackedByteArray, palette: PackedByteArray, world: WorldState, idx: int, material: int
+	bytes: PackedByteArray, palette: PackedByteArray, world: WorldState, idx: int, material: int, pit: int = -1
 ) -> void:
-	var src := material * 4
 	var dst := idx * 4
+	if idx == pit:
+		var pit_color := Materials.PIT_COLOR
+		bytes[dst] = _channel(pit_color.r)
+		bytes[dst + 1] = _channel(pit_color.g)
+		bytes[dst + 2] = _channel(pit_color.b)
+		bytes[dst + 3] = 255
+		return
+	var src := material * 4
 	var red := int(palette[src])
 	var green := int(palette[src + 1])
 	var blue := int(palette[src + 2])

@@ -86,7 +86,7 @@ Invariante des Prototyps, solange es keine Opferung gibt: Arbeiter plus wartende
 
 `WorldCoordinates` rechnet ohne Szene zwischen Bildschirm, Welt und Zelle. Die Kamera hat keine Drehung. Bildmitte ist die Kameraposition.
 
-`WorkerRenderer` schreibt die Arbeiter in eine zweite RGBA-Textur mit transparentem Grund. Gruppe 0 ist Gelb, Gruppe 1 ist Cyan. Die Textur wird neu gefüllt, wenn ein neuer Simulationstakt gezeichnet wird. `_draw` zeichnet ein Rechteck. Es gibt keine Node pro Arbeiter.
+`WorkerRenderer` schreibt die Arbeiter in eine zweite RGBA-Textur mit transparentem Grund. Gruppe 0 ist Gelb `#FFE45E`, Gruppe 1 ist Blau `#53C7FF`. Die Textur wird neu gefüllt, wenn ein neuer Simulationstakt gezeichnet wird. `_draw` zeichnet ein Rechteck. Es gibt keine Node pro Arbeiter. Die Opferlochzelle wird beim Malen `#C77AFF`, ohne den Materialwert zu ändern.
 
 Die Hauptszene erzeugt die Simulation, zeichnet Welt und Arbeiter und treibt `TickClock` mit 20 Hz. Ein Linksklick auf eine leere Zelle ruft `set_move_goal` für jede Gruppe auf. Die Leertaste schaltet die Pause. Die Szene weist kein Abbaugebiet zu. Eine ungültige Konfiguration oder eine verletzte Startinvariante beendet das Programm mit Code 1.
 

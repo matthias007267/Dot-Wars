@@ -48,7 +48,9 @@ Gewonnen hat die Gruppe mit dem kleinsten Quotienten Anzahl/Quote. Bei Gleichsta
 
 Datum: 22. Oktober 2026.
 
-Weich ist Grün, mittel Braun/Orange, hart Blau/Grau, unzerstörbar Dunkelgrau. Leer ist ein dunkles Blau-Schwarz, damit es sich vom unzerstörbaren Grau abhebt. Die Farben stehen nur in `Materials.COLORS`.
+Weich ist Grün, mittel Orange, hart Blau, unzerstörbar Dunkelgrau. Leer ist der Tunnel und dunkler als die Materialien, aber heller als der Hintergrund hinter der Welt. Die Farben stehen in `Materials.COLORS`. Das Opferloch bleibt unzerstörbares Material und wird nur in der Darstellung magenta gezeichnet.
+
+Stand 22. Oktober 2026, Variante „Premium Pixel Tactics“: Hintergrund `#0D1015`, Tunnel `#161C24`, weich `#57C96D`, mittel `#D3822C`, hart `#5C86DB`, unzerstörbar `#393F49`, Opferloch `#C77AFF`. Gruppen 1 bis 4 sind `#FFE45E`, `#53C7FF`, `#FF6A76`, `#7EFF93`. Die Gruppen 5 bis 8 sind `#F4F7FB`, `#FF9AD5`, `#3EE0C7`, `#D6F26A`, damit acht Gruppen hell und voneinander getrennt bleiben.
 
 Unzerstörbare Zellen haben keine Haltbarkeit. `WorldState.mine_cell` lehnt sie ab. Sie zählen nicht zum abbaubaren Bestand der Massen- und Fortschrittsquote.
 
