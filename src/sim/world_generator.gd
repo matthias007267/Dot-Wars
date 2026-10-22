@@ -2,8 +2,9 @@ class_name WorldGenerator
 extends RefCounted
 ## Reproduzierbare Weltgenerierung mit reiner Ganzzahl-Wertnoise (unabhängig von Engine-Versionen).
 ##
-## Die Welt ist vollständig mit Material gefüllt und damit zusammenhängend; lediglich der
-## Starttunnel in der Mitte ist leer.
+## Die Welt ist ein zusammenhängender Materialkörper. In der Mitte liegt ein leerer Starttunnel.
+## Eine Zelle neben dem Tunnel ist für das spätere Opferloch reserviert und unzerstörbar.
+## Ein kleines unzerstörbares Feld daneben macht diesen Materialtyp in der Ansicht sichtbar.
 
 const LARGE_SCALE := 32
 const SMALL_SCALE := 11
@@ -23,7 +24,13 @@ static func generate(config: SimConfig) -> WorldState:
 			material = Materials.MEDIUM
 		world.cells[idx] = material
 	carve_start_tunnel(world, config.tunnel_arm_length)
+	_place_unbreakable(world, config.tunnel_arm_length)
 	return world
+
+
+## Zelle des späteren Opferlochs: orthogonal neben der Tunnelmitte, nicht auf dem Tunnel.
+static func sacrifice_cell(world: WorldState) -> Vector2i:
+	return Vector2i(world.width / 2 + 1, world.height / 2 + 1)
 
 
 ## Kreuzförmiger Starttunnel um den Weltmittelpunkt.
@@ -32,6 +39,21 @@ static func carve_start_tunnel(world: WorldState, arm: int) -> void:
 	var cy := world.height / 2
 	world.carve_rect(Rect2i(cx - arm, cy, arm * 2 + 1, 1))
 	world.carve_rect(Rect2i(cx, cy - arm, 1, arm * 2 + 1))
+
+
+static func _place_unbreakable(world: WorldState, arm: int) -> void:
+	var pit := sacrifice_cell(world)
+	var pit_idx := world.index(pit.x, pit.y)
+	if world.cells[pit_idx] != Materials.EMPTY:
+		world.set_material(pit_idx, Materials.INDESTRUCTIBLE)
+	var origin_x := clampi(world.width / 2 - arm - 6, 1, world.width - 5)
+	var origin_y := clampi(world.height / 2 - arm - 6, 1, world.height - 5)
+	for y in range(origin_y, origin_y + 4):
+		for x in range(origin_x, origin_x + 4):
+			var idx := world.index(x, y)
+			if world.cells[idx] == Materials.EMPTY or idx == pit_idx:
+				continue
+			world.set_material(idx, Materials.INDESTRUCTIBLE)
 
 
 ## Quantile der sortierten Rauschwerte, damit die Materialanteile exakt den Vorgaben entsprechen.

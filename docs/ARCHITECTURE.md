@@ -14,7 +14,8 @@ Die Simulation läuft mit 20 Takten pro Sekunde. Spielregeln rechnen mit ganzen 
 
 ```
 src/sim/          Simulation, headless
-src/main.gd       Hauptszene der Projektgrundlage
+src/main.gd       Hauptszene, nur Welt
+src/render/       Kamera, Textur, Koordinaten
 scenes/main.tscn
 tests/            projekteigener Test-Runner und Tests
 bench/            headless Benchmark
@@ -25,7 +26,10 @@ docs/             verbindliche Dokumentation
 | Modul | Aufgabe |
 |---|---|
 | `SimConfig` | Weltgröße, Seed, Quoten, Abbau- und Bewegungswerte, Prüfung |
-| `Materials` | Härte 1, 3, 8 und Farben |
+| `Materials` | Härte 1, 3, 8, unzerstörbar, Farben |
+| `WorldCoordinates` | Zelle, Welt, Bildschirm |
+| `WorldRenderer` | eine Textur, Chunk-Aktualisierung, Raster |
+| `CameraController` | Zoom, Verschieben, Grenzen |
 | `WorldState` | Zellen, Fortschritt, Chunk-Dirty-Flags |
 | `WorldGenerator` | reproduzierbare Welt und Starttunnel |
 | `WorkerStore` | Arbeiter als Struct-of-Arrays, eine Zelle ein Arbeiter |
@@ -70,9 +74,13 @@ Jede abgebaute Zelle wird ein FIFO-Eintrag. Ist der Ort belegt, sucht eine BFS i
 
 Invariante des Prototyps, solange es keine Opferung gibt: Arbeiter plus wartende Entstehungen = Startarbeiter plus abgebaute Zellen. `Simulation.check_invariants()` prüft das zusammen mit der Belegung.
 
-## Hauptszene
+## Darstellung
 
-`src/main.gd` erzeugt eine Simulation, bricht bei ungültiger Konfiguration oder verletzter Invariante mit Exit-Code 1 ab und zeigt Größe, Seed, Arbeiterzahl und die Abbaudauern. Sie startet keinen Spielkreislauf.
+`WorldRenderer` schreibt die Zellen in ein RGBA-Bild, ein Pixel pro Zelle, und lädt es als eine Textur mit nächstem Nachbarn. Nach dem ersten Bild werden nur noch schmutzige Chunks neu gemalt. `_draw` zeichnet diese eine Textur. Rasterlinien erscheinen ab 8 Pixeln je Zelle und nur im sichtbaren Ausschnitt. Chunk-Grenzen sind zuschaltbar.
+
+`WorldCoordinates` rechnet ohne Szene zwischen Bildschirm, Welt und Zelle. Die Kamera hat keine Drehung. Bildmitte ist die Kameraposition.
+
+Die Hauptszene erzeugt die Welt mit `WorldGenerator` und startet keine Arbeiter. Eine ungültige Konfiguration beendet das Programm mit Code 1.
 
 ## Tests
 

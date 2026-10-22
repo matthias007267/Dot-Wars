@@ -15,6 +15,8 @@ var progress := PackedInt32Array()
 ## Zählt jede Änderung an `cells`. Abgeleitete Daten erkennen damit Veralterung.
 var revision: int = 0
 var solid_count: int = 0
+## Unzerstörbare Zellen. Sie zählen zu solid_count, aber nicht zum abbaubaren Bestand.
+var indestructible_count: int = 0
 ## Durch Spielmechanik (Abbau) entfernte Zellen. Generator-Aushub zählt nicht.
 var mined_count: int = 0
 
@@ -33,6 +35,7 @@ func _init(p_width: int, p_height: int, p_chunk_size: int = 32, fill_material: i
 	progress.resize(width * height)
 	progress.fill(0)
 	solid_count = 0 if fill_material == Materials.EMPTY else width * height
+	indestructible_count = width * height if fill_material == Materials.INDESTRUCTIBLE else 0
 	_chunk_dirty.resize(chunks_x * chunks_y)
 	_chunk_dirty.fill(1)
 	for chunk in chunks_x * chunks_y:
@@ -64,6 +67,10 @@ func set_material(idx: int, material: int) -> void:
 		solid_count += 1
 	elif material == Materials.EMPTY:
 		solid_count -= 1
+	if old == Materials.INDESTRUCTIBLE:
+		indestructible_count -= 1
+	if material == Materials.INDESTRUCTIBLE:
+		indestructible_count += 1
 	cells[idx] = material
 	progress[idx] = 0
 	revision += 1
@@ -72,7 +79,7 @@ func set_material(idx: int, material: int) -> void:
 
 ## Entfernt eine feste Zelle durch Abbau. Gibt false zurück, wenn sie bereits leer war.
 func mine_cell(idx: int) -> bool:
-	if cells[idx] == Materials.EMPTY:
+	if not Materials.is_mineable(cells[idx]):
 		return false
 	set_material(idx, Materials.EMPTY)
 	mined_count += 1
@@ -88,7 +95,7 @@ func carve_rect(rect: Rect2i) -> void:
 
 ## Anteil der abgebauten Zellen an allen ursprünglich abbaubaren Zellen (0..1).
 func mined_fraction() -> float:
-	var minable := solid_count + mined_count
+	var minable := solid_count - indestructible_count + mined_count
 	return 0.0 if minable == 0 else float(mined_count) / minable
 
 

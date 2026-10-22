@@ -6,8 +6,8 @@ Der Simulationsprototyp auf diesem Branch (Welt, Arbeiter, Bewegung, Abbau, zwei
 
 | Phase | Status | Branch | Pull Request | Abschluss | Offene Punkte |
 |---|---|---|---|---|---|
-| 1 Projektgrundlage | Review | `cursor/phase-01-foundation-9244` | https://github.com/matthias007267/Dot-Wars/pull/1 | — | Farben und Fraktions-ID folgen der Spezifikation noch nicht. Siehe `docs/DECISIONS.md`. |
-| 2 Welt und Darstellung | Nicht begonnen | — | — | — | Prototyp erzeugt 256² headless. Kein Renderer, 500² und 1.000² nicht als Bild geprüft. |
+| 1 Projektgrundlage | Review | `cursor/phase-01-foundation-9244` | https://github.com/matthias007267/Dot-Wars/pull/1 | — | Fraktions-ID fehlt noch. |
+| 2 Welt und Darstellung | Review | `cursor/phase-01-foundation-9244` | https://github.com/matthias007267/Dot-Wars/pull/1 | — | Dieselbe PR wie Phase 1, weil sie noch nicht gemerged ist. Arbeiter werden nicht gezeichnet. |
 | 3 Arbeiter und Wegfindung | Nicht begonnen | — | — | — | Prototyp bewegt Arbeiter headless. Keine Darstellung, keine Pause im Fenster. |
 | 4 Abbau und Wachstum | Nicht begonnen | — | — | — | Prototyp baut headless ab. Keine Mausauswahl, kein HUD. Abbauzeit ist auf die beschlossene Regel gestellt. |
 | 5 Farbgruppen | Nicht begonnen | — | — | — | Prototyp verteilt auf zwei Gruppen. Keine Namen, kein Anlegen oder Löschen. |

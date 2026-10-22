@@ -118,7 +118,7 @@ func _scan_seeds(budget: int) -> int:
 			var y := rect.position.y + _scan_pos / rect.size.x
 			_scan_pos += 1
 			var idx := y * w + x
-			if cells[idx] == Materials.EMPTY:
+			if not Materials.is_mineable(cells[idx]):
 				continue
 			_rect_solid[_rect_index] += 1
 			if x > 0:

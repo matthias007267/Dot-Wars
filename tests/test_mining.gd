@@ -91,3 +91,15 @@ func test_no_diagonal_mining() -> void:
 	check_eq(sim.world.progress[sim.world.index(1, 1)], 0, "von der Diagonale aus gibt es keinen Fortschritt")
 	check(sim.workers.state[0] != WorkerStore.STATE_MINING, "Arbeiter baut nicht diagonal ab")
 	check_eq(TestHelpers.worker_xy(sim, 0), Vector2i(1, 0) if TestHelpers.worker_xy(sim, 0).x == 1 else Vector2i(0, 1), "Arbeiter geht erst auf ein orthogonal angrenzendes Feld")
+
+
+func test_indestructible_cell_is_never_mined() -> void:
+	var sim := TestHelpers.sim_from_ascii(["w#.", "..."], _config())
+	var idx := sim.world.index(1, 1)
+	sim.world.set_material(idx, Materials.INDESTRUCTIBLE)
+	sim.assign_area(0, Rect2i(1, 1, 1, 1))
+	sim.run_ticks(40)
+	check_eq(sim.world.cells[idx], Materials.INDESTRUCTIBLE, "bleibt stehen")
+	check_eq(sim.world.mined_count, 0, "kein Abbau")
+	check_eq(sim.workers.count, 1, "kein neuer Arbeiter")
+	check(not sim.world.mine_cell(idx), "direkter Abbau scheitert")

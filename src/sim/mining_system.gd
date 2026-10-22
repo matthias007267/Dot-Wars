@@ -14,13 +14,13 @@ static func acquire_target(workers: WorkerStore, world: WorldState, areas: DigAr
 	var w := world.width
 	var x := c % w
 	var found := WorkerStore.NO_TARGET
-	if c >= w and cells[c - w] != Materials.EMPTY and mask[c - w] == 1:
+	if c >= w and _can_mine(cells, mask, c - w):
 		found = c - w
-	elif x < w - 1 and cells[c + 1] != Materials.EMPTY and mask[c + 1] == 1:
+	elif x < w - 1 and _can_mine(cells, mask, c + 1):
 		found = c + 1
-	elif c < world.cell_count() - w and cells[c + w] != Materials.EMPTY and mask[c + w] == 1:
+	elif c < world.cell_count() - w and _can_mine(cells, mask, c + w):
 		found = c + w
-	elif x > 0 and cells[c - 1] != Materials.EMPTY and mask[c - 1] == 1:
+	elif x > 0 and _can_mine(cells, mask, c - 1):
 		found = c - 1
 	if found == WorkerStore.NO_TARGET:
 		return false
@@ -49,15 +49,19 @@ static func step(
 			continue
 		var cell := target[id]
 		var mask: PackedByteArray = areas.masks[workers.group[id]]
-		if cells[cell] == Materials.EMPTY or mask[cell] == 0:
+		if not Materials.is_mineable(cells[cell]) or mask[cell] == 0:
 			if not acquire_target(workers, world, areas, id):
 				state[id] = WorkerStore.STATE_WAITING
 			continue
 		var total := progress[cell] + dig_power
 		if total >= Materials.durability(cells[cell], work_per_hardness):
-			world.mine_cell(cell)
-			spawner.enqueue(cell)
-			completed += 1
+			if world.mine_cell(cell):
+				spawner.enqueue(cell)
+				completed += 1
 		else:
 			progress[cell] = total
 	return completed
+
+
+static func _can_mine(cells: PackedByteArray, mask: PackedByteArray, idx: int) -> bool:
+	return Materials.is_mineable(cells[idx]) and mask[idx] == 1

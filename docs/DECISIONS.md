@@ -44,11 +44,27 @@ Datum: 22. Oktober 2026, Bestand des Prototyps.
 
 Gewonnen hat die Gruppe mit dem kleinsten Quotienten Anzahl/Quote. Bei Gleichstand gewinnt die größere Quote, danach der kleinere Gruppenindex. Der Vergleich ist eine Kreuzmultiplikation ohne Gleitkommazahlen.
 
+### D-007 Farben und unzerstörbares Material
+
+Datum: 22. Oktober 2026.
+
+Weich ist Grün, mittel Braun/Orange, hart Blau/Grau, unzerstörbar Dunkelgrau. Leer ist ein dunkles Blau-Schwarz, damit es sich vom unzerstörbaren Grau abhebt. Die Farben stehen nur in `Materials.COLORS`.
+
+Unzerstörbare Zellen haben keine Haltbarkeit. `WorldState.mine_cell` lehnt sie ab. Sie zählen nicht zum abbaubaren Bestand der Massen- und Fortschrittsquote.
+
+### D-008 Reservierte Opferlochzelle
+
+Datum: 22. Oktober 2026.
+
+`WorldGenerator.sacrifice_cell` liegt bei `(width / 2 + 1, height / 2 + 1)`. Die Zelle ist unzerstörbar und orthogonal an den Starttunnel angrenzend. Ein Feld von 4×4 Zellen nordwestlich des Tunnels ist ebenfalls unzerstörbar, damit der Typ in der Ansicht sichtbar ist. Einlieferungsregeln, Energie und der Schutz vor vollständiger Opferung bleiben Phase 7.
+
+### D-009 Darstellung
+
+Datum: 22. Oktober 2026.
+
+Eine Zelle ist eine Welteinheit und ein Pixel in einer gemeinsamen Textur. Geändert wird nur der betroffene Chunk, gezeichnet wird ein Rechteck. Es gibt keine Node pro Zelle. Der Zoom startet bei 10 Pixeln je Zelle, geht bis 40 hinauf und bis zur ganzen Welt im Fenster hinunter. Das Mausrad zoomt zur Cursorposition.
+
 ## Offen
-
-### O-001 Farben
-
-Die Regel nennt Grün, Braun/Orange, Blau/Grau und Dunkelgrau für unzerstörbares Material. `Materials.COLORS` nutzt noch Braun, Grau und Dunkelgrau für die drei abbaubaren Typen. Unzerstörbares Material gibt es nicht. Änderung in der Darstellungsphase, nicht still in Phase 1.
 
 ### O-002 Fraktions-ID
 

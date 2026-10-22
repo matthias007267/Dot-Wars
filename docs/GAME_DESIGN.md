@@ -101,18 +101,20 @@ Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 Gesam
 
 20 Simulationstakte sind eine Simulationssekunde. Die Bildrate ändert die Abbaugeschwindigkeit nicht. Pause, Fortsetzen, Spielgeschwindigkeit und reproduzierbare Läufe gehören zum Spiel. Spielgeschwindigkeit ist noch nicht im Prototyp.
 
-## Was der Prototyp heute bereits tut
+## Was der Stand heute bereits tut
 
-* Quadratische Welt, Standard 256, Seed, drei abbaubare Materialien mit Härte 1, 3 und 8.
-* Abbau in der beschlossenen Dauer, gemeinsamer Abbau, ein Arbeiter pro Feld, Warteschlange, Massenprüfung.
+* Quadratische Welt in 256, 500 und 1.000, gleicher Seed, drei abbaubare Materialien mit Härte 1, 3 und 8.
+* Farben Grün, Braun/Orange, Blau/Grau. Unzerstörbares Material ist dunkelgrau und wird nicht abgebaut.
+* Eine Zelle neben dem Starttunnel ist für das spätere Opferloch reserviert. Das Opferloch selbst gibt es noch nicht.
+* Die Welt wird als eine Textur gezeichnet. Kamera, Zoom und Debug-Raster sind im Fenster.
+* Abbau in der beschlossenen Dauer, gemeinsamer Abbau, ein Arbeiter pro Feld, Warteschlange, Massenprüfung. Das läuft in der Simulation, nicht in der aktuellen Ansicht.
 * Orthogonale Bewegung, gemeinsames Flow-Field, Warten bei unerreichbaren Zielen.
 * Zwei Farbgruppen mit Quoten. Neue Arbeiter folgen dem Defizitverfahren.
 
-## Was der Prototyp noch nicht tut
+## Was noch nicht da ist
 
-* Farben Grün, Braun/Orange, Blau/Grau und ein unzerstörbares Material.
 * Fraktions-ID getrennt von der Gruppe.
-* Darstellung, Kamera, Mausaufträge, HUD.
+* Arbeiter in der Ansicht, Mausaufträge, Spiel-HUD.
 * Namen, Anlegen und Löschen von Gruppen. Mindestens drei Gruppen als Bedienung.
-* Verschmelzung, Opferloch, Upgrades, Siegbedingungen, Speicherstände.
+* Verschmelzung, Opferung, Upgrades, Siegbedingungen, Speicherstände.
 * Gezielte statt vollständiger Neuaufbau der Wegfindung nach einem einzelnen Abbau.

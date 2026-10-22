@@ -2,7 +2,7 @@
 
 Minimalistisches Echtzeit-Strategiespiel mit Godot 4. Die verbindlichen Regeln stehen in `docs/GAME_DESIGN.md`, die Architektur in `docs/ARCHITECTURE.md`, der Phasenstand in `docs/ROADMAP.md`. Agenten arbeiten nach `AGENTS.md`.
 
-Der aktuelle Stand ist die Projektgrundlage plus ein headlesser Simulationsprototyp. Die Hauptszene zeigt diesen Stand. Eine spielbare Weltansicht gibt es noch nicht.
+Der aktuelle Stand zeigt die generierte Dot-Welt. Die Hauptszene erzeugt keine Arbeiter und lässt die Simulation nicht laufen.
 
 ## Voraussetzungen
 
@@ -23,7 +23,16 @@ Andere Entwicklungsgröße oder anderer Seed, die Argumente stehen hinter `--`:
 godot --path . -- --size=64 --seed=7
 ```
 
-Die Szene prüft die Konfiguration, erzeugt die Simulation und zeigt Weltgröße, Seed, Arbeiterzahl und die Abbaudauern. Härte 8 dauert 8 Sekunden. Bei einem Fehler beendet sich das Programm mit Code 1.
+Die Szene prüft die Konfiguration und zeichnet die Welt. Härte 8 dauert in der Simulation 8 Sekunden. Bei einem Fehler beendet sich das Programm mit Code 1.
+
+Steuerung im Fenster:
+
+* Mausrad zoomt zur Cursorposition
+* Rechte oder mittlere Maustaste verschiebt die Ansicht, ebenso WASD und die Pfeiltasten
+* `G` schaltet das Zellraster ein, sobald eine Zelle mindestens 8 Pixel groß ist
+* `C` schaltet die Chunk-Grenzen ein
+
+Der Zoom reicht von der ganzen Welt im Fenster bis zu 40 Pixeln je Zelle. Gestartet wird mit 10 Pixeln je Zelle auf dem Starttunnel.
 
 Headless, ohne Fenster:
 
@@ -50,10 +59,11 @@ Der Runner endet mit Code 1, wenn eine Prüfung fehlschlägt oder kein Test läu
 
 ## Benchmark
 
-Der Benchmark misst nur die Simulation, nicht die Bildrate.
+Der Simulations-Benchmark misst keine Bildrate. Die Darstellung hat einen eigenen Messlauf.
 
 ```bash
 godot --headless --path . -s bench/benchmark.gd -- --workers=1000,10000 --ticks=200
+godot --path . -- --size=1000 --frames=150 --window=1920x1080
 ```
 
 Ergebnisse und die Grenzen der Messung stehen in `docs/PERFORMANCE.md`.
@@ -63,6 +73,7 @@ Ergebnisse und die Grenzen der Messung stehen in `docs/PERFORMANCE.md`.
 ```
 src/sim/                 headlesse Simulation
 src/main.gd              Hauptszene
+src/render/              Kamera, Weltbild, Koordinaten
 scenes/main.tscn
 tests/                   Test-Runner und Fälle
 bench/benchmark.gd

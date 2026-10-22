@@ -32,10 +32,11 @@ func test_default_world_is_256_and_configurable() -> void:
 
 func test_three_materials_with_requested_hardness() -> void:
 	var world := WorldGenerator.generate(_config(256, 1))
-	var counts := PackedInt32Array([0, 0, 0, 0])
+	var counts := PackedInt32Array([0, 0, 0, 0, 0])
 	for c in world.cells:
 		counts[c] += 1
 	check(counts[Materials.SOFT] > 0 and counts[Materials.MEDIUM] > 0 and counts[Materials.HARD] > 0, "alle Materialien vorhanden")
+	check(counts[Materials.INDESTRUCTIBLE] > 0, "unzerstörbare Zellen vorhanden")
 	check_eq(Materials.hardness(Materials.SOFT), 1, "Härte weich")
 	check_eq(Materials.hardness(Materials.MEDIUM), 3, "Härte mittel")
 	check_eq(Materials.hardness(Materials.HARD), 8, "Härte hart")
@@ -96,3 +97,48 @@ func test_config_validation() -> void:
 	var args := SimConfig.from_cmdline(PackedStringArray(["--size=64", "--seed=9"]))
 	check_eq(args.world_size, 64, "Größe aus Kommandozeile")
 	check_eq(args.world_seed, 9, "Seed aus Kommandozeile")
+
+
+func test_sacrifice_cell_is_unbreakable_and_next_to_the_tunnel() -> void:
+	var world := WorldGenerator.generate(_config(256, 99))
+	var pit := WorldGenerator.sacrifice_cell(world)
+	var center := Vector2i(128, 128)
+	check_eq(world.cells[world.index(center.x, center.y)], Materials.EMPTY, "Tunnelmitte bleibt leer")
+	check_eq(world.cells[world.index(pit.x, pit.y)], Materials.INDESTRUCTIBLE, "Opferlochzelle")
+	check_eq(absi(pit.x - center.x) + absi(pit.y - center.y), 2, "diagonal zur Mitte, nicht auf dem Kreuz")
+	check_eq(world.cells[world.index(pit.x, pit.y - 1)], Materials.EMPTY, "orthogonal an den Tunnel angrenzend")
+	check(not world.mine_cell(world.index(pit.x, pit.y)), "Abbau der Opferlochzelle scheitert")
+	check_eq(world.cells[world.index(pit.x, pit.y)], Materials.INDESTRUCTIBLE, "Zelle bleibt")
+
+
+func test_material_colors_are_distinct() -> void:
+	check_eq(Materials.COLORS.size(), Materials.COUNT, "eine Farbe je Zustand")
+	for a in Materials.COUNT:
+		for b in range(a + 1, Materials.COUNT):
+			var left := Materials.COLORS[a]
+			var right := Materials.COLORS[b]
+			var distance := absf(left.r - right.r) + absf(left.g - right.g) + absf(left.b - right.b)
+			check(distance > 0.25, "Farbe %d und %d sind getrennt (%.2f)" % [a, b, distance])
+
+
+func test_standard_and_target_world_sizes() -> void:
+	for size in [500, 1000]:
+		var started := Time.get_ticks_usec()
+		var world := WorldGenerator.generate(_config(size, 11))
+		var elapsed := (Time.get_ticks_usec() - started) / 1000.0
+		check_eq(world.width, size, "Breite %d" % size)
+		check_eq(world.cells.size(), size * size, "Zellen %d" % size)
+		check_eq(world.cells[world.index(size / 2, size / 2)], Materials.EMPTY, "Starttunnel %d" % size)
+		var pit := WorldGenerator.sacrifice_cell(world)
+		check_eq(world.cells[world.index(pit.x, pit.y)], Materials.INDESTRUCTIBLE, "Opferloch %d" % size)
+		var again := WorldGenerator.generate(_config(size, 11))
+		check_eq(again.state_hash(), world.state_hash(), "gleicher Seed %d" % size)
+		print("Welt %d erzeugt in %.0f ms" % [size, elapsed])
+
+
+func test_mined_fraction_ignores_unbreakable_cells() -> void:
+	var world := WorldState.new(2, 1, 8, Materials.SOFT)
+	world.set_material(1, Materials.INDESTRUCTIBLE)
+	check(world.mine_cell(0), "weiche Zelle")
+	check_eq(world.mined_fraction(), 1.0, "nur abbaubare Zellen zählen")
+	check_eq(world.indestructible_count, 1, "unzerstörbar bleibt")

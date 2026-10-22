@@ -46,3 +46,19 @@ Mögliche spätere Hebel, ohne die Spielregeln zu ändern:
 * Die Bewegungsschleife in eine GDExtension verlegen, wenn das Profiling das nach den strukturellen Änderungen noch zeigt.
 
 Diese Hebel gehören nicht zu Phase 1 und sind hier nicht umgesetzt.
+
+
+## Darstellung vom 22. Oktober 2026
+
+Dieselbe Maschine, Godot 4.3, OpenGL über llvmpipe (Mesa 25.2). Kein dedizierter Grafikchip. VSync wurde abgeschaltet, der Treiber meldet dabei einen Fehler und fällt nicht sichtbar aus. Gemessen wurden 120 Frames nach 30 Frames Warmup. Die Ansicht ist statisch: keine Arbeiter, eine Textur.
+
+| Welt | Fenster | Erzeugung | FPS |
+|---:|---|---:|---:|
+| 256 × 256 | 1920 × 1080 | 143 ms | 65,1 |
+| 500 × 500 | 1920 × 1080 | 563 ms | 67,9 |
+| 1.000 × 1.000 | 1920 × 1080 | 2.144 ms | 63,7 |
+| 500 × 500 | 1280 × 720 | — | 133,0 |
+
+60 FPS bei 1080p sind auf dieser Maschine für die statische Welt erreicht. Der Wert liegt knapp über 60. Ob der Treiber die Rate noch dämpft, ist nicht getrennt gemessen. Sobald Arbeiter gezeichnet werden, gilt diese Zahl nicht mehr.
+
+Die Erzeugung von 1.000 × 1.000 dauert etwa 2,1 Sekunden. Der Kopf des Laufs bleibt unter 100 MB RSS, wie im Simulationsbenchmark.
