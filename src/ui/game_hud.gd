@@ -797,7 +797,7 @@ func _opening_hint() -> String:
 	if sim == null:
 		return "Ziehen markiert den Abbau. Bewegen setzt einen Punkt im Tunnel."
 	if sim.config.mode == SimConfig.MODE_MATCH:
-		return "Gegen KI. Andere Spieler folgen später. Die Ziele stehen oben rechts."
+		return "Gegen KI (%s). Andere Spieler folgen später. Die Ziele stehen oben rechts." % sim.rules.difficulty_label()
 	if sim.config.mode == SimConfig.MODE_EXTRACTION:
 		return "Quellen lassen Material nachwachsen. Markiere es zum Abbau."
 	if sim.config.mode == SimConfig.MODE_REFINING:

@@ -1,7 +1,7 @@
 class_name MatchRules
 extends RefCounted
 ## Mehrspieler gegen KI. Menschliche Gegner sind ein freier Platz, noch ohne Netz.
-## Der Takt bleibt ganzzahlig. Die KI kauft nur Arbeiter und Forschung.
+## Der Takt bleibt ganzzahlig. Die Schwierigkeit wählt den Plan der KI.
 
 const CONTROL_HUMAN := 0
 const CONTROL_AI := 1
@@ -45,6 +45,8 @@ var match_bought: int = 0
 var removed_mass: int = 0
 var winner_faction: int = -1
 var win_kind: int = 0
+## Index 0 bleibt 0. Jede KI trägt Leicht, Mittel oder Schwer.
+var difficulty := PackedByteArray()
 
 
 func wallet(sim: Simulation, faction: int) -> Upgrades:
@@ -69,6 +71,7 @@ func install(sim: Simulation) -> bool:
 	for faction in range(1, faction_count):
 		control[faction] = CONTROL_AI
 		ai_upgrades.append(Upgrades.new())
+	_assign_difficulty(sim.config.difficulty)
 	var arm := sim.config.tunnel_arm_length
 	var origins := _base_origins(sim.world.width, arm, faction_count)
 	if origins.size() != faction_count:
@@ -178,6 +181,7 @@ func export_state() -> Dictionary:
 		"removed": removed_mass,
 		"winner": winner_faction,
 		"kind": win_kind,
+		"difficulty": difficulty.duplicate(),
 	}
 
 
@@ -202,6 +206,7 @@ func restore(blob: Dictionary) -> bool:
 	removed_mass = int(blob.get("removed", 0))
 	winner_faction = int(blob.get("winner", -1))
 	win_kind = int(blob.get("kind", 0))
+	_fit_difficulty(_bytes(blob.get("difficulty", PackedByteArray())))
 	ai_upgrades.clear()
 	var rows: Array = blob.get("ai", [])
 	for row in rows:
@@ -247,6 +252,7 @@ func state_hash() -> int:
 		removed_mass,
 		winner_faction,
 		win_kind,
+		hash(difficulty),
 	])
 
 
@@ -268,29 +274,107 @@ static func outcome_text(faction: int, kind: int) -> String:
 	return "%s durch %s" % [who, victory_name(kind)]
 
 
+## Leicht, Mittel, Schwer oder gemischt, je nach den gesetzten KI-Plänen.
+func difficulty_label() -> String:
+	var seen := -1
+	for faction in range(1, faction_count):
+		var level := _plan(faction)
+		if seen < 0:
+			seen = level
+		elif level != seen:
+			return "gemischt"
+	if seen < 0:
+		return SimConfig.difficulty_name(SimConfig.DIFFICULTY_NORMAL)
+	return SimConfig.difficulty_name(seen)
+
+
 func _ai(sim: Simulation) -> void:
 	for faction in range(1, faction_count):
 		if alive[faction] == 0 or control[faction] != CONTROL_AI:
 			continue
-		var group_id := group_of[faction]
-		var rects: Array = sim.areas.rects[group_id]
-		if rects.is_empty():
+		var level := _plan(faction)
+		if level == SimConfig.DIFFICULTY_EASY:
+			_ai_easy(sim, faction)
+		elif level == SimConfig.DIFFICULTY_HARD:
+			_ai_hard(sim, faction)
+		else:
+			_ai_normal(sim, faction)
+
+
+func _ai_easy(sim: Simulation, faction: int) -> void:
+	var group_id := group_of[faction]
+	var rects: Array = sim.areas.rects[group_id]
+	if rects.is_empty():
+		var origin := _base_origin_of(sim, faction)
+		sim.assign_area(group_id, Rect2i(origin.x - 4, origin.y - 4, 9, 9))
+	var upgrades := wallet(sim, faction)
+	if _workers_of(sim, faction) < 3 and upgrades.energy >= 30 and sim.tick_count % 40 == 0:
+		_buy_worker(sim, faction)
+
+
+func _ai_normal(sim: Simulation, faction: int) -> void:
+	var group_id := group_of[faction]
+	var rects: Array = sim.areas.rects[group_id]
+	if rects.is_empty():
+		sim.assign_area(group_id, Rect2i(0, 0, sim.world.width, sim.world.height))
+	var upgrades := wallet(sim, faction)
+	var have := _workers_of(sim, faction)
+	if have < AI_MIN_WORKERS and upgrades.energy >= Simulation.WORKER_COST:
+		if _buy_worker(sim, faction):
+			return
+	var research := upgrades.research_cost()
+	if (
+		(sim.config.victory_mask & VICTORY_RESEARCH) != 0
+		and research >= 0
+		and upgrades.energy >= research
+	):
+		if upgrades.try_buy(Upgrades.KIND_RESEARCH):
+			return
+	if have < AI_CAP and upgrades.energy >= Simulation.WORKER_COST:
+		_buy_worker(sim, faction)
+
+
+func _ai_hard(sim: Simulation, faction: int) -> void:
+	var group_id := group_of[faction]
+	var rects: Array = sim.areas.rects[group_id]
+	var aim := _objective_cell(sim, faction)
+	if rects.is_empty():
+		if aim < 0:
 			sim.assign_area(group_id, Rect2i(0, 0, sim.world.width, sim.world.height))
-		var upgrades := wallet(sim, faction)
-		var have := _workers_of(sim, faction)
-		if have < AI_MIN_WORKERS and upgrades.energy >= Simulation.WORKER_COST:
-			if _buy_worker(sim, faction):
-				continue
-		var research := upgrades.research_cost()
-		if (
-			(sim.config.victory_mask & VICTORY_RESEARCH) != 0
-			and research >= 0
-			and upgrades.energy >= research
-		):
-			if upgrades.try_buy(Upgrades.KIND_RESEARCH):
-				continue
-		if have < AI_CAP and upgrades.energy >= Simulation.WORKER_COST:
-			_buy_worker(sim, faction)
+		else:
+			var origin := _base_origin_of(sim, faction)
+			var ax := aim % sim.world.width
+			var ay := aim / sim.world.width
+			var x0 := mini(origin.x, ax) - 2
+			var y0 := mini(origin.y, ay) - 2
+			var x1 := maxi(origin.x, ax) + 2
+			var y1 := maxi(origin.y, ay) + 2
+			sim.assign_area(group_id, Rect2i(x0, y0, x1 - x0 + 1, y1 - y0 + 1))
+	_aim_move(sim, faction)
+	var upgrades := wallet(sim, faction)
+	var have := _workers_of(sim, faction)
+	var research := upgrades.research_cost()
+	if (
+		(sim.config.victory_mask & VICTORY_RESEARCH) != 0
+		and have >= 4
+		and research >= 0
+		and upgrades.energy >= research
+	):
+		if upgrades.try_buy(Upgrades.KIND_RESEARCH):
+			return
+	if have < 6 and upgrades.energy >= Simulation.WORKER_COST:
+		if _buy_worker(sim, faction):
+			return
+	var dig := upgrades.dig_cost()
+	if upgrades.dig_level < 2 and dig >= 0 and upgrades.energy >= dig:
+		if upgrades.try_buy(Upgrades.KIND_DIG):
+			return
+	var speed := upgrades.speed_cost()
+	if upgrades.speed_level < 1 and speed >= 0 and upgrades.energy >= speed:
+		if upgrades.try_buy(Upgrades.KIND_SPEED):
+			return
+	if have < 10 and upgrades.energy >= Simulation.WORKER_COST:
+		_buy_worker(sim, faction)
 
 
 func _buy_worker(sim: Simulation, faction: int) -> bool:
@@ -519,6 +603,123 @@ func _carve_base(world: WorldState, origin: Vector2i, arm: int) -> int:
 	var core := world.index(core_x, core_y)
 	world.set_material(core, Materials.INDESTRUCTIBLE)
 	return core
+
+
+func _assign_difficulty(chosen: int) -> void:
+	difficulty = PackedByteArray()
+	difficulty.resize(faction_count)
+	var ai := faction_count - 1
+	var shared := chosen
+	if chosen == SimConfig.DIFFICULTY_MIXED:
+		shared = SimConfig.DIFFICULTY_NORMAL if ai <= 1 else -1
+	if shared >= 0:
+		for faction in range(1, faction_count):
+			difficulty[faction] = shared
+		return
+	if ai == 2:
+		difficulty[1] = SimConfig.DIFFICULTY_EASY
+		difficulty[2] = SimConfig.DIFFICULTY_HARD
+		return
+	difficulty[1] = SimConfig.DIFFICULTY_EASY
+	difficulty[2] = SimConfig.DIFFICULTY_NORMAL
+	if faction_count > 3:
+		difficulty[3] = SimConfig.DIFFICULTY_HARD
+
+
+func _fit_difficulty(stored: PackedByteArray) -> void:
+	difficulty = PackedByteArray()
+	difficulty.resize(faction_count)
+	difficulty.fill(SimConfig.DIFFICULTY_NORMAL)
+	difficulty[0] = 0
+	if stored.size() != faction_count:
+		return
+	for faction in range(1, faction_count):
+		var level := int(stored[faction])
+		if (
+			level == SimConfig.DIFFICULTY_EASY
+			or level == SimConfig.DIFFICULTY_NORMAL
+			or level == SimConfig.DIFFICULTY_HARD
+		):
+			difficulty[faction] = level
+
+
+func _plan(faction: int) -> int:
+	if faction < 0 or faction >= difficulty.size():
+		return SimConfig.DIFFICULTY_NORMAL
+	return int(difficulty[faction])
+
+
+func _base_origin_of(sim: Simulation, faction: int) -> Vector2i:
+	var core := cores[faction]
+	return Vector2i(core % sim.world.width - 1, core / sim.world.width - 1)
+
+
+func _objective_cell(sim: Simulation, faction: int) -> int:
+	var mask := sim.config.victory_mask
+	if (mask & VICTORY_ELIMINATION) != 0:
+		var enemy := _nearest_living_enemy_core(sim, faction)
+		if enemy >= 0:
+			return enemy
+	if (mask & VICTORY_RELICS) != 0:
+		var relic := _nearest_relic(sim, faction)
+		if relic >= 0:
+			return relic
+	if (mask & VICTORY_HILL) != 0 and hill_cell >= 0:
+		return hill_cell
+	return -1
+
+
+func _aim_move(sim: Simulation, faction: int) -> void:
+	var mask := sim.config.victory_mask
+	var cell := -1
+	if (mask & VICTORY_ELIMINATION) != 0:
+		var enemy := _nearest_living_enemy_core(sim, faction)
+		if enemy >= 0:
+			cell = _attack_cell(sim, enemy, faction)
+	elif (mask & VICTORY_RELICS) != 0:
+		cell = _nearest_relic(sim, faction)
+	elif (mask & VICTORY_HILL) != 0:
+		cell = hill_cell
+	if cell >= 0:
+		sim.set_move_goal(group_of[faction], cell)
+
+
+func _nearest_living_enemy_core(sim: Simulation, faction: int) -> int:
+	var origin := _base_origin_of(sim, faction)
+	return _nearest_cell(sim, origin, _enemy_cores(faction))
+
+
+func _nearest_relic(sim: Simulation, faction: int) -> int:
+	var origin := _base_origin_of(sim, faction)
+	var cells := PackedInt32Array()
+	for index in relic_cell.size():
+		if relic_owner[index] != faction:
+			cells.append(relic_cell[index])
+	return _nearest_cell(sim, origin, cells)
+
+
+func _enemy_cores(faction: int) -> PackedInt32Array:
+	var cells := PackedInt32Array()
+	for other in faction_count:
+		if other != faction and alive[other] != 0:
+			cells.append(cores[other])
+	return cells
+
+
+func _nearest_cell(sim: Simulation, origin: Vector2i, cells: PackedInt32Array) -> int:
+	var best := -1
+	var best_dist := 1 << 30
+	var width := sim.world.width
+	for cell in cells:
+		var dist := absi((cell % width) - origin.x) + absi((cell / width) - origin.y)
+		if dist < best_dist or (dist == best_dist and (best < 0 or cell < best)):
+			best = cell
+			best_dist = dist
+	return best
+
+
+func _attack_cell(sim: Simulation, core: int, faction: int) -> int:
+	return _nearest_cell(sim, _base_origin_of(sim, faction), SacrificeSystem.delivery_cells(sim.world, core))
 
 
 func _base_origins(size: int, arm: int, count: int) -> Array[Vector2i]:

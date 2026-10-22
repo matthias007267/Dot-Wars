@@ -303,6 +303,7 @@ func state_hash() -> int:
 		config.mode,
 		config.ai_count,
 		config.victory_mask,
+		config.difficulty,
 		rules.state_hash(),
 		buildings.state_hash(),
 		hash(desired_size),

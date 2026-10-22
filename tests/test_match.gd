@@ -181,13 +181,101 @@ func test_single_player_stays_one_faction() -> void:
 	check_no_errors(sim.check_invariants(), "Einzelspieler")
 
 
-func _match(mask: int, workers := 1) -> Simulation:
+func test_easy_camps_and_hard_digs_toward_the_core() -> void:
+	var easy := _match(MatchRules.VICTORY_ELIMINATION, 1, 1, SimConfig.DIFFICULTY_EASY)
+	var before := _count(easy, 1)
+	easy.rules.ai_upgrades[0].energy = Simulation.WORKER_COST
+	easy.tick_once()
+	check_eq(_count(easy, 1), before, "Leicht kauft für 10 Energie keinen Arbeiter")
+	check_eq(easy.rules.ai_upgrades[0].energy, Simulation.WORKER_COST, "das Guthaben bleibt")
+	check_eq(easy.move_goal(easy.rules.group_of[1]), -1, "Leicht setzt kein Laufziel")
+	var camp: Array = easy.areas.rects[easy.rules.group_of[1]]
+	check_eq(camp.size(), 1, "ein lokales Feld")
+	check_eq(camp[0], Rect2i(19, 12, 9, 9), "9×9 um die eigene Basis")
+	check(not camp[0].has_point(Vector2i(16, 16)), "der Hügel liegt außerhalb")
+	check_no_errors(easy.check_invariants(), "Bilanzen Leicht")
+	var hard := _match(MatchRules.VICTORY_ELIMINATION, 6, 1, SimConfig.DIFFICULTY_HARD)
+	var wallet := hard.rules.ai_upgrades[0]
+	wallet.energy = Upgrades.DIG_BASE
+	var workers_before := _count(hard, 1)
+	hard.tick_once()
+	check_eq(_count(hard, 1), workers_before, "Schwer kauft keinen siebten Arbeiter")
+	check_eq(wallet.dig_level, 1, "Schwer kauft Abbau")
+	check_eq(wallet.energy, 0, "50 Energie sind im Abbau")
+	check_eq(hard.rules.match_bought, 0, "ein Werkzeug ist kein Arbeiter")
+	var lane: Array = hard.areas.rects[hard.rules.group_of[1]]
+	check_eq(lane.size(), 1, "ein Korridor")
+	check_eq(lane[0], Rect2i(7, 14, 19, 6), "Band von der Basis zum gegnerischen Kern")
+	check(lane[0].get_area() < hard.world.width * hard.world.height, "nicht die ganze Karte")
+	check(hard.move_goal(hard.rules.group_of[1]) >= 0, "Schwer läuft auf eine Angriffszelle")
+	var plain := _match(MatchRules.VICTORY_ELIMINATION, 6)
+	plain.rules.ai_upgrades[0].energy = Upgrades.DIG_BASE
+	plain.tick_once()
+	check_eq(_count(plain, 1), workers_before + 1, "Mittel kauft den nächsten Arbeiter")
+	check_eq(plain.rules.ai_upgrades[0].dig_level, 0, "Mittel kauft keinen Abbau")
+	var whole: Array = plain.areas.rects[plain.rules.group_of[1]]
+	check_eq(whole[0], Rect2i(0, 0, 32, 32), "Mittel gräbt die ganze Karte")
+	check_eq(plain.move_goal(plain.rules.group_of[1]), -1, "Mittel setzt kein Laufziel")
+	check_no_errors(hard.check_invariants(), "Bilanzen Schwer")
+
+
+func test_mixed_gives_each_ai_its_own_plan() -> void:
+	var sim := _match(MatchRules.VICTORY_ELIMINATION, 1, 2, SimConfig.DIFFICULTY_MIXED)
+	check_eq(sim.rules.faction_count, 3, "Spieler und zwei KI")
+	check_eq(int(sim.rules.difficulty[0]), 0, "der Spieler hat keinen Plan")
+	check_eq(int(sim.rules.difficulty[1]), SimConfig.DIFFICULTY_EASY, "die erste KI ist leicht")
+	check_eq(int(sim.rules.difficulty[2]), SimConfig.DIFFICULTY_HARD, "die zweite KI ist schwer")
+	check_eq(sim.rules.difficulty_label(), "gemischt", "der Hinweis sagt gemischt")
+	var solo := _match(MatchRules.VICTORY_ELIMINATION, 1, 1, SimConfig.DIFFICULTY_MIXED)
+	check_eq(int(solo.rules.difficulty[1]), SimConfig.DIFFICULTY_NORMAL, "eine KI auf Gemischt ist Mittel")
+	check_eq(solo.rules.difficulty_label(), "Mittel", "der Hinweis sagt Mittel")
+	var hud := GameHud.new()
+	hud.sim = sim
+	check(hud._opening_hint().contains("gemischt"), "Status nennt gemischt")
+	hud.sim = solo
+	check(hud._opening_hint().contains("Mittel"), "Status nennt Mittel")
+	hud.free()
+	var three := _match(MatchRules.VICTORY_ELIMINATION, 1, 3, SimConfig.DIFFICULTY_MIXED)
+	check_eq(int(three.rules.difficulty[1]), SimConfig.DIFFICULTY_EASY, "drei KI: leicht")
+	check_eq(int(three.rules.difficulty[2]), SimConfig.DIFFICULTY_NORMAL, "drei KI: mittel")
+	check_eq(int(three.rules.difficulty[3]), SimConfig.DIFFICULTY_HARD, "drei KI: schwer")
+	var data := SaveGame.snapshot(sim)
+	data.erase("difficulty")
+	var blob: Dictionary = data["match"]
+	blob.erase("difficulty")
+	data["match"] = blob
+	var loaded := SaveGame.from_snapshot(data)
+	check(loaded != null, "Stand ohne Schwierigkeit")
+	if loaded == null:
+		return
+	check_eq(loaded.config.difficulty, SimConfig.DIFFICULTY_NORMAL, "fehlende Stufe ist Mittel")
+	check_eq(int(loaded.rules.difficulty[1]), SimConfig.DIFFICULTY_NORMAL, "jede KI fällt auf Mittel")
+	check_eq(int(loaded.rules.difficulty[2]), SimConfig.DIFFICULTY_NORMAL, "auch die zweite KI")
+	var kept := SaveGame.from_snapshot(SaveGame.snapshot(sim))
+	check_eq(kept.state_hash(), sim.state_hash(), "gemischte Pläne bleiben im Stand")
+	var config := SimConfig.from_cmdline(PackedStringArray([
+		"--mode=mehrspieler", "--schwierigkeit=schwer", "--ai=2",
+	]))
+	check_eq(config.difficulty, SimConfig.DIFFICULTY_HARD, "Schwer von der Kommandozeile")
+	check_eq(config.ai_count, 2, "zwei KI")
+	var easy_config := SimConfig.from_cmdline(PackedStringArray(["--schwierigkeit=leicht"]))
+	check_eq(easy_config.mode, SimConfig.MODE_CLEARING, "Einzelspieler bleibt Räumung")
+	check_eq(easy_config.difficulty, SimConfig.DIFFICULTY_EASY, "Leicht bleibt gesetzt")
+	check(easy_config.validate().is_empty(), "Einzelspieler mit Schwierigkeit ist gültig")
+	var bad := SimConfig.new()
+	bad.difficulty = 9
+	check(not bad.validate().is_empty(), "eine unbekannte Stufe fällt auf")
+	check_no_errors(sim.check_invariants(), "Bilanzen Gemischt")
+
+
+func _match(mask: int, workers := 1, ai := 1, difficulty := SimConfig.DIFFICULTY_NORMAL) -> Simulation:
 	var config := TestHelpers.default_config()
 	config.world_size = 32
 	config.initial_workers = workers
 	config.mode = SimConfig.MODE_MATCH
-	config.ai_count = 1
+	config.ai_count = ai
 	config.victory_mask = mask
+	config.difficulty = difficulty
 	var world := WorldState.new(32, 32, 8, Materials.EMPTY)
 	return Simulation.from_world(config, world)
 

@@ -121,6 +121,8 @@ Der Veredler verdoppelt einen Energie-Dot aus seinem Umkreis, einmal je Dot. Stu
 
 Mehrspieler startet mit einer bis drei KI. Andere Spieler sind vorgesehen und noch nicht verbunden. Der Spieler bleibt gelb. Die KI ist koralle, himmelblau oder minze. Auslöschen räumt den gegnerischen Kern. Forschungssieg ist Stufe 5. Drei von fünf Reliquien auf dem Mittelkreuz oder 30 Sekunden allein auf der Kreuzmitte gewinnen ebenfalls. Die Zahlen sind vorläufig. Die Einzelspieler-Ziele gelten in diesem Modus nicht.
 
+Das Menü trennt zuerst Einzelspieler und Mehrspieler. Im Einzelspieler folgt der Modus. Im Mehrspieler folgen Ziele, Schwierigkeit und die Zahl der KI. Leicht bleibt an der Basis und spart. Mittel gräbt die ganze Karte und kauft Arbeiter und Forschung. Schwer gräbt auf das gewählte Ziel zu und kauft Abbau und Tempo. Gemischt gibt jeder KI einen anderen Plan. Eine einzelne KI auf Gemischt spielt Mittel.
+
 ## Simulation
 
 20 Simulationstakte sind eine Simulationssekunde. Die Bildrate ändert die Abbaugeschwindigkeit nicht. Pause, Fortsetzen, die Stufen 1×, 2× und 4× und reproduzierbare Läufe gehören zum Spiel.
@@ -132,12 +134,12 @@ Mehrspieler startet mit einer bis drei KI. Andere Spieler sind vorgesehen und no
 * Gelbe Dots sind Arbeiter. Cyanfarbene Dots sind Energie auf dem Weg zum Kern. Rote Dots sind für spätere Krieger reserviert und nicht im Spiel.
 * Die Welt wird als eine Textur gezeichnet. Teilweise abgebaute Zellen dunkeln ab. Kamera, Zoom und Debug-Raster sind im Fenster.
 * Arbeiter werden als zweite Textur gezeichnet, große Einheiten über ihr Quadrat.
-* Das Startmenü startet ein Spiel mit drei Gruppen (40/30/30) oder lädt einen Speicherstand.
+* Das Startmenü fragt zuerst Einzelspieler oder Mehrspieler und zeigt danach nur die passenden Einstellungen. Ein neues Spiel startet mit drei Gruppen (40/30/30) oder lädt einen Speicherstand.
 * Das HUD bietet zwei Modi: „Abbau“ markiert ein Gebiet per Ziehen, „Bewegen“ setzt einen gemeinsamen Sammelpunkt im Tunnel. Gebiete und Sammelpunkte sind auf der Welt sichtbar. „Arbeiter +10“ kauft einen Arbeiter für 10 gelieferte Energie. Die Energiezeile nennt das Guthaben und die noch unterwegs befindlichen Dots. Quotenregler gibt es nicht.
 * Die Gruppenverwaltung existiert weiterhin als interne API. Die Quoten bleiben in der Simulation exakt 100 %, aber die Standardoberfläche zeigt keine Quotenregler und keine Gruppenliste.
 * Verschmelzung auf 2×2 und 3×3 ist nach dem passenden Upgrade die Wunschgröße der Gruppe. Masse bleibt erhalten, enge Tunnel sind nicht passierbar.
 * Die Leiste öffnet ein Fähigkeiten-Fenster. Darin liegen Kern, Bewegung (Arbeiter- und Energie-Tempo), Schwarm (Abbau, 2×2, 3×3) und Bauen. Der Modus entscheidet, ob dort die Quelle oder der Veredler steht. Weitere Zweige kommen in dieses Fenster, nicht in die Leiste. Die Kosten stehen in `docs/DECISIONS.md`.
-* Der Modus steht im Startmenü. Räumung gewinnt mit Arbeitermasse, zwei Käufen und 90 % Abbau. Förderung gewinnt mit 1.000 gelieferter Energie, Veredelung mit 400 veredelter Energie. Mehrspieler gewinnt über die gewählten Ziele gegen KI. Danach läuft das Spiel weiter. Die Auswertung nennt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades, die höchste Zahl gleichzeitiger Einheiten und die veredelte Menge. Die Masse wächst durch Käufe. Im Mehrspieler zieht das Entfernen einer Fraktion die entfernte Masse wieder ab.
+* Der Modus steht im Einzelspieler. Räumung gewinnt mit Arbeitermasse, zwei Käufen und 90 % Abbau. Förderung gewinnt mit 1.000 gelieferter Energie, Veredelung mit 400 veredelter Energie. Mehrspieler gewinnt über die gewählten Ziele gegen KI. Die Schwierigkeit steht nur dort und ändert den Plan der KI. Danach läuft das Spiel weiter. Die Auswertung nennt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades, die höchste Zahl gleichzeitiger Einheiten und die veredelte Menge. Die Masse wächst durch Käufe. Im Mehrspieler zieht das Entfernen einer Fraktion die entfernte Masse wieder ab.
 * Pause, Spielgeschwindigkeit 1×, 2× und 4×, Speichern und Laden.
 * Kleine Tunneländerungen korrigieren die Zielsuche lokal. Ab 33 Zellen, bei einem neuen Gebiet oder einem neuen Laufziel wird das Feld neu aufgebaut.
 * Die Fraktions-ID liegt am Arbeiter. Einzelspieler bleibt bei 0. Mehrspieler vergibt je KI eine eigene Fraktion, ein eigenes Guthaben und einen eigenen Kern.

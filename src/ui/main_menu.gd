@@ -1,17 +1,21 @@
 class_name MainMenu
 extends CanvasLayer
-## Startmenü. Größe und Seed bleiben in der Konfiguration nachprüfbar.
+## Startmenü. Zuerst Einzelspieler oder Mehrspieler, danach nur die passenden Einstellungen.
 
 signal start_requested(config: SimConfig)
 signal load_requested(path: String)
 
 var _seed := LineEdit.new()
 var _size := 256
+var _multi := false
 var _mode := SimConfig.MODE_CLEARING
 var _ai := 1
 var _mask := MatchRules.VICTORY_ALL
-var _mode_hint: Label
+var _difficulty := SimConfig.DIFFICULTY_NORMAL
+var _solo_box: VBoxContainer
 var _match_box: VBoxContainer
+var _mode_hint: Label
+var _match_hint: Label
 
 
 func _ready() -> void:
@@ -41,26 +45,30 @@ func _ready() -> void:
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hint)
 
-	var sizes := HBoxContainer.new()
-	sizes.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_child(sizes)
-	var selected: Button
-	for value in [256, 500, 1000]:
+	var sides := HBoxContainer.new()
+	sides.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(sides)
+	var side_buttons: Array[Button] = []
+	for index in 2:
 		var button := Button.new()
-		button.text = str(value)
+		button.text = "Einzelspieler" if index == 0 else "Mehrspieler"
 		button.toggle_mode = true
-		button.pressed.connect(_select_size.bind(value, button))
-		sizes.add_child(button)
-		if value == 256:
-			selected = button
-	_select_size(256, selected)
+		button.custom_minimum_size = Vector2(180, 40)
+		button.pressed.connect(_select_side.bind(index == 1, button))
+		sides.add_child(button)
+		side_buttons.append(button)
+	_select_side(false, side_buttons[0])
 
+	_solo_box = VBoxContainer.new()
+	_solo_box.add_theme_constant_override("separation", 8)
+	box.add_child(_solo_box)
+	_solo_box.add_child(_caption("Modus"))
 	var modes := HBoxContainer.new()
 	modes.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_child(modes)
+	_solo_box.add_child(modes)
 	var mode_buttons: Array[Button] = []
-	var mode_values := [SimConfig.MODE_CLEARING, SimConfig.MODE_EXTRACTION, SimConfig.MODE_REFINING, SimConfig.MODE_MATCH]
-	var mode_names := ["Räumung", "Förderung", "Veredelung", "Mehrspieler"]
+	var mode_values := [SimConfig.MODE_CLEARING, SimConfig.MODE_EXTRACTION, SimConfig.MODE_REFINING]
+	var mode_names := ["Räumung", "Förderung", "Veredelung"]
 	for index in mode_values.size():
 		var button := Button.new()
 		button.text = mode_names[index]
@@ -68,30 +76,16 @@ func _ready() -> void:
 		button.pressed.connect(_select_mode.bind(mode_values[index], button))
 		modes.add_child(button)
 		mode_buttons.append(button)
-	_select_mode(SimConfig.MODE_CLEARING, mode_buttons[0])
-
 	_mode_hint = Label.new()
 	_mode_hint.add_theme_color_override("font_color", UiTheme.MUTED)
 	_mode_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(_mode_hint)
-	_apply_mode_hint()
+	_solo_box.add_child(_mode_hint)
+	_select_mode(SimConfig.MODE_CLEARING, mode_buttons[0])
 
 	_match_box = VBoxContainer.new()
-	_match_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	_match_box.add_theme_constant_override("separation", 8)
 	box.add_child(_match_box)
-	var ai_row := HBoxContainer.new()
-	ai_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_match_box.add_child(ai_row)
-	var ai_buttons: Array[Button] = []
-	for count in [1, 2, 3]:
-		var ai_button := Button.new()
-		ai_button.text = "%d KI" % count
-		ai_button.toggle_mode = true
-		ai_button.pressed.connect(_select_ai.bind(count, ai_button))
-		ai_row.add_child(ai_button)
-		ai_buttons.append(ai_button)
-	_select_ai(1, ai_buttons[0])
+	_match_box.add_child(_caption("Ziele"))
 	var victory_row := HBoxContainer.new()
 	victory_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_match_box.add_child(victory_row)
@@ -107,12 +101,66 @@ func _ready() -> void:
 		victory.pressed.connect(_toggle_victory.bind(victory_bits[index], victory))
 		UiTheme.style_button(victory, true)
 		victory_row.add_child(victory)
-	var later := Label.new()
-	later.text = "Vorläufig nur gegen KI. Andere Spieler folgen später."
-	later.add_theme_color_override("font_color", UiTheme.MUTED)
-	later.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_match_box.add_child(later)
+	_match_box.add_child(_caption("Schwierigkeit"))
+	var diff_row := HBoxContainer.new()
+	diff_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_match_box.add_child(diff_row)
+	var diff_buttons: Array[Button] = []
+	var diff_values := [
+		SimConfig.DIFFICULTY_EASY, SimConfig.DIFFICULTY_NORMAL, SimConfig.DIFFICULTY_HARD, SimConfig.DIFFICULTY_MIXED,
+	]
+	var diff_names := ["Leicht", "Mittel", "Schwer", "Gemischt"]
+	for index in diff_values.size():
+		var diff := Button.new()
+		diff.text = diff_names[index]
+		diff.toggle_mode = true
+		diff.pressed.connect(_select_difficulty.bind(diff_values[index], diff))
+		diff_row.add_child(diff)
+		diff_buttons.append(diff)
+	_select_difficulty(SimConfig.DIFFICULTY_NORMAL, diff_buttons[1])
+	_match_box.add_child(_caption("Teilnehmer"))
+	var people := Label.new()
+	people.text = "Du · 1 Spieler"
+	people.add_theme_color_override("font_color", UiTheme.TEXT)
+	people.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_match_box.add_child(people)
+	var ai_row := HBoxContainer.new()
+	ai_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_match_box.add_child(ai_row)
+	var ai_buttons: Array[Button] = []
+	for count in [1, 2, 3]:
+		var ai_button := Button.new()
+		ai_button.text = "%d KI" % count
+		ai_button.toggle_mode = true
+		ai_button.pressed.connect(_select_ai.bind(count, ai_button))
+		ai_row.add_child(ai_button)
+		ai_buttons.append(ai_button)
+	_select_ai(1, ai_buttons[0])
+	_match_hint = Label.new()
+	_match_hint.add_theme_color_override("font_color", UiTheme.MUTED)
+	_match_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_match_box.add_child(_match_hint)
+	_apply_match_hint()
 	_match_box.visible = false
+
+	var size_row := HBoxContainer.new()
+	size_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(size_row)
+	var size_label := Label.new()
+	size_label.text = "Weltgröße"
+	size_label.add_theme_color_override("font_color", UiTheme.MUTED)
+	size_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	size_row.add_child(size_label)
+	var selected: Button
+	for value in [256, 500, 1000]:
+		var button := Button.new()
+		button.text = str(value)
+		button.toggle_mode = true
+		button.pressed.connect(_select_size.bind(value, button))
+		size_row.add_child(button)
+		if value == 256:
+			selected = button
+	_select_size(256, selected)
 
 	_seed.placeholder_text = "Seed"
 	_seed.text = "1337"
@@ -133,11 +181,27 @@ func _ready() -> void:
 	UiTheme.style_button(load)
 	box.add_child(load)
 
-	var note := Label.new()
-	note.text = "Der Modus bestimmt das Ziel. Fähigkeiten und Gebäude bleiben im Fenster."
-	note.add_theme_color_override("font_color", UiTheme.MUTED)
-	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(note)
+
+func _caption(text: String) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_color_override("font_color", UiTheme.MUTED)
+	label.add_theme_font_size_override("font_size", 13)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	return label
+
+
+func _select_side(multi: bool, button: Button) -> void:
+	_multi = multi
+	for child in button.get_parent().get_children():
+		if child is Button:
+			var selected := child == button
+			child.button_pressed = selected
+			UiTheme.style_button(child, selected)
+	if _solo_box != null:
+		_solo_box.visible = not multi
+	if _match_box != null:
+		_match_box.visible = multi
 
 
 func _select_size(value: int, button: Button) -> void:
@@ -162,14 +226,10 @@ func _select_mode(value: int, button: Button) -> void:
 func _apply_mode_hint() -> void:
 	if _mode_hint == null:
 		return
-	if _match_box != null:
-		_match_box.visible = _mode == SimConfig.MODE_MATCH
 	if _mode == SimConfig.MODE_EXTRACTION:
 		_mode_hint.text = "Liefere 1.000 Energie. Quellen lassen Material nachwachsen."
 	elif _mode == SimConfig.MODE_REFINING:
 		_mode_hint.text = "Liefere 400 veredelte Energie durch einen Veredler."
-	elif _mode == SimConfig.MODE_MATCH:
-		_mode_hint.text = "Gegen KI. Mindestens ein Ziel: Auslöschen, Forschung, Reliquien oder Hügel."
 	else:
 		_mode_hint.text = "Masse 100, zwei Fähigkeiten und 90 % der Welt."
 
@@ -181,6 +241,32 @@ func _select_ai(count: int, button: Button) -> void:
 			var selected := child == button
 			child.button_pressed = selected
 			UiTheme.style_button(child, selected)
+	_apply_match_hint()
+
+
+func _select_difficulty(level: int, button: Button) -> void:
+	_difficulty = level
+	for child in button.get_parent().get_children():
+		if child is Button:
+			var selected := child == button
+			child.button_pressed = selected
+			UiTheme.style_button(child, selected)
+	_apply_match_hint()
+
+
+func _apply_match_hint() -> void:
+	if _match_hint == null:
+		return
+	if _difficulty == SimConfig.DIFFICULTY_MIXED and _ai <= 1:
+		_match_hint.text = "Eine KI gilt als Mittel. Andere Spieler folgen später."
+	elif _difficulty == SimConfig.DIFFICULTY_MIXED:
+		_match_hint.text = "Jede KI bekommt eine andere Schwierigkeit. Andere Spieler folgen später."
+	elif _difficulty == SimConfig.DIFFICULTY_EASY:
+		_match_hint.text = "Die KI bleibt an der Basis. Andere Spieler folgen später."
+	elif _difficulty == SimConfig.DIFFICULTY_HARD:
+		_match_hint.text = "Die KI gräbt auf das Ziel zu. Andere Spieler folgen später."
+	else:
+		_match_hint.text = "Die KI gräbt die Karte. Andere Spieler folgen später."
 
 
 func _toggle_victory(bit: int, button: Button) -> void:
@@ -199,9 +285,10 @@ func _play() -> void:
 	var config := SimConfig.new()
 	config.world_size = _size
 	config.world_seed = int(_seed.text) if _seed.text.is_valid_int() else 1337
-	config.mode = _mode
-	config.ai_count = _ai if _mode == SimConfig.MODE_MATCH else 0
-	config.victory_mask = _mask if _mode == SimConfig.MODE_MATCH else MatchRules.VICTORY_ALL
+	config.mode = SimConfig.MODE_MATCH if _multi else _mode
+	config.ai_count = _ai if _multi else 0
+	config.victory_mask = _mask if _multi else MatchRules.VICTORY_ALL
+	config.difficulty = _difficulty if _multi else SimConfig.DIFFICULTY_NORMAL
 	config.group_quotas = PackedInt32Array([40, 30, 30])
 	var errors := config.validate()
 	if not errors.is_empty():

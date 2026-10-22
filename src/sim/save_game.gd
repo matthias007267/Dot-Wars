@@ -36,6 +36,7 @@ static func snapshot(sim: Simulation) -> Dictionary:
 		"mode": sim.config.mode,
 		"ai_count": sim.config.ai_count,
 		"victory_mask": sim.config.victory_mask,
+		"difficulty": sim.config.difficulty,
 		"size": sim.world.width,
 		"tick": sim.tick_count,
 		"initial_mass": sim.initial_mass,
@@ -112,6 +113,7 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 	config.mode = int(data.get("mode", SimConfig.MODE_CLEARING))
 	config.ai_count = int(data.get("ai_count", 0))
 	config.victory_mask = int(data.get("victory_mask", MatchRules.VICTORY_ALL))
+	config.difficulty = int(data.get("difficulty", SimConfig.DIFFICULTY_NORMAL))
 	config.group_quotas = live_quotas
 	if not config.validate().is_empty():
 		return null

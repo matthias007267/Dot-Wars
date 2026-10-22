@@ -14,6 +14,11 @@ const MODE_MATCH := 3
 ## Vorläufige Modusziele. Sie gelten nur in ihrem Modus.
 const EXTRACTION_GOAL := 1000
 const REFINING_GOAL := 400
+## Schwierigkeit der KI. Mittel ist der bisherige Plan. Gemischt verteilt die Pläne.
+const DIFFICULTY_EASY := 0
+const DIFFICULTY_NORMAL := 1
+const DIFFICULTY_HARD := 2
+const DIFFICULTY_MIXED := 3
 
 var world_size: int = 256
 var world_seed: int = 1337
@@ -23,6 +28,8 @@ var mode: int = MODE_CLEARING
 var ai_count: int = 0
 ## Bitmaske aus MatchRules. Standard sind alle vier Ziele.
 var victory_mask: int = 15
+## Nur Mehrspieler. Einzelspieler lässt den Wert stehen und ignoriert ihn.
+var difficulty: int = DIFFICULTY_NORMAL
 
 var initial_workers: int = 5
 var tunnel_arm_length: int = 5
@@ -60,6 +67,8 @@ func validate() -> PackedStringArray:
 		errors.append("mindestens ein Spielziel")
 	if mode == MODE_MATCH and world_size < 32:
 		errors.append("Mehrspieler braucht mindestens 32 Zellen")
+	if difficulty < DIFFICULTY_EASY or difficulty > DIFFICULTY_MIXED:
+		errors.append("difficulty muss leicht, mittel, schwer oder gemischt sein")
 	if world_size < 16 or world_size > 4096:
 		errors.append("world_size muss zwischen 16 und 4096 liegen")
 	if chunk_size < 8 or chunk_size > 128:
@@ -105,6 +114,8 @@ static func from_cmdline(args: PackedStringArray) -> SimConfig:
 			config.ai_count = arg.get_slice("=", 1).to_int()
 		elif arg.begins_with("--siege="):
 			config.victory_mask = _victories_from_arg(arg.get_slice("=", 1))
+		elif arg.begins_with("--schwierigkeit="):
+			config.difficulty = _difficulty_from_arg(arg.get_slice("=", 1))
 	return config
 
 
@@ -118,6 +129,30 @@ static func _mode_from_arg(name: String) -> int:
 			return MODE_MATCH
 		_:
 			return MODE_CLEARING
+
+
+static func difficulty_name(level: int) -> String:
+	match level:
+		DIFFICULTY_EASY:
+			return "Leicht"
+		DIFFICULTY_HARD:
+			return "Schwer"
+		DIFFICULTY_MIXED:
+			return "Gemischt"
+		_:
+			return "Mittel"
+
+
+static func _difficulty_from_arg(name: String) -> int:
+	match name:
+		"leicht", "0":
+			return DIFFICULTY_EASY
+		"schwer", "2":
+			return DIFFICULTY_HARD
+		"gemischt", "3":
+			return DIFFICULTY_MIXED
+		_:
+			return DIFFICULTY_NORMAL
 
 
 static func _victories_from_arg(name: String) -> int:

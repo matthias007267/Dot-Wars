@@ -246,3 +246,14 @@ Die Ziele sind eine Maske. Mindestens eines ist an. Standard sind alle vier. Aus
 Die KI gräbt die ganze Karte, sobald sie kein Gebiet hat. Unter vier Arbeitern kauft sie einen Arbeiter für 10, sonst Forschung, wenn das Ziel an ist und sie sie bezahlen kann, sonst weitere Arbeiter bis acht. Sie nutzt nicht die gemeinsame Warteschlange, damit die Fraktion stimmt. Tempo und Abbau bleiben je Fraktion. Ein Kauf des Spielers beschleunigt die KI nicht. Die Kernfläche blockiert im Match die Bewegung nicht, damit ein Gegner neben dem Kern stehen kann. Quelle und Veredler gibt es in diesem Modus nicht. Die Räumungsziele feuern nicht.
 
 Menschliche Käufe zählen weiter als `purchased_workers`. KI-Käufe zählen als `match_bought`. Entfernte Arbeiter zählen als `removed_mass`. Die Masse bleibt `Anfang + Käufe des Spielers + Käufe der KI − entfernte Masse`. Energie-Dots tragen einen Besitzer. Sie liefern nur am eigenen Kern. Fehlender Besitzer in älteren Ständen ist 0. Speicherstände bleiben Version 2. `ai_count`, `victory_mask`, `energy_owner`, `research_level` und der Match-Block fehlen in älteren Ständen und gelten dann als Einzelspieler ohne Forschung.
+
+
+### D-031 Menü und KI-Schwierigkeit
+
+Datum: 23. Oktober 2026.
+
+Das Startmenü fragt zuerst Einzelspieler oder Mehrspieler. Danach stehen nur die Einstellungen dieser Wahl. Einzelspieler zeigt Räumung, Förderung und Veredelung. Mehrspieler zeigt die vier Ziele, die Schwierigkeit und die Zahl der KI. Weltgröße und Seed bleiben darunter. Der Spieler ist fest einer. Weitere menschliche Spieler sind weiter nicht verbunden. Eine KI auf Gemischt gilt als Mittel.
+
+Die Schwierigkeit ändert den Plan. Leicht gräbt ein Feld von 9×9 um die eigene Basis, setzt kein Laufziel und kauft einen Arbeiter nur unter drei, ab 30 Energie und nur alle 40 Takte. Mittel bleibt der Plan aus D-030: die ganze Karte, unter vier Arbeitern ein Kauf, sonst Forschung, sonst Arbeiter bis acht. Schwer gräbt einen Korridor von der Basis zum Ziel, um zwei Zellen erweitert. Das Ziel ist der nächste lebende gegnerische Kern, sonst die nächste fremde Reliquie, sonst der Hügel, sonst die ganze Karte. Schwer kauft ab vier Arbeitern Forschung, sonst Arbeiter bis sechs, sonst zweimal Abbau, sonst einmal Tempo, sonst Arbeiter bis zehn. Ein Laufziel setzt sie nur auf eine freie Angriffszelle, den Hügel oder eine Reliquie. Gemischt gibt bei zwei KI Leicht und Schwer, bei drei KI Leicht, Mittel und Schwer.
+
+Der Standard ist Mittel, damit bestehende Partien gleich bleiben. Die Stufe liegt in der Konfiguration und je KI im Match. Fehlt sie in einem Stand der Version 2, gilt Mittel. Die Speicherversion bleibt 2.
