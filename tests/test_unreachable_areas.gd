@@ -93,7 +93,7 @@ func test_shielded_part_of_area_stays_solid_while_reachable_part_is_mined() -> v
 	sim.run_ticks(1000)
 	check_eq(sim.world.mined_count, 3, "nur die erreichbare Spalte wird abgebaut")
 	check_eq(sim.world.cells[sim.world.index(6, 1)], Materials.MEDIUM, "abgeschirmtes Material bleibt")
-	check_eq(sim.workers.count, 1 + 3, "genau drei neue Arbeiter")
+	check_eq(sim.workers.count, 1, "keine kostenlosen Arbeiter")
 	for id in sim.workers.count:
 		check_eq(sim.workers.state[id], WorkerStore.STATE_WAITING, "Arbeiter %d wartet am Ende" % id)
 	check_no_errors(sim.check_invariants(), "Invarianten")
