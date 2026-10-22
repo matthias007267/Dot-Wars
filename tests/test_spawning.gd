@@ -16,7 +16,8 @@ func test_each_mined_cell_creates_exactly_one_worker() -> void:
 	for tick in 300:
 		sim.tick_once()
 		check_eq(sim.total_mass(), sim.expected_mass(), "Massenbilanz in Tick %d" % tick)
-	check_eq(sim.workers.count, 1 + sim.world.mined_count, "Arbeiter = Start + abgebaute Zellen")
+	check_eq(sim.workers.count, 1, "Abbau erzeugt keine Arbeiter")
+	check_eq(sim.energy_dots.generated, sim.world.mined_count, "weiches Material liefert eine Energie")
 	check_eq(sim.world.mined_count, 12, "alle Randzellen")
 
 
