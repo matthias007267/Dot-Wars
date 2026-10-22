@@ -11,6 +11,9 @@ var world: WorldState
 var workers: WorkerStore
 var areas: DigAreas
 var spawner: SpawnSystem
+var energy_dots := EnergyStore.new()
+var purchased_workers: int = 0
+const WORKER_COST := 10
 var fields: Array[FlowField] = []
 var quotas: PackedInt32Array
 var tick_count: int = 0
@@ -80,18 +83,16 @@ func tick_once() -> void:
 	MovementSystem.step(tick_count, workers, world, areas, fields, config.move_period_ticks, speed_points)
 	var t2 := Time.get_ticks_usec()
 	if upgrades.dig_level == 0 and workers.max_size == 1:
-		MiningSystem.step(workers, world, areas, spawner, config.work_per_hardness, config.dig_power)
+		MiningSystem.step(workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power)
 	else:
 		var fraction := upgrades.dig_fraction()
 		MiningSystem.step_scaled(
-			workers, world, areas, spawner, config.work_per_hardness, config.dig_power, fraction.x, fraction.y
+			workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power, fraction.x, fraction.y
 		)
 	var t3 := Time.get_ticks_usec()
 	spawner.process(world, workers, quotas)
 	FusionSystem.step(workers, world, desired_size)
-	var gained := SacrificeSystem.step(workers, sacrifice_on, _delivery_cells(), total_mass())
-	sacrificed_mass += gained
-	upgrades.energy += gained
+	upgrades.energy += energy_dots.step(world, workers, pit_index(), tick_count)
 	var mass_now := total_mass()
 	if mass_now > peak_mass:
 		peak_mass = mass_now
@@ -160,7 +161,7 @@ func total_mass() -> int:
 
 
 func expected_mass() -> int:
-	return initial_mass + world.mined_count - sacrificed_mass
+	return initial_mass + purchased_workers
 
 
 func stats() -> Dictionary:
@@ -174,6 +175,10 @@ func stats() -> Dictionary:
 		"tick": tick_count,
 		"workers": workers.count,
 		"pending_spawns": spawner.pending(),
+		"energy_in_transit": energy_dots.pending(),
+		"energy_generated": energy_dots.generated,
+		"energy_delivered": energy_dots.delivered,
+		"workers_purchased": purchased_workers,
 		"group_counts": workers.group_counts.duplicate(),
 		"group_waiting": waiting,
 		"quotas": quotas.duplicate(),
@@ -190,6 +195,8 @@ func check_invariants() -> PackedStringArray:
 	var errors := PackedStringArray()
 	if total_mass() != expected_mass():
 		errors.append("Massenbilanz verletzt: %d != %d" % [total_mass(), expected_mass()])
+	if energy_dots.generated != energy_dots.delivered + energy_dots.pending():
+		errors.append("Energiebilanz verletzt")
 	var recount := PackedInt32Array()
 	recount.resize(quotas.size())
 	var occupied := 0
@@ -223,6 +230,8 @@ func state_hash() -> int:
 		workers.state_hash(),
 		areas.state_hash(),
 		spawner.pending(),
+		energy_dots.state_hash(),
+		purchased_workers,
 		sacrificed_mass,
 		upgrades.state_hash(),
 		hash(desired_size),
@@ -360,6 +369,20 @@ func buy(kind: int) -> bool:
 	for g in desired_size.size():
 		if desired_size[g] > upgrades.max_size():
 			desired_size[g] = upgrades.max_size()
+	return true
+
+
+## Arbeiter werden ausschließlich gegen bereits gelieferte Energie gekauft.
+## Der Spawn beginnt am zentralen Tunnel; die bestehende Warteschlange erhält die Masse.
+func buy_worker() -> bool:
+	if upgrades.energy < WORKER_COST:
+		return false
+	var origin := world.find_nearest_empty(world.width / 2, world.height / 2)
+	if origin < 0:
+		return false
+	upgrades.energy -= WORKER_COST
+	purchased_workers += 1
+	spawner.enqueue(origin)
 	return true
 
 
