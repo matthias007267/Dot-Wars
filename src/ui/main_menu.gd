@@ -26,12 +26,12 @@ func _ready() -> void:
 	var title := Label.new()
 	title.text = "DOT WARS"
 	title.add_theme_font_size_override("font_size", 42)
-	title.add_theme_color_override("font_color", UiTheme.TEXT)
+	title.add_theme_color_override("font_color", UiTheme.ACCENT)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "Ziehe Abbaugebiete, wähle Farbgruppen, opfere Masse für Upgrades."
+	hint.text = "Baue die Welt ab. Vergrößere deinen Schwarm. Investiere Energie."
 	hint.add_theme_color_override("font_color", UiTheme.MUTED)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hint)
@@ -70,7 +70,7 @@ func _ready() -> void:
 	box.add_child(load)
 
 	var note := Label.new()
-	note.text = "Drei Gruppen, Quoten 40 / 30 / 30. Leertaste pausiert."
+	note.text = "Abbaugebiete markieren  ·  Dots verschmelzen  ·  Upgrades freischalten."
 	note.add_theme_color_override("font_color", UiTheme.MUTED)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(note)
