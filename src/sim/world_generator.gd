@@ -3,7 +3,7 @@ extends RefCounted
 ## Reproduzierbare Weltgenerierung mit reiner Ganzzahl-Wertnoise (unabhängig von Engine-Versionen).
 ##
 ## Die Welt ist ein zusammenhängender Materialkörper. In der Mitte liegt ein leerer Starttunnel.
-## Eine Zelle neben dem Tunnel ist für das spätere Opferloch reserviert und unzerstörbar.
+## Eine Zelle neben dem Tunnel ist für das spätere Energiekern reserviert und unzerstörbar.
 ## Ein kleines unzerstörbares Feld daneben macht diesen Materialtyp in der Ansicht sichtbar.
 
 const LARGE_SCALE := 32
