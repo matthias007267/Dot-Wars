@@ -348,6 +348,8 @@ func set_desired_size(group_id: int, unit_size: int) -> bool:
 func set_sacrifice(group_id: int, enabled: bool) -> bool:
 	if not _group_is_open(group_id):
 		return false
+	if enabled:
+		return false
 	if not enabled:
 		sacrifice_on[group_id] = 0
 		return true
