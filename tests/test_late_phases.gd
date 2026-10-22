@@ -33,7 +33,7 @@ func test_zero_quota_still_receives_nobody_after_a_third_group() -> void:
 	sim.assign_area(1, Rect2i(0, 0, 3, 1))
 	sim.run_ticks(80)
 	check_eq(sim.workers.group_counts[0], 0, "0 % bekommt niemanden")
-	check(sim.workers.group_counts[1] + sim.workers.group_counts[2] > 1, "die anderen wachsen")
+	check_eq(sim.workers.group_counts[1] + sim.workers.group_counts[2], 1, "Abbau erzeugt keine Arbeiter")
 	check_no_errors(sim.check_invariants(), "Invarianten")
 
 
@@ -86,25 +86,13 @@ func test_large_unit_mines_faster() -> void:
 	check(large > 0 and large < small, "2×2 ist schneller als ein Basis-Arbeiter (%d < %d)" % [large, small])
 
 
-func test_sacrifice_pays_energy_and_keeps_one_worker() -> void:
-	var config := TestHelpers.default_config()
-	config.world_size = 32
-	config.initial_workers = 2
-	var sim := Simulation.create(config)
-	check(sim.set_sacrifice(0, true), "Opferauftrag")
-	sim.run_ticks(80)
-	check(sim.upgrades.energy >= 1, "Energie aus Masse")
-	check(sim.workers.count >= 1, "jemand bleibt handlungsfähig")
-	check_eq(sim.total_mass(), sim.expected_mass(), "Bilanz")
-	check_no_errors(sim.check_invariants(), "Invarianten")
-	var alone := Simulation.create(config)
-	alone.workers.remove_swap(1)
-	alone.initial_mass = 1
-	alone.peak_mass = 1
-	check(alone.set_sacrifice(0, true), "Auftrag auch bei einem Arbeiter")
-	alone.run_ticks(40)
-	check_eq(alone.workers.count, 1, "der letzte Arbeiter bleibt")
-	check_eq(alone.upgrades.energy, 0, "keine Energie aus dem letzten Arbeiter")
+func test_energy_replaces_worker_sacrifice() -> void:
+	var sim := _empty_sim()
+	check(not sim.set_sacrifice(0, true), "Arbeiteropfer sind deaktiviert")
+	sim.energy_dots.enqueue(sim.workers.cell[0], 8)
+	check_eq(sim.energy_dots.generated, 8, "Härte 8 erzeugt acht Energie")
+	check_eq(sim.workers.count, 1, "keine Arbeiter werden geopfert")
+	check_no_errors(sim.check_invariants(), "Energiebilanz")
 
 
 func test_dig_upgrade_is_exactly_one_quarter_faster() -> void:
