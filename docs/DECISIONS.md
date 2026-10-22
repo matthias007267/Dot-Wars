@@ -1,0 +1,71 @@
+# Entscheidungen
+
+Beschlossene Punkte stehen fest, bis sie ausdrücklich geändert werden. Offene Punkte werden nicht still entschieden.
+
+## Beschlossen
+
+### D-001 Abbauzeit
+
+Datum: 22. Oktober 2026.
+
+Eine Arbeitseinheit ist eine Simulationssekunde. Ein Basis-Arbeiter leistet eine Arbeitseinheit pro Sekunde. Härte 8 dauert damit 8 Sekunden, Härte 3 dauert 3 Sekunden, Härte 1 dauert 1 Sekunde.
+
+Umsetzung: 20 Simulationstakte sind eine Sekunde. `work_per_hardness` ist 20 Fortschrittspunkte. `dig_power` ist 1 Punkt pro Tick. Haltbarkeit = Härte × 20. Mehrere Arbeiter addieren ihre Punkte im selben Tick. Die Werte bleiben in `SimConfig` zentral änderbar. Der ausgelieferte Standard erfüllt diese Regel.
+
+Der vorherige Prototyp nutzte 10 Punkte je Härtestufe und damit 4 Sekunden für Härte 8. Diese Tests sind auf die beschlossene Dauer umgestellt.
+
+### D-002 Vorhandener Prototyp bleibt
+
+Datum: 22. Oktober 2026.
+
+Phase 1 ersetzt den Simulationsprototyp nicht und baut ihn nicht zur spielbaren Partie aus. Dokumentation, CI, Test-Runner und die minimale Hauptszene liegen darüber. Phasen 2 bis 5 gelten trotzdem als nicht begonnen, weil ihre Abnahme (Darstellung, Bedienung, drei Gruppen) nicht erfüllt ist.
+
+### D-003 Test-Runner ohne externe Bibliothek
+
+Datum: 22. Oktober 2026.
+
+Der Runner unter `tests/run_tests.gd` bleibt. Eine zweite Testbibliothek würde dieselbe Prüfung doppelt abbilden.
+
+### D-004 Engine
+
+Datum: 22. Oktober 2026.
+
+Godot 4.3, GDScript, Renderer `gl_compatibility`. Dieselbe Version nutzt die CI.
+
+### D-005 Quoten mit Summe ungleich 100 % werden abgelehnt
+
+Datum: 22. Oktober 2026, Bestand des Prototyps, nicht neu entschieden.
+
+`GroupQuotas.validate` verlangt eine Summe von genau 100 %. Es gibt keine stille Normalisierung. Phase 5 darf das nur mit einer neuen Entscheidung ändern.
+
+### D-006 Gleichstand bei der Gruppenwahl
+
+Datum: 22. Oktober 2026, Bestand des Prototyps.
+
+Gewonnen hat die Gruppe mit dem kleinsten Quotienten Anzahl/Quote. Bei Gleichstand gewinnt die größere Quote, danach der kleinere Gruppenindex. Der Vergleich ist eine Kreuzmultiplikation ohne Gleitkommazahlen.
+
+## Offen
+
+### O-001 Farben
+
+Die Regel nennt Grün, Braun/Orange, Blau/Grau und Dunkelgrau für unzerstörbares Material. `Materials.COLORS` nutzt noch Braun, Grau und Dunkelgrau für die drei abbaubaren Typen. Unzerstörbares Material gibt es nicht. Änderung in der Darstellungsphase, nicht still in Phase 1.
+
+### O-002 Fraktions-ID
+
+Die Regel trennt Fraktion und Farbgruppe. `WorkerStore` speichert nur die Gruppe.
+
+### O-003 Prozent-Upgrades auf dem Ganzzahl-Takt
+
++25 % Abbauleistung sind 1,25 Punkte pro Tick, wenn ein Punkt ein Zwanzigstel einer Arbeitseinheit ist. Phase 7 legt die Rundung fest, bevor das Upgrade wirkt. Die Abbauzeit aus D-001 wird dafür nicht wieder verändert.
+
+### O-004 Neuaufbau der Zielsuche
+
+Der Prototyp plant bei jeder Weltänderung einen vollständigen Neuaufbau des Flow-Fields der Gruppe. Die Regel will eine selektive Aktualisierung. Das bleibt eine Aufgabe der Wegfindungs- und Performancephasen.
+
+### O-005 Schutzregel am Opferloch
+
+Es muss unmöglich sein, versehentlich alle handlungsfähigen Arbeiter zu opfern. Die konkrete Regel ist noch nicht gewählt.
+
+### O-006 Normalisierung der Quoten in der Oberfläche
+
+Die Summe muss 100 % ergeben. Ob die Oberfläche eine Eingabe auf 100 % normalisiert oder sie ablehnt, ist für Phase 5 offen. Der Prototyp lehnt ab.

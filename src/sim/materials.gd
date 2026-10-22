@@ -22,6 +22,7 @@ static func hardness(material: int) -> int:
 	return HARDNESS[material]
 
 
-## Arbeitspunkte, die für den vollständigen Abbau einer Zelle nötig sind.
+## Fortschrittspunkte bis zum vollständigen Abbau.
+## Beim Standard von 20 Punkten je Härtestufe entspricht das einer Simulationssekunde je Härte.
 static func durability(material: int, work_per_hardness: int) -> int:
 	return HARDNESS[material] * work_per_hardness

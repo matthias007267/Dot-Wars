@@ -1,0 +1,90 @@
+# Architektur
+
+Engine ist Godot 4.3 mit GDScript und dem Renderer `gl_compatibility`. Zielplattform ist Windows. Linux wird für headless Tests genutzt.
+
+## Grundsatz
+
+Die Simulation kennt keine Szene. Alles unter `src/sim/` sind `RefCounted`-Klassen ohne Nodes, Eingabe oder Zeichenbefehle. Darstellung und UI lesen den Zustand und schreiben nur über die API von `Simulation`.
+
+Es gibt keine Node pro Zelle und keine pro Arbeiter. Welt und Arbeiter liegen in Packed-Arrays. Systeme sind zustandslose Funktionen über diese Daten, damit sie später durch eine GDExtension mit gleicher Signatur ersetzt werden können.
+
+Die Simulation läuft mit 20 Takten pro Sekunde. Spielregeln rechnen mit ganzen Zahlen. Gleicher Seed und gleiche Befehle ergeben denselben `state_hash()`.
+
+## Struktur
+
+```
+src/sim/          Simulation, headless
+src/main.gd       Hauptszene der Projektgrundlage
+scenes/main.tscn
+tests/            projekteigener Test-Runner und Tests
+bench/            headless Benchmark
+docs/             verbindliche Dokumentation
+.github/workflows/tests.yml
+```
+
+| Modul | Aufgabe |
+|---|---|
+| `SimConfig` | Weltgröße, Seed, Quoten, Abbau- und Bewegungswerte, Prüfung |
+| `Materials` | Härte 1, 3, 8 und Farben |
+| `WorldState` | Zellen, Fortschritt, Chunk-Dirty-Flags |
+| `WorldGenerator` | reproduzierbare Welt und Starttunnel |
+| `WorkerStore` | Arbeiter als Struct-of-Arrays, eine Zelle ein Arbeiter |
+| `DigAreas` | Rechtecke und Masken je Gruppe |
+| `FlowField` | gemeinsame, budgetierte Zielsuche je Gruppe |
+| `MovementSystem` | orthogonale Schritte |
+| `MiningSystem` | Zielwahl und Fortschritt an der Zelle |
+| `SpawnSystem` | ein neuer Arbeiter pro Feld, Warteschlange |
+| `GroupQuotas` | Quotenprüfung und Defizitverfahren |
+| `TickClock` | feste Takte, Pause ohne Nachholen |
+| `Simulation` | Reihenfolge der Systeme, Statistik, Invarianten |
+
+Verschmelzung, Opferloch, Upgrades, Ziele, Speicherstände und ein Renderer existieren bewusst nicht. Leere Platzhalterklassen werden nicht angelegt.
+
+## Welt und Arbeiter
+
+`cells` ist ein `PackedByteArray`, Index `y * width + x`. `progress` speichert Fortschrittspunkte, die noch unter der Haltbarkeit liegen. Chunks sind standardmäßig 32×32. Jede Änderung markiert genau einen Chunk. `revision` zählt Weltänderungen.
+
+Ein Basis-Arbeiter hat Zelle, Gruppe, Zustand, Ziel und den Tick der letzten Bewegung. `occupant` bildet die Zelle auf die Arbeiter-ID ab. IDs sind im Prototyp dicht, weil Arbeiter noch nicht entfernt werden.
+
+## Takt
+
+`Simulation.tick_once` macht in dieser Reihenfolge: Zielsuche, Bewegung, Abbau, Entstehung. Innerhalb eines Systems gilt aufsteigende ID. Das ist die Konfliktauflösung und hält den Takt deterministisch.
+
+`TickClock` wandelt Frame-Zeit in Takte um, 50 ms pro Takt, höchstens fünf Takte pro Frame. In der Pause vergeht keine Simulationszeit.
+
+## Abbauzeit
+
+Haltbarkeit = Härte × `work_per_hardness`. Der Standard von `work_per_hardness` ist 20, also eine Simulationssekunde je Härtepunkt. `dig_power` 1 ist ein Fortschrittspunkt pro Tick. Härte 8 braucht 160 Punkte und damit 8 Sekunden. Der Fortschritt liegt an der Zelle. Die erste Prüfung im Tick, die die Haltbarkeit erreicht, entfernt die Zelle. Weitere Arbeiter desselben Ticks sehen eine leere Zelle.
+
+## Zielsuche
+
+Pro Gruppe gibt es ein Flow-Field. Quellen sind leere Zellen neben festem, markiertem Material. Eine Multi-Source-BFS schreibt Distanz und Richtung in einen Hintergrundpuffer und wird erst nach Abschluss sichtbar. Pro Tick gilt ein festes Budget an Zellbesuchen.
+
+Das Feld ist ein Hinweis. Bewegung und Abbau prüfen den aktuellen Weltzustand. Zellen ohne Verbindung bleiben ohne Richtung, der Arbeiter wartet.
+
+Bekannte Abweichung von der Zielarchitektur: eine Weltänderung setzt den Neuaufbau des ganzen Feldes an, nicht nur der betroffenen Region. Das wird nicht in Phase 1 umgebaut.
+
+## Entstehung
+
+Jede abgebaute Zelle wird ein FIFO-Eintrag. Ist der Ort belegt, sucht eine BFS in der Reihenfolge Nord, Ost, Süd, West die nächste freie leere Zelle. Findet sie keine, bleibt der Eintrag liegen. Die Gruppe wählt `GroupQuotas.pick_group`: kleinster Quotient Anzahl/Quote, bei Gleichstand die größere Quote, danach der kleinere Index. Quote 0 wird nie gewählt.
+
+Invariante des Prototyps, solange es keine Opferung gibt: Arbeiter plus wartende Entstehungen = Startarbeiter plus abgebaute Zellen. `Simulation.check_invariants()` prüft das zusammen mit der Belegung.
+
+## Hauptszene
+
+`src/main.gd` erzeugt eine Simulation, bricht bei ungültiger Konfiguration oder verletzter Invariante mit Exit-Code 1 ab und zeigt Größe, Seed, Arbeiterzahl und die Abbaudauern. Sie startet keinen Spielkreislauf.
+
+## Tests
+
+`godot --headless --path . -s tests/run_tests.gd` führt jede Methode mit Präfix `test_` in `tests/test_*.gd` aus. Der Runner ist Teil des Projekts. Es gibt keine zusätzliche Testbibliothek. Exit-Code 1 bedeutet Fehler oder keine Tests. GitHub Actions installiert Godot 4.3, importiert das Projekt, führt die Tests aus und startet die Hauptszene headless.
+
+## Erweiterungspunkte, ohne Implementierung
+
+| Späteres System | Anknüpfung |
+|---|---|
+| Verschmelzung | `WorkerStore` muss Einheiten entfernen können. Die Massenformel zählt dann die Masse, nicht nur die Anzahl. |
+| Opferloch | eigenes System mit Daten und einem Schritt in `tick_once` |
+| Upgrades | `dig_power` und `move_period_ticks` in `SimConfig` |
+| Speicherstand | Zustand liegt in Packed-Arrays und Ganzzahlen. `state_hash()` nennt die relevanten Felder. |
+| Mehrere Fraktionen | die Arbeiterdaten bekommen eine Fraktions-ID neben der Gruppe |
+| GDExtension | `MovementSystem`, `MiningSystem`, `FlowField` haben datenorientierte Signaturen |

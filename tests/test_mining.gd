@@ -29,7 +29,11 @@ func test_material_hardness_values() -> void:
 	check_eq(Materials.hardness(Materials.SOFT), 1, "weich")
 	check_eq(Materials.hardness(Materials.MEDIUM), 3, "mittel")
 	check_eq(Materials.hardness(Materials.HARD), 8, "hart")
-	check_eq(Materials.durability(Materials.HARD, 10), 80, "Haltbarkeit hart")
+	var config := SimConfig.new()
+	check_eq(config.seconds_for_hardness(1), 1.0, "Härte 1 dauert 1 Sekunde")
+	check_eq(config.seconds_for_hardness(3), 3.0, "Härte 3 dauert 3 Sekunden")
+	check_eq(config.seconds_for_hardness(8), 8.0, "Härte 8 dauert 8 Sekunden")
+	check_eq(Materials.durability(Materials.HARD, config.work_per_hardness), 160, "8 × 20 Punkte")
 
 
 func test_mining_duration_scales_with_hardness() -> void:
@@ -37,9 +41,10 @@ func test_mining_duration_scales_with_hardness() -> void:
 	var soft := _ticks_to_mine_first_cell("#", config)
 	var medium := _ticks_to_mine_first_cell("M", config)
 	var hard := _ticks_to_mine_first_cell("H", config)
-	check_eq(soft, 10, "weich: 1 × 10 Arbeitspunkte")
-	check_eq(medium, 30, "mittel: 3 × 10 Arbeitspunkte")
-	check_eq(hard, 80, "hart: 8 × 10 Arbeitspunkte")
+	check_eq(soft, 20, "weich: 1 Sekunde, 20 Takte")
+	check_eq(medium, 60, "mittel: 3 Sekunden, 60 Takte")
+	check_eq(hard, 160, "hart: 8 Sekunden, 160 Takte")
+	check_eq(float(hard) / SimConfig.TICKS_PER_SECOND, 8.0, "160 Takte sind 8 Simulationssekunden")
 
 
 func test_work_per_hardness_is_configurable() -> void:
@@ -67,7 +72,7 @@ func test_workers_cooperate_on_one_cell() -> void:
 	while sim.world.mined_count == 0 and ticks < 100:
 		sim.tick_once()
 		ticks += 1
-	check_eq(ticks, 5, "zwei Arbeiter bauen doppelt so schnell ab")
+	check_eq(ticks, 10, "zwei Arbeiter schaffen zusammen eine Arbeitseinheit in einer halben Sekunde")
 
 
 func test_only_marked_cells_are_mined() -> void:

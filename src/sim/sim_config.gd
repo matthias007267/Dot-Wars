@@ -20,9 +20,11 @@ var medium_percent: int = 35
 ## Zielquoten der Gruppen in ganzen Prozent. Summe muss 100 ergeben.
 var group_quotas: PackedInt32Array = PackedInt32Array([50, 50])
 
-## Arbeitspunkte je Härtestufe, die zum vollständigen Abbau nötig sind.
-var work_per_hardness: int = 10
-## Arbeitspunkte, die ein Arbeiter pro Tick beiträgt.
+## Fortschrittspunkte je Härtestufe.
+## 20 Punkte sind eine Arbeitseinheit und damit eine Simulationssekunde.
+## Ein Basis-Arbeiter braucht für Härte 8 deshalb genau 8 Sekunden.
+var work_per_hardness: int = TICKS_PER_SECOND
+## Fortschrittspunkte, die ein Arbeiter pro Tick beiträgt.
 var dig_power: int = 1
 ## Ein Arbeiter bewegt sich alle `move_period_ticks` Takte um eine Zelle.
 var move_period_ticks: int = 2
@@ -57,6 +59,11 @@ func validate() -> PackedStringArray:
 		errors.append("spawn_search_limit muss mindestens 1 sein")
 	errors.append_array(GroupQuotas.validate(group_quotas))
 	return errors
+
+
+## Sekunden, die ein Arbeiter mit dem gesetzten dig_power für diese Härte braucht.
+func seconds_for_hardness(hardness: int) -> float:
+	return float(hardness * work_per_hardness) / float(dig_power * TICKS_PER_SECOND)
 
 
 ## Liest `--size=N` und `--seed=N` aus den Benutzerargumenten (hinter `--`).
