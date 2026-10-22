@@ -14,6 +14,7 @@ var _dist := PackedInt32Array()
 var _revision := -1
 var _width := 0
 var _goal := -1
+var _last_rebuild_tick := -1000
 
 
 func pending() -> int:
@@ -31,8 +32,9 @@ func step(world: WorldState, workers: WorkerStore, core: int, tick: int) -> int:
 		return 0
 	if tick % MOVE_PERIOD != 0:
 		return 0
-	if _revision != world.revision or _width != world.width or _goal != core:
+	if _goal != core or _width != world.width or (_revision != world.revision and tick - _last_rebuild_tick >= 10):
 		_rebuild(world, core)
+		_last_rebuild_tick = tick
 	var gate := SacrificeSystem.delivery_cells(world, core)
 	var exits := {}
 	for c in gate:
