@@ -37,7 +37,7 @@ static func step(
 	workers: WorkerStore,
 	world: WorldState,
 	areas: DigAreas,
-	spawner: SpawnSystem,
+	energy: EnergyStore,
 	work_per_hardness: int,
 	dig_power: int,
 ) -> int:
@@ -57,8 +57,9 @@ static func step(
 			continue
 		var total := progress[cell] + dig_power
 		if total >= Materials.durability(cells[cell], work_per_hardness):
+			var hardness := Materials.hardness(cells[cell])
 			if world.mine_cell(cell):
-				spawner.enqueue(cell)
+				energy.enqueue(cell, hardness)
 				completed += 1
 		else:
 			progress[cell] = total
@@ -71,7 +72,7 @@ static func step_scaled(
 	workers: WorkerStore,
 	world: WorldState,
 	areas: DigAreas,
-	spawner: SpawnSystem,
+	energy: EnergyStore,
 	work_per_hardness: int,
 	dig_power: int,
 	dig_num: int,
@@ -93,7 +94,7 @@ static func step_scaled(
 			var share := base + (1 if index < extra else 0)
 			if share <= 0:
 				continue
-			if _apply_power(workers, world, areas, spawner, id, targets[index], share, work_per_hardness, dig_num, dig_den):
+			if _apply_power(workers, world, areas, energy, id, targets[index], share, work_per_hardness, dig_num, dig_den):
 				completed += 1
 	return completed
 
@@ -148,7 +149,7 @@ static func _apply_power(
 	workers: WorkerStore,
 	world: WorldState,
 	areas: DigAreas,
-	spawner: SpawnSystem,
+	energy: EnergyStore,
 	id: int,
 	cell: int,
 	share: int,
@@ -166,8 +167,9 @@ static func _apply_power(
 		world.progress_frac[cell] -= points * dig_den
 	var total: int = world.progress[cell] + points
 	if total >= Materials.durability(world.cells[cell], work_per_hardness):
+		var hardness := Materials.hardness(world.cells[cell])
 		if world.mine_cell(cell):
-			spawner.enqueue(cell)
+			energy.enqueue(cell, hardness)
 			return true
 		return false
 	world.progress[cell] = total
