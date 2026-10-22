@@ -175,3 +175,12 @@ Die Wunschgröße wird gemeinsam für alle arbeitenden Gruppen gesetzt. Gruppen-
 Datum: 22. Oktober 2026.
 
 Die reduzierte Leiste aus D-022 bleibt die Spieloberfläche. Die Quotenregler kommen nicht zurück. Sichtbar werden die drei Schwarmfarben mit ihrer Masse und dem Hinweis, welche Farbe opfert. Abbaugebiete und Sammelpunkte werden auf der Welt gezeichnet. Die Wunschgröße gilt auch für die opfernde Gruppe. Tempo 1×, 2× und 4× sowie Laden des Speicherstands `user://slot.dw` liegen in der Leiste. Kampf, KI und weitere Fraktionen gehören nicht zu dieser Beta.
+
+
+### D-023 Zwei Dot-Arten und Energie-Kreislauf
+
+Datum: 22. Oktober 2026.
+
+Es gibt vorerst ausschließlich gelbe Arbeiter-Dots und cyanfarbene Energie-Dots. Rote Krieger-Dots sind ausdrücklich für eine spätere Entwicklungsphase reserviert. Abbau erzeugt keine Arbeiter mehr, sondern genau so viele Energie-Dots wie die Materialhärte (1, 3, 8). Energie bewegt sich autonom durch Tunnel zum zentralen Energiekern, dem umbenannten Opferloch, und wird erst bei Ankunft verfügbar. Arbeiter werden für zunächst 10 Energie am Kern gekauft und über die vorhandene Spawn-Warteschlange im Zentrum erzeugt. Opferung von Arbeitern ist deaktiviert. Transportierte Energie und Arbeiter haben getrennte Belegungsdaten; Energie wartet bei Arbeiterbelegung, Arbeiter werden nie durch Energie blockiert. Die Darstellung zeichnet Energie unter den Arbeitern.
+
+Die Massenbilanz lautet Startmasse plus gekaufte Masse. Die Energieerzeugungsbilanz lautet erzeugt gleich geliefert plus unterwegs. Speichern und Laden verwenden Version 2; Version 1 wird bewusst nicht automatisch migriert. Die Ausweich-/Engstellenlogik und die Performance großer Energietransportmengen müssen noch in Praxistests validiert werden.
