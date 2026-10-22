@@ -37,19 +37,14 @@ func test_move_goal_replaces_mining_for_all_groups() -> void:
 	hud.free()
 
 
-func test_sacrifice_uses_only_internal_reserve_group() -> void:
+func test_buy_worker_requires_energy() -> void:
 	var hud := _new_hud()
-	var rect := Rect2i(0, 0, 8, 8)
-	hud.issue_dig_area(rect)
-	check(hud.toggle_sacrifice(), "Opfern wird eingeschaltet")
-	check_eq(hud.sim.sacrifice_on[2], 1, "letzte aktive Gruppe opfert")
-	check_eq(hud.sim.sacrifice_on[0], 0, "erste Gruppe arbeitet weiter")
-	check_eq(hud.sim.sacrifice_on[1], 0, "zweite Gruppe arbeitet weiter")
-	check_eq(hud.sim.areas.rects[2].size(), 0, "Opfergruppe baut nicht mehr ab")
-	check(hud.toggle_sacrifice(), "Opfern wird ausgeschaltet")
-	check_eq(hud.sim.sacrifice_on[2], 0, "Opferauftrag aufgehoben")
-	check_eq(hud.sim.areas.rects[2].size(), 1, "Abbauauftrag wiederhergestellt")
-	check_no_errors(hud.sim.check_invariants(), "keine Masse durch UI verloren")
+	check(not hud.sim.buy_worker(), "ohne Energie kein Arbeiter")
+	hud.sim.upgrades.energy = Simulation.WORKER_COST
+	check(hud.sim.buy_worker(), "Arbeiter gekauft")
+	check_eq(hud.sim.upgrades.energy, 0, "Energie abgebucht")
+	check_eq(hud.sim.spawner.pending(), 1, "gekaufter Arbeiter wartet am Kern")
+	check_no_errors(hud.sim.check_invariants(), "Bilanz nach Kauf")
 	hud.free()
 
 
@@ -60,8 +55,7 @@ func test_fusion_size_is_applied_to_all_working_groups() -> void:
 	check(hud.set_size_all(2), "Größe zwei gesetzt")
 	for g in hud.sim.group_open.size():
 		check_eq(hud.sim.desired_size[g], 2, "interne Gruppen nutzen dieselbe Größe")
-	check(hud.toggle_sacrifice(), "Opfern für die Größenprüfung")
-	check(hud.set_size_all(1), "Größe gilt auch für die opfernde Gruppe")
-	check_eq(hud.sim.desired_size[2], 1, "Opfergruppe behält die gemeinsame Größe")
+	check(hud.set_size_all(1), "Größe gilt für alle Gruppen")
+	check_eq(hud.sim.desired_size[2], 1, "alle internen Gruppen gleich")
 	check_no_errors(hud.sim.check_invariants(), "keine Masse durch Größeneinstellung verloren")
 	hud.free()
