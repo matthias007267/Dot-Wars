@@ -61,7 +61,7 @@ func test_fully_mined_area_leaves_workers_waiting_and_state_stable() -> void:
 	check_eq(sim.world.solid_count, 0, "alles abgebaut")
 	check_eq(sim.world.mined_count, 36, "36 Zellen")
 	check_eq(sim.world.mined_fraction(), 1.0, "Weltanteil 100 % der abbaubaren Zellen")
-	check_eq(sim.workers.count, 1 + 36, "Masse erhalten")
+	check_eq(sim.workers.count, 1, "Abbau verändert Arbeitermasse nicht")
 	check_eq(sim.spawner.pending(), 0, "keine offenen Entstehungen")
 	check_eq(sim.areas.rects[0].size(), 0, "abgeschlossenes Rechteck wurde entfernt")
 	var positions := sim.workers.cell.duplicate()
