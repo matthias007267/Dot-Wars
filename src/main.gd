@@ -79,6 +79,7 @@ func _attach(next: Simulation) -> void:
 	renderer = WorldRenderer.new()
 	renderer.world = world
 	renderer.core_mask = sim.core_mask
+	renderer.building_mask = sim.buildings.mask(world.cell_count())
 	energy_view = EnergyRenderer.new()
 	energy_view.world = world
 	energy_view.energy = sim.energy_dots
@@ -181,6 +182,10 @@ func _finish_drag(screen: Vector2) -> void:
 	var start := _cell_at(_drag_from)
 	var end := _cell_at(screen)
 	if start.x < 0 or end.x < 0:
+		return
+	if hud.command_mode == GameHud.Command.BUILD:
+		if _drag_from.distance_to(screen) < 8.0:
+			hud.issue_build(world.index(end.x, end.y))
 		return
 	if hud.command_mode == GameHud.Command.MOVE:
 		# Ein einzelner Klick setzt einen Sammelpunkt. Ziehen bleibt dem Abbau vorbehalten.

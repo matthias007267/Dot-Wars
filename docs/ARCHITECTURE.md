@@ -62,7 +62,7 @@ Ein Basis-Arbeiter hat Zelle, Gruppe, Fraktion, Zustand, Ziel und den Tick der l
 
 ## Takt
 
-`Simulation.tick_once` macht in dieser Reihenfolge: Zielsuche, Bewegung, Abbau, Entstehung, Verschmelzung, Energietransport, danach die Siegprüfung. Innerhalb eines Systems gilt aufsteigende ID. Das ist die Konfliktauflösung und hält den Takt deterministisch.
+`Simulation.tick_once` macht in dieser Reihenfolge: Zielsuche, Bewegung, Abbau, Entstehung, Verschmelzung, Nachwuchs der Quellen, Veredelung, Energietransport, danach die Siegprüfung des gewählten Modus. Innerhalb eines Systems gilt aufsteigende ID. Das ist die Konfliktauflösung und hält den Takt deterministisch.
 
 `TickClock` wandelt Frame-Zeit in Takte um, 50 ms pro Takt, höchstens fünf Takte pro Frame. In der Pause vergeht keine Simulationszeit.
 
@@ -96,7 +96,7 @@ Leere Zellen der Kernfläche werden `#5A3D78`, der Kern selbst `#C77AFF`. Beides
 
 `EnergyRenderer` zeichnet jede Zelle mit mindestens einem Energie-Dot als `#53C7FF`. `WorkerRenderer` liegt darüber und schreibt die Arbeiter in eine zweite RGBA-Textur. Alle Gruppenfarben in `Simulation.GROUP_PALETTE` sind Gelb `#FFE45E`. Die Textur wird neu gefüllt, wenn ein neuer Simulationstakt gezeichnet wird. Es gibt keine Node pro Dot. Die Energiekernzelle wird beim Malen `#C77AFF`, ohne den Materialwert zu ändern.
 
-Die Hauptszene erzeugt die Simulation, zeichnet Welt und Arbeiter und treibt `TickClock` mit 20 Hz. `GameHud` bündelt Spielerbefehle für alle arbeitenden internen Farbgruppen und zeigt die Schwarmfarben. Die Leiste hat einen Knopf für das Fähigkeiten-Fenster. Die Knoten stehen in diesem Fenster, gruppiert nach Kern, Bewegung und Schwarm. Abbau zieht ein Gebiet auf, Bewegung setzt per Linksklick einen gemeinsamen Sammelpunkt; eine Teilgruppe übernimmt auf Anforderung die Opferung. `OrderOverlay` zeichnet diese Aufträge. Quotenverwaltung existiert nur noch intern. `WorldMinimap` zeigt die vorhandene Welttextur und lässt die Kamera zum angeklickten Punkt springen. Die Leertaste schaltet die Pause. Eine ungültige Konfiguration oder eine verletzte Startinvariante beendet das Programm mit Code 1.
+Die Hauptszene erzeugt die Simulation, zeichnet Welt und Arbeiter und treibt `TickClock` mit 20 Hz. `GameHud` bündelt Spielerbefehle für alle arbeitenden internen Farbgruppen und zeigt die Schwarmfarben. Die Leiste hat einen Knopf für das Fähigkeiten-Fenster. Die Knoten stehen in diesem Fenster, gruppiert nach Kern, Bewegung, Schwarm und Bauen. Abbau zieht ein Gebiet auf, Bewegung setzt per Linksklick einen gemeinsamen Sammelpunkt, Bauen setzt Quelle oder Veredler per Linksklick auf einen freien Tunnel. `OrderOverlay` zeichnet die Aufträge. Quotenverwaltung existiert nur noch intern. `WorldMinimap` zeigt die vorhandene Welttextur und lässt die Kamera zum angeklickten Punkt springen. Die Leertaste schaltet die Pause. Eine ungültige Konfiguration oder eine verletzte Startinvariante beendet das Programm mit Code 1. Der Modus steht in `SimConfig` und wird im Startmenü gesetzt.
 
 ## Tests
 

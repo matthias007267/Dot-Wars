@@ -33,14 +33,21 @@ static func snapshot(sim: Simulation) -> Dictionary:
 	return {
 		"version": VERSION,
 		"seed": sim.config.world_seed,
+		"mode": sim.config.mode,
 		"size": sim.world.width,
 		"tick": sim.tick_count,
 		"initial_mass": sim.initial_mass,
 		"sacrificed": sim.sacrificed_mass,
 		"purchased_workers": sim.purchased_workers,
 		"energy_cells": sim.energy_dots.cells.duplicate(),
+		"energy_birth": sim.energy_dots.birth.duplicate(),
+		"energy_refined": sim.energy_dots.refined.duplicate(),
 		"energy_generated": sim.energy_dots.generated,
 		"energy_delivered": sim.energy_dots.delivered,
+		"refined_delivered": sim.energy_dots.refined_delivered,
+		"source_level": sim.buildings.source_level,
+		"refinery_level": sim.buildings.refinery_level,
+		"buildings": sim.buildings.export_entries(),
 		"peak_mass": sim.peak_mass,
 		"max_units": sim.max_units,
 		"won": sim.won,
@@ -96,6 +103,7 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 	config.world_seed = int(data.get("seed", 1))
 	config.initial_workers = 1
 	config.move_period_ticks = int(data.get("move_period", 2))
+	config.mode = int(data.get("mode", SimConfig.MODE_CLEARING))
 	config.group_quotas = live_quotas
 	if not config.validate().is_empty():
 		return null
@@ -118,8 +126,17 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 	sim.sacrificed_mass = int(data.get("sacrificed", 0))
 	sim.purchased_workers = int(data.get("purchased_workers", 0))
 	sim.energy_dots.cells = data.get("energy_cells", PackedInt32Array()).duplicate()
+	sim.energy_dots.birth = data.get("energy_birth", PackedInt32Array()).duplicate()
+	sim.energy_dots.refined = data.get("energy_refined", PackedByteArray()).duplicate()
 	sim.energy_dots.generated = int(data.get("energy_generated", 0))
 	sim.energy_dots.delivered = int(data.get("energy_delivered", 0))
+	sim.energy_dots.refined_delivered = int(data.get("refined_delivered", 0))
+	sim.energy_dots.ensure_tracks()
+	sim.buildings.source_level = clampi(int(data.get("source_level", 0)), 0, Buildings.SOURCE_TIER_MAX)
+	sim.buildings.refinery_level = clampi(int(data.get("refinery_level", 0)), 0, Buildings.REFINERY_TIER_MAX)
+	var entries: Array = data.get("buildings", [])
+	if not sim.buildings.restore(entries):
+		return null
 	sim.peak_mass = int(data.get("peak_mass", 0))
 	sim.max_units = int(data.get("max_units", 0))
 	sim.won = bool(data.get("won", false))

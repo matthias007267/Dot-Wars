@@ -24,6 +24,10 @@ const COLORS: Array[Color] = [
 const PIT_COLOR := Color8(0xC7, 0x7A, 0xFF)
 ## Freie Kernfläche. Leer wie ein Tunnel, aber als Fläche erkennbar. Kein eigenes Material.
 const PLAZA_COLOR := Color8(0x5A, 0x3D, 0x78)
+## Quelle. Die Zelle bleibt leer und begehbar.
+const SOURCE_COLOR := Color8(0xB8, 0xF2, 0x5A)
+## Veredler. Die Zelle bleibt leer und begehbar.
+const REFINERY_COLOR := Color8(0x9E, 0xF6, 0xE8)
 const BACKDROP := Color8(0x0D, 0x10, 0x15)
 
 

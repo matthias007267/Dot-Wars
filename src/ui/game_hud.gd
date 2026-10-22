@@ -5,7 +5,7 @@ extends CanvasLayer
 
 signal load_requested(path: String)
 
-enum Command { MINE, MOVE }
+enum Command { MINE, MOVE, BUILD }
 
 var sim: Simulation
 var clock: TickClock
@@ -22,6 +22,9 @@ var _energy_bar: ProgressBar
 var _mined_bar: ProgressBar
 var _kern_bar: ProgressBar
 
+var _goal_heading: Label
+var _goal_sections: Array[Control] = []
+var _goal_names: Array[Label] = []
 var _goal_mass: ProgressBar
 var _goal_upgrade: ProgressBar
 var _goal_mining: ProgressBar
@@ -43,6 +46,12 @@ var _swarm_labels: Array[Label] = []
 var _upgrade_panel: PanelContainer
 var _upgrade_buttons: Array[Button] = []
 var _upgrade_kinds: Array[int] = []
+var _source_place_button: Button
+var _source_tier_button: Button
+var _refinery_place_button: Button
+var _refinery_tier_button: Button
+var _build_caption: Label
+var _build_kind := Buildings.KIND_SOURCE
 var _size_buttons: Array[Button] = []
 var _map: WorldMinimap
 
@@ -106,6 +115,21 @@ func issue_move_goal(cell: int) -> bool:
 	return issued
 
 
+func issue_build(cell: int) -> bool:
+	if sim == null:
+		return false
+	if sim.place_building(_build_kind, cell):
+		var placed := "Quelle gesetzt." if _build_kind == Buildings.KIND_SOURCE else "Veredler gesetzt."
+		_notice(placed)
+		command_mode = Command.MINE
+		if renderer != null:
+			renderer.set_buildings(sim.buildings.mask(sim.world.cell_count()))
+	else:
+		_notice("Diese Zelle nimmt das Gebäude nicht an.")
+	refresh()
+	return command_mode == Command.MINE
+
+
 func _buy_worker() -> void:
 	if sim.buy_worker():
 		_notice("Arbeiter gekauft. Er startet am Energiekern.")
@@ -145,12 +169,7 @@ func refresh() -> void:
 	_mined_bar.value = float(percent)
 	_kern_bar.value = sim.upgrades.core_level
 
-	_goal_mass.value = minf(100.0, float(mass))
-	_goal_upgrade.value = mini(sim.upgrades.purchased, 2)
-	_goal_mining.value = minf(90.0, mined * 100.0)
-	_goal_mass_value.text = "%d / 100" % mass
-	_goal_upgrade_value.text = "%d / 2" % sim.upgrades.purchased
-	_goal_mining_value.text = "%d / 90 %%" % percent
+	_refresh_goals(mass, mined)
 	_victory.visible = sim.won
 	if _report != null:
 		_report.visible = sim.won
@@ -190,7 +209,7 @@ func _build_stats(layer: Control) -> void:
 	_kern_bar = kern[1]
 	_kern_value.custom_minimum_size.x = 78
 
-	_message = _label(content, "Ziehen markiert den Abbau. Bewegen setzt einen Punkt im Tunnel.", 12, UiTheme.MUTED)
+	_message = _label(content, _opening_hint(), 12, UiTheme.MUTED)
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 
@@ -202,7 +221,7 @@ func _build_goals(layer: Control) -> void:
 	card.offset_top = 16
 	card.offset_bottom = 224
 	var content := _column(card, 9)
-	_label(content, "MISSIONSZIELE", 16, UiTheme.TEXT)
+	_goal_heading = _label(content, "RÄUMUNG", 16, UiTheme.TEXT)
 
 	var mass := _objective(content, "100 Masse", UiTheme.ACCENT, 100)
 	_goal_mass_value = mass[0]
@@ -224,11 +243,11 @@ func _build_report(layer: Control) -> void:
 	_report.offset_left = -332
 	_report.offset_right = -16
 	_report.offset_top = 232
-	_report.offset_bottom = 444
+	_report.offset_bottom = 468
 	_report.visible = false
 	var content := _column(_report, 4)
 	_label(content, "AUSWERTUNG", 16, UiTheme.ACCENT)
-	for _index in 7:
+	for _index in 8:
 		_report_labels.append(_label(content, "", 13, UiTheme.TEXT))
 
 
@@ -278,7 +297,7 @@ func _build_upgrade_panel(layer: Control) -> void:
 	center.anchor_right = 1.0
 	center.anchor_top = 1.0
 	center.anchor_bottom = 1.0
-	center.offset_top = -560
+	center.offset_top = -680
 	center.offset_bottom = -94
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(center)
@@ -300,6 +319,11 @@ func _build_upgrade_panel(layer: Control) -> void:
 	_add_upgrade_button(content, Upgrades.KIND_DIG, 0)
 	_add_upgrade_button(content, Upgrades.KIND_FUSION2, 0)
 	_add_upgrade_button(content, Upgrades.KIND_FUSION3, 22)
+	_build_caption = _label(content, "BAUEN", 12, UiTheme.MUTED)
+	_source_place_button = _build_button(content, _arm_source)
+	_source_tier_button = _build_button(content, _raise_source)
+	_refinery_place_button = _build_button(content, _arm_refinery)
+	_refinery_tier_button = _build_button(content, _raise_refinery)
 	_upgrade_panel.visible = false
 
 
@@ -349,6 +373,8 @@ func _objective(parent: Node, title: String, color: Color, maximum: float) -> Ar
 	section.add_child(row)
 	var label := _label(row, title, 13, UiTheme.TEXT)
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_goal_sections.append(section)
+	_goal_names.append(label)
 	var value := _label(row, "0", 12, UiTheme.MUTED)
 	var bar := _progress(section, maximum, color, 270)
 	return [value, bar]
@@ -423,7 +449,12 @@ func _available_for_work(group_id: int) -> bool:
 
 func _set_mode(next: int) -> void:
 	command_mode = next
-	_notice("Abbaufläche aufziehen." if next == Command.MINE else "Ziel im Tunnel anklicken.")
+	if next == Command.MINE:
+		_notice("Abbaufläche aufziehen.")
+	elif next == Command.MOVE:
+		_notice("Ziel im Tunnel anklicken.")
+	else:
+		_notice("Freien Tunnel anklicken.")
 	refresh()
 
 
@@ -537,6 +568,164 @@ func _refresh_upgrades() -> void:
 				else:
 					button.text = "VERSCHMELZUNG 3×3    •    %d Energie" % cost
 		button.disabled = locked or cost < 0 or u.energy < cost
+	_refresh_buildings()
+
+
+func _refresh_goals(mass: int, mined: float) -> void:
+	if _goal_names.size() < 3 or _goal_sections.size() < 3:
+		return
+	var percent := clampi(int(round(mined * 100.0)), 0, 100)
+	if sim.config.mode == SimConfig.MODE_EXTRACTION:
+		_goal_heading.text = "FÖRDERUNG"
+		_show_single_goal("1.000 Energie liefern", sim.energy_dots.delivered, SimConfig.EXTRACTION_GOAL)
+		_victory.text = "FÖRDERZIEL ERREICHT – WEITERSPIELEN MÖGLICH"
+	elif sim.config.mode == SimConfig.MODE_REFINING:
+		_goal_heading.text = "VEREDELUNG"
+		_show_single_goal("400 veredelte Energie", sim.energy_dots.refined_delivered, SimConfig.REFINING_GOAL)
+		_victory.text = "VEREDLUNG ERREICHT – WEITERSPIELEN MÖGLICH"
+	else:
+		_goal_heading.text = "RÄUMUNG"
+		for section in _goal_sections:
+			section.visible = true
+		_goal_names[0].text = "100 Masse"
+		_goal_names[1].text = "2 Fähigkeiten"
+		_goal_names[2].text = "90 % Welt abbauen"
+		_goal_mass.max_value = 100.0
+		_goal_upgrade.max_value = 2.0
+		_goal_mining.max_value = 90.0
+		_goal_mass.value = minf(100.0, float(mass))
+		_goal_upgrade.value = mini(sim.upgrades.purchased, 2)
+		_goal_mining.value = minf(90.0, mined * 100.0)
+		_goal_mass_value.text = "%d / 100" % mass
+		_goal_upgrade_value.text = "%d / 2" % sim.upgrades.purchased
+		_goal_mining_value.text = "%d / 90 %%" % percent
+		_victory.text = "WELT EROBERT – WEITERSPIELEN MÖGLICH"
+
+
+func _show_single_goal(title: String, current: int, goal: int) -> void:
+	_goal_sections[0].visible = true
+	_goal_sections[1].visible = false
+	_goal_sections[2].visible = false
+	_goal_names[0].text = title
+	_goal_mass.max_value = float(goal)
+	_goal_mass.value = minf(float(goal), float(current))
+	_goal_mass_value.text = "%s / %s" % [_grouped(current), _grouped(goal)]
+
+
+func _refresh_buildings() -> void:
+	if _source_place_button == null or _build_caption == null:
+		return
+	var sources := buildings_allowed(Buildings.KIND_SOURCE)
+	var refineries := buildings_allowed(Buildings.KIND_REFINERY)
+	_build_caption.visible = sources or refineries
+	_source_place_button.visible = sources
+	_source_tier_button.visible = sources
+	_refinery_place_button.visible = refineries
+	_refinery_tier_button.visible = refineries
+	_fill_place_button(_source_place_button, Buildings.KIND_SOURCE, "QUELLE")
+	_fill_tier_button(_source_tier_button, Buildings.KIND_SOURCE, "QUELLE", sim.buildings.source_level, Buildings.SOURCE_TIER_MAX)
+	_fill_place_button(_refinery_place_button, Buildings.KIND_REFINERY, "VEREDLER")
+	_fill_tier_button(_refinery_tier_button, Buildings.KIND_REFINERY, "VEREDLER", sim.buildings.refinery_level, Buildings.REFINERY_TIER_MAX)
+
+
+func buildings_allowed(kind: int) -> bool:
+	return sim.buildings.allowed(mode_of_sim(), kind)
+
+
+func mode_of_sim() -> int:
+	return sim.config.mode
+
+
+func _fill_place_button(button: Button, kind: int, title: String) -> void:
+	var cost := sim.buildings.place_cost(kind)
+	var have := sim.buildings.count_of(kind)
+	var limit := Buildings.SOURCE_MAX if kind == Buildings.KIND_SOURCE else Buildings.REFINERY_MAX
+	if cost < 0:
+		button.text = "%s   %d/%d    VOLL" % [title, have, limit]
+		button.disabled = true
+	else:
+		button.text = "%s setzen    •    %d Energie" % [title, cost]
+		button.disabled = sim.upgrades.energy < cost
+
+
+func _fill_tier_button(button: Button, kind: int, title: String, level: int, max_level: int) -> void:
+	var cost := sim.buildings.tier_cost(kind)
+	if cost < 0:
+		button.text = "%s   Stufe %d    VOLL" % [title, level]
+		button.disabled = true
+	else:
+		button.text = "%s   Stufe %d    •    %d Energie" % [title, level + 1, cost]
+		button.disabled = sim.upgrades.energy < cost
+	if level > max_level:
+		button.disabled = true
+
+
+func _arm_source() -> void:
+	_arm_build(Buildings.KIND_SOURCE)
+
+
+func _arm_refinery() -> void:
+	_arm_build(Buildings.KIND_REFINERY)
+
+
+func _raise_source() -> void:
+	_raise_building(Buildings.KIND_SOURCE)
+
+
+func _raise_refinery() -> void:
+	_raise_building(Buildings.KIND_REFINERY)
+
+
+func _arm_build(kind: int) -> void:
+	if not sim.buildings.allowed(sim.config.mode, kind):
+		_notice("In diesem Modus nicht baubar.")
+		return
+	var cost := sim.buildings.place_cost(kind)
+	if cost < 0:
+		_notice("Mehr Gebäude dieser Art gibt es nicht.")
+		return
+	if sim.upgrades.energy < cost:
+		_notice("Zu wenig Energie.")
+		return
+	_build_kind = kind
+	command_mode = Command.BUILD
+	_notice("Freien Tunnel anklicken.")
+	refresh()
+
+
+func _raise_building(kind: int) -> void:
+	if sim.upgrade_building(kind):
+		_notice("Gebäude verbessert.")
+	else:
+		_notice("Nicht verfügbar oder zu wenig Energie.")
+	refresh()
+
+
+func _build_button(parent: Node, action: Callable) -> Button:
+	var button := _button(parent, "", action)
+	button.custom_minimum_size = Vector2(310, 34)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return button
+
+
+func _opening_hint() -> String:
+	if sim == null:
+		return "Ziehen markiert den Abbau. Bewegen setzt einen Punkt im Tunnel."
+	if sim.config.mode == SimConfig.MODE_EXTRACTION:
+		return "Quellen lassen Material nachwachsen. Markiere es zum Abbau."
+	if sim.config.mode == SimConfig.MODE_REFINING:
+		return "Setze den Veredler in eine Ader. Nur veredelte Dots zählen."
+	return "Ziehen markiert den Abbau. Bewegen setzt einen Punkt im Tunnel."
+
+
+func _grouped(value: int) -> String:
+	var digits := str(absi(value))
+	var text := ""
+	while digits.length() > 3:
+		text = "." + digits.substr(digits.length() - 3, 3) + text
+		digits = digits.substr(0, digits.length() - 3)
+	text = digits + text
+	return "-" + text if value < 0 else text
 
 
 func _refresh_selection() -> void:

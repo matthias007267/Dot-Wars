@@ -9,8 +9,13 @@ const COLOR := Color8(0x53, 0xC7, 0xFF)
 const MOVE_PERIOD := 8
 
 var cells := PackedInt32Array()
+## Zelle, an der der Dot entstanden ist. -1 ist eine unbekannte Herkunft und wird nicht veredelt.
+var birth := PackedInt32Array()
+## 1, nachdem ein Veredler diesen Dot verdoppelt hat. Der Zwilling trägt dieselbe Markierung.
+var refined := PackedByteArray()
 var generated: int = 0
 var delivered: int = 0
+var refined_delivered: int = 0
 var _dist := PackedInt32Array()
 var _revision := -1
 var _width := 0
@@ -25,12 +30,34 @@ func pending() -> int:
 func enqueue(origin: int, count: int) -> void:
 	for _i in count:
 		cells.append(origin)
+		birth.append(origin)
+		refined.append(0)
 	generated += count
+
+
+## Ältere Stände haben nur die Positionen. Fehlende Herkunft bleibt unveredelbar.
+func ensure_tracks() -> void:
+	if birth.size() == cells.size() and refined.size() == cells.size():
+		return
+	var next_birth := PackedInt32Array()
+	var next_refined := PackedByteArray()
+	next_birth.resize(cells.size())
+	next_refined.resize(cells.size())
+	next_birth.fill(-1)
+	var limit := mini(birth.size(), cells.size())
+	for i in limit:
+		next_birth[i] = birth[i]
+	limit = mini(refined.size(), cells.size())
+	for i in limit:
+		next_refined[i] = refined[i]
+	birth = next_birth
+	refined = next_refined
 
 
 func step(
 	world: WorldState, workers: WorkerStore, gate: PackedInt32Array, tick: int, period: int = MOVE_PERIOD
 ) -> int:
+	ensure_tracks()
 	if cells.is_empty():
 		return 0
 	var pace := MOVE_PERIOD if period < 1 else period
@@ -46,12 +73,21 @@ func step(
 		exits[c] = true
 	var gained := 0
 	var next := PackedInt32Array()
-	for c in cells:
+	var next_birth := PackedInt32Array()
+	var next_refined := PackedByteArray()
+	for i in cells.size():
+		var c := cells[i]
 		if exits.has(c):
 			gained += 1
+			if refined[i] != 0:
+				refined_delivered += 1
 			continue
 		next.append(_next_cell(c, world, workers))
+		next_birth.append(birth[i])
+		next_refined.append(refined[i])
 	cells = next
+	birth = next_birth
+	refined = next_refined
 	delivered += gained
 	return gained
 
@@ -109,4 +145,4 @@ func _rebuild(world: WorldState, gate: PackedInt32Array) -> void:
 
 
 func state_hash() -> int:
-	return hash([hash(cells), generated, delivered])
+	return hash([hash(cells), hash(birth), hash(refined), generated, delivered, refined_delivered])

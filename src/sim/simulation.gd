@@ -2,7 +2,7 @@ class_name Simulation
 extends RefCounted
 ## Orchestriert alle Systeme in fester Reihenfolge. Enthält keinerlei Darstellung oder Eingabe.
 ##
-## Takt: Zielsuche → Bewegung → Abbau → Entstehung → Verschmelzung → Energietransport.
+## Takt: Zielsuche → Bewegung → Abbau → Entstehung → Verschmelzung → Nachwuchs → Veredelung → Energietransport.
 
 enum Stage { TARGET_SEARCH, MOVEMENT, MINING, SPAWN }
 
@@ -12,6 +12,7 @@ var workers: WorkerStore
 var areas: DigAreas
 var spawner: SpawnSystem
 var energy_dots := EnergyStore.new()
+var buildings := Buildings.new()
 var purchased_workers: int = 0
 const WORKER_COST := 10
 var fields: Array[FlowField] = []
@@ -94,6 +95,8 @@ func tick_once() -> void:
 	var t3 := Time.get_ticks_usec()
 	spawner.process(world, workers, quotas, core_mask)
 	FusionSystem.step(workers, world, desired_size)
+	buildings.grow(world, workers, energy_dots, core_mask)
+	buildings.refine(energy_dots, world, tick_count)
 	upgrades.energy += energy_dots.step(world, workers, energy_exits(), tick_count, upgrades.energy_period())
 	var mass_now := total_mass()
 	if mass_now > peak_mass:
@@ -107,7 +110,7 @@ func tick_once() -> void:
 	stage_usec[Stage.SPAWN] += t4 - t3
 	last_tick_usec = t4 - t0
 	tick_count += 1
-	if not won and total_mass() >= 100 and upgrades.purchased >= 2 and world.mined_fraction() >= 0.9:
+	if not won and _goals_met():
 		won = true
 		win_tick = tick_count
 
@@ -183,6 +186,7 @@ func victory_lines() -> PackedStringArray:
 		"Gelieferte Energie  %d" % energy_dots.delivered,
 		"Upgrades  %d" % upgrades.purchased,
 		"Einheiten zugleich  %d" % max_units,
+		"Veredelt  %d" % energy_dots.refined_delivered,
 	])
 
 
@@ -200,6 +204,7 @@ func stats() -> Dictionary:
 		"energy_in_transit": energy_dots.pending(),
 		"energy_generated": energy_dots.generated,
 		"energy_delivered": energy_dots.delivered,
+		"energy_refined": energy_dots.refined_delivered,
 		"workers_purchased": purchased_workers,
 		"group_counts": workers.group_counts.duplicate(),
 		"group_waiting": waiting,
@@ -219,6 +224,11 @@ func check_invariants() -> PackedStringArray:
 		errors.append("Massenbilanz verletzt: %d != %d" % [total_mass(), expected_mass()])
 	if energy_dots.generated != energy_dots.delivered + energy_dots.pending():
 		errors.append("Energiebilanz verletzt")
+	if energy_dots.birth.size() != energy_dots.cells.size() or energy_dots.refined.size() != energy_dots.cells.size():
+		errors.append("Energie-Dots ohne Herkunft")
+	if energy_dots.refined_delivered > energy_dots.delivered:
+		errors.append("Veredelte Energie übersteigt die Lieferung")
+	errors.append_array(_building_errors())
 	var recount := PackedInt32Array()
 	recount.resize(quotas.size())
 	var occupied := 0
@@ -258,6 +268,8 @@ func state_hash() -> int:
 		purchased_workers,
 		sacrificed_mass,
 		upgrades.state_hash(),
+		config.mode,
+		buildings.state_hash(),
 		hash(desired_size),
 		hash(sacrifice_on),
 		won,
@@ -395,6 +407,32 @@ func buy(kind: int) -> bool:
 
 ## Arbeiter werden ausschließlich gegen bereits gelieferte Energie gekauft.
 ## Der Spawn beginnt am zentralen Tunnel; die bestehende Warteschlange erhält die Masse.
+## Setzt eine Quelle oder einen Veredler auf eine leere Tunnelzelle. Der Kern bleibt frei.
+func place_building(kind: int, idx: int) -> bool:
+	if not buildings.allowed(config.mode, kind):
+		return false
+	var cost := buildings.place_cost(kind)
+	if cost < 0 or upgrades.energy < cost or not _cell_accepts_building(idx):
+		return false
+	upgrades.energy -= cost
+	upgrades.purchased += 1
+	buildings.add(kind, idx)
+	return true
+
+
+## Hebt die gemeinsame Stufe aller Quellen oder aller Veredler an.
+func upgrade_building(kind: int) -> bool:
+	if not buildings.allowed(config.mode, kind):
+		return false
+	var cost := buildings.tier_cost(kind)
+	if cost < 0 or upgrades.energy < cost:
+		return false
+	upgrades.energy -= cost
+	upgrades.purchased += 1
+	buildings.raise_tier(kind)
+	return true
+
+
 func buy_worker() -> bool:
 	if upgrades.energy < WORKER_COST:
 		return false
@@ -487,6 +525,46 @@ func _is_adjacent(a: int, b: int) -> bool:
 	var w := world.width
 	var delta := absi(a - b)
 	return delta == w or (delta == 1 and a / w == b / w)
+
+
+func _goals_met() -> bool:
+	match config.mode:
+		SimConfig.MODE_EXTRACTION:
+			return energy_dots.delivered >= SimConfig.EXTRACTION_GOAL
+		SimConfig.MODE_REFINING:
+			return energy_dots.refined_delivered >= SimConfig.REFINING_GOAL
+		_:
+			return total_mass() >= 100 and upgrades.purchased >= 2 and world.mined_fraction() >= 0.9
+
+
+func _cell_accepts_building(idx: int) -> bool:
+	if idx < 0 or idx >= world.cell_count() or world.cells[idx] != Materials.EMPTY:
+		return false
+	if _in_core(idx) or buildings.occupies(idx):
+		return false
+	return true
+
+
+func _building_errors() -> PackedStringArray:
+	var errors := PackedStringArray()
+	var seen := {}
+	if buildings.kind.size() != buildings.cell.size() or buildings.buds.size() != buildings.cell.size():
+		errors.append("Gebäudelisten ungleich lang")
+		return errors
+	for i in buildings.cell.size():
+		var idx := buildings.cell[i]
+		if seen.has(idx):
+			errors.append("zwei Gebäude auf einer Zelle")
+		seen[idx] = true
+		if idx < 0 or idx >= world.cell_count() or world.cells[idx] != Materials.EMPTY or _in_core(idx):
+			errors.append("Gebäude steht nicht auf einem freien Tunnel")
+		if not buildings.allowed(config.mode, int(buildings.kind[i])):
+			errors.append("Gebäude passt nicht zum Modus")
+		if int(buildings.kind[i]) == Buildings.KIND_SOURCE:
+			for bud in buildings.buds[i]:
+				if bud < 0 or bud >= world.cell_count() or not Materials.is_mineable(world.cells[bud]):
+					errors.append("Knospe ist kein Material")
+	return errors
 
 
 func _in_core(idx: int) -> bool:

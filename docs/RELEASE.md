@@ -4,7 +4,7 @@ Stand: 22. Oktober 2026. Version in `project.godot`: 0.3.0, Test-Beta mit Energi
 
 ## Was hier geprüft wurde
 
-* 126 automatisierte Tests, 22 263 Prüfungen, headless, Godot 4.3. Kein Fehler.
+* 135 automatisierte Tests, 22 323 Prüfungen, headless, Godot 4.3. Kein Fehler.
 * Headless-Start schreibt `DOT WARS bereit`.
 * Startmenü und die Spielansicht wurden in dieser Linux-Umgebung geöffnet.
 * Simulation mit 1.000, 10.000 und 50.000 Arbeitern, dazu eine 1.000×1.000-Welt. Zahlen in `docs/PERFORMANCE.md`.
@@ -37,6 +37,7 @@ Die Vorgabe liegt in `export_presets.cfg`. Der Export bettet das PCK ein und zie
 * Energie-Dots warten, wenn ein Arbeiter auf der nächsten Zelle zum Kern steht. Untereinander teilen sie die Zelle.
 * Ohne die Fähigkeit Kern können Arbeiter die beiden Zugänge blockieren. Danach bleibt die Fläche frei und wächst bis Radius 4. Die Kosten 40 je angefangene Stufe sind vorläufig.
 * Neue Spiele starten Arbeiter und Energie-Dots mit einem Schritt alle 8 Takte. Die Fähigkeiten unter Bewegung verkürzen das in Stufen bis auf jeden Takt. Die Kosten 25 und 30 je angefangene Stufe sind vorläufig.
+* Drei Modi: Räumung mit den bisherigen drei Zielen, Förderung mit 1.000 gelieferter Energie und Quelle, Veredelung mit 400 veredelter Energie. Die Zielzahlen und die Gebäudekosten sind vorläufig.
 * Speicherstände der Version 1 sind mit dieser Wirtschaft nicht lesbar.
 * Musik fehlt, weil kein lizenziertes Stück beiliegt.
 

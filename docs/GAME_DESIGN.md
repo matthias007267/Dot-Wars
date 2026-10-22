@@ -100,7 +100,23 @@ Der Energiekern steht im Startbereich und ist unzerstörbar. Ankommende Energie-
 
 Kostenformeln sind zentral und testbar. Effekte gelten global und konsistent. Die Abbildung von +25 % auf den Ganzzahl-Takt ist noch offen.
 
-Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 gekaufte und vorhandene Arbeitermasse, mindestens zwei gekaufte Upgrades, mindestens 90 % des ursprünglich abbaubaren Materials. Leer und unzerstörbar zählen nicht zur Bezugsmenge. Nach dem Sieg kann weiter abgebaut werden. Die Statistik zeigt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades und die maximale Zahl Einheiten. 20 bis 40 Minuten auf der Standardwelt sind das Balancingziel. Ein skriptierter Lauf mit Seed 1337 hat die drei Ziele auf der 256er-Welt nach 37:28 erreicht. Ein menschliches Spiel ist damit nicht gemessen.
+Die Ziele hängen am Modus und sind vorläufig. In der Räumung ist die Runde gewonnen, wenn alle drei Prüfungen erfüllt sind: mindestens 100 gekaufte und vorhandene Arbeitermasse, mindestens zwei Käufe, mindestens 90 % des ursprünglich abbaubaren Materials. Leer und unzerstörbar zählen nicht zur Bezugsmenge. Förderung endet bei 1.000 gelieferten Energieeinheiten. Veredelung endet bei 400 veredelten Einheiten am Kern. Nach dem Sieg kann weitergespielt werden. Die Statistik zeigt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades, die maximale Zahl Einheiten und die veredelte Menge. 20 bis 40 Minuten auf der Standardwelt sind das Balancingziel der Räumung. Ein skriptierter Lauf mit Seed 1337 hat die drei Räumungsziele auf der 256er-Welt nach 37:28 erreicht, noch mit dem alten Zwei-Takt-Tempo. Ein menschliches Spiel ist damit nicht gemessen.
+
+## Modi und Gebäude
+
+Der Modus wird vor dem Start gewählt.
+
+| Modus | Ziel | Gebäude |
+|---|---|---|
+| Räumung | Masse 100, zwei Käufe, 90 % Abbau | Veredler, nur als Wirtschaft |
+| Förderung | 1.000 gelieferte Energie | Quelle |
+| Veredelung | 400 veredelte Energie am Kern | Veredler |
+
+Eine Quelle oder ein Veredler ist eine leere, begehbare Zelle. Der Kauf liegt unter Bauen im Fähigkeiten-Fenster. Der nächste Klick auf einen freien Tunnel setzt das Gebäude. Kern und Kernfläche bleiben frei.
+
+Die Quelle lässt orthogonal benachbartes, leeres Gelände wieder zu echtem Material werden. Stufe 0: alle 8 Sekunden eine weiche Zelle, höchstens 4. Stufe 1: alle 6 Sekunden, höchstens 6. Stufe 2: jede dritte neue Zelle ist mittel. Stufe 3: jede sechste ist hart. Die erste Quelle kostet 80, die zweite 160, die dritte 240. Die Stufen kosten 40, 80 und 120.
+
+Der Veredler verdoppelt einen Energie-Dot aus seinem Umkreis, einmal je Dot. Stufe 0 schafft einen Dot je Sekunde im Umkreis von 16 Zellen, Stufe 1 zwei Dots und 24 Zellen, Stufe 2 vier Dots und 32 Zellen. Der erste kostet 120, der zweite 240. Die Stufen kosten 60 und 120. Das Guthaben zählt weiterhin eine Einheit je ankommendem Dot.
 
 ## Simulation
 
@@ -117,8 +133,8 @@ Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 gekau
 * Das HUD bietet zwei Modi: „Abbau“ markiert ein Gebiet per Ziehen, „Bewegen“ setzt einen gemeinsamen Sammelpunkt im Tunnel. Gebiete und Sammelpunkte sind auf der Welt sichtbar. „Arbeiter +10“ kauft einen Arbeiter für 10 gelieferte Energie. Die Energiezeile nennt das Guthaben und die noch unterwegs befindlichen Dots. Quotenregler gibt es nicht.
 * Die Gruppenverwaltung existiert weiterhin als interne API. Die Quoten bleiben in der Simulation exakt 100 %, aber die Standardoberfläche zeigt keine Quotenregler und keine Gruppenliste.
 * Verschmelzung auf 2×2 und 3×3 ist nach dem passenden Upgrade die Wunschgröße der Gruppe. Masse bleibt erhalten, enge Tunnel sind nicht passierbar.
-* Die Leiste öffnet ein Fähigkeiten-Fenster. Darin liegen Kern, Bewegung (Arbeiter- und Energie-Tempo) und Schwarm (Abbau, 2×2, 3×3). Weitere Zweige kommen in dieses Fenster, nicht in die Leiste. Die Kosten stehen in `docs/DECISIONS.md`.
-* Gewonnen ist, wenn Arbeitermasse, zwei Upgrades und 90 % Abbau zusammen erreicht sind. Danach läuft das Spiel weiter. Die Auswertung nennt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades und die höchste Zahl gleichzeitiger Einheiten. Die Masse wächst nur durch Käufe.
+* Die Leiste öffnet ein Fähigkeiten-Fenster. Darin liegen Kern, Bewegung (Arbeiter- und Energie-Tempo), Schwarm (Abbau, 2×2, 3×3) und Bauen. Der Modus entscheidet, ob dort die Quelle oder der Veredler steht. Weitere Zweige kommen in dieses Fenster, nicht in die Leiste. Die Kosten stehen in `docs/DECISIONS.md`.
+* Der Modus steht im Startmenü. Räumung gewinnt mit Arbeitermasse, zwei Käufen und 90 % Abbau. Förderung gewinnt mit 1.000 gelieferter Energie, Veredelung mit 400 veredelter Energie. Danach läuft das Spiel weiter. Die Auswertung nennt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades, die höchste Zahl gleichzeitiger Einheiten und die veredelte Menge. Die Masse wächst nur durch Käufe.
 * Pause, Spielgeschwindigkeit 1×, 2× und 4×, Speichern und Laden.
 * Kleine Tunneländerungen korrigieren die Zielsuche lokal. Ab 33 Zellen, bei einem neuen Gebiet oder einem neuen Laufziel wird das Feld neu aufgebaut.
 * Die Fraktions-ID liegt am Arbeiter und ist beim Start 0. Nur diese eine Fraktion wird verwendet.

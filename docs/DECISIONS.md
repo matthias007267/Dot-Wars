@@ -215,4 +215,19 @@ Datum: 22. Oktober 2026.
 
 Arbeiter und Energie-Dots starten langsam: ein Schritt alle 8 Takte, also zweieinhalb Zellen je Simulationssekunde. Jede Fähigkeit verkürzt das in festen Stufen auf 6, 4, 3, 2 und schließlich 1 Takt. Ein Takt je Schritt ist der Anschlag. Die Stufen sind getrennt. Arbeiter kosten vorläufig 25, 50, 75, 100 und 125 Energie. Energie-Dots kosten vorläufig 30, 60, 90, 120 und 150. Beide Käufe liegen im Fähigkeiten-Fenster unter Bewegung, nicht in der Leiste. Rote Krieger haben keine Geschwindigkeit, weil es sie noch nicht gibt.
 
-Stufe 0 der Arbeiter folgt weiterhin `move_period_ticks`. Neue Spiele stehen auf 8. Ein älterer Speicherstand ohne eigene Periode bleibt bei 2. `energy_speed` fehlt in älteren Ständen und ist dann 0, also der langsame Start. Die Siegbedingungen und die Kosten 10 und 250 bleiben unverändert.
+Stufe 0 der Arbeiter folgt weiterhin `move_period_ticks`. Neue Spiele stehen auf 8. Ein älterer Speicherstand ohne eigene Periode bleibt bei 2. `energy_speed` fehlt in älteren Ständen und ist dann 0, also der langsame Start. Die Kosten 10 und 250 bleiben unverändert. Die drei Prüfungen der Räumung bleiben; weitere Modi stehen in D-029.
+
+
+### D-029 Modi, Quelle und Veredler
+
+Datum: 22. Oktober 2026.
+
+Die endgültigen Siege sind nicht festgelegt. Sie hängen am Modus. Drei Modi sind im Spiel, ihre Zielzahlen sind vorläufig.
+
+Räumung behält Masse 100, zwei Käufe und 90 % des ursprünglichen Materials. Förderung endet bei 1.000 gelieferten Energieeinheiten. Veredelung endet bei 400 veredelten Einheiten am Kern. Roh angekommene Energie füllt in jedem Modus das Guthaben. Nur die Veredelung zählt sie ins Ziel, und nur wenn ein Veredler den Dot verdoppelt hat.
+
+Die Quelle gibt es nur in der Förderung. Sie steht auf einer leeren Tunnelzelle, kostet vorläufig 80, 160 und 240 und es gibt höchstens drei. Alle 8 Sekunden, nach der ersten Stufe alle 6, wächst eine Nachbarzelle zu echtem Material nach, höchstens 4 gleichzeitig und ab Stufe 1 höchstens 6. Ist die Grenze voll oder keine Zelle frei, wartet der Takt. Stufe 2 macht jede dritte neue Zelle mittel, Stufe 3 jede sechste hart. Die Stufen kosten 40, 80 und 120 und gelten für alle Quellen. Abgebautes Nachwuchs-Material liefert seine Härte als Energie-Dots. Es zählt in der Förderung nicht als Siegbalken, weil dieser Modus keinen Abbauanteil hat.
+
+Der Veredler gibt es in Räumung und Veredelung. Er kostet vorläufig 120 und 240, höchstens zwei. Ein Dot wird einmal verdoppelt, auch am zweiten Veredler nicht noch einmal. Der Umkreis ist Chebyshev, Stufe 0 bis 2 reicht 16, 24 und 32 Zellen um die Herkunft des Dots. Der Durchsatz ist ein Dot je Sekunde, dann zwei, dann vier. Die Stufen kosten 60 und 120. Dots ohne gespeicherte Herkunft, wie in älteren Speicherständen, werden nicht veredelt.
+
+Beide Gebäude bleiben leer und begehbar. Arbeiter und Energie dürfen die Zelle betreten. Der Kern und die Kernfläche bleiben frei. Der Kauf und die Stufe zählen als Fähigkeit, damit die Räumung sie wie die anderen Käufe sieht. Die veredelten Dots ändern den Räumungssieg nicht. Die Leiste bekommt keinen weiteren Knopf. Setzen und Stufen liegen unter Bauen im Fähigkeiten-Fenster. Der Modus wird im Startmenü gewählt. Speicherstände bleiben Version 2. `mode`, `buildings`, `source_level`, `refinery_level`, `energy_birth`, `energy_refined` und `refined_delivered` fehlen in älteren Ständen und gelten dann als Räumung ohne Gebäude und ohne Herkunft.

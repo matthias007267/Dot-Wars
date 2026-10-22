@@ -6,9 +6,18 @@ const TICKS_PER_SECOND := 20
 const MAX_GROUPS := 8
 const MAX_DURABILITY := 1_000_000
 
+## Räumung ist der bisherige Sieg. Förderung zählt gelieferte Energie. Veredelung zählt nur veredelte Dots.
+const MODE_CLEARING := 0
+const MODE_EXTRACTION := 1
+const MODE_REFINING := 2
+## Vorläufige Modusziele. Sie gelten nur in ihrem Modus.
+const EXTRACTION_GOAL := 1000
+const REFINING_GOAL := 400
+
 var world_size: int = 256
 var world_seed: int = 1337
 var chunk_size: int = 32
+var mode: int = MODE_CLEARING
 
 var initial_workers: int = 5
 var tunnel_arm_length: int = 5
@@ -38,6 +47,8 @@ var spawn_search_limit: int = 2048
 
 func validate() -> PackedStringArray:
 	var errors := PackedStringArray()
+	if mode < MODE_CLEARING or mode > MODE_REFINING:
+		errors.append("mode muss Räumung, Förderung oder Veredelung sein")
 	if world_size < 16 or world_size > 4096:
 		errors.append("world_size muss zwischen 16 und 4096 liegen")
 	if chunk_size < 8 or chunk_size > 128:
@@ -75,4 +86,16 @@ static func from_cmdline(args: PackedStringArray) -> SimConfig:
 			config.world_size = arg.get_slice("=", 1).to_int()
 		elif arg.begins_with("--seed="):
 			config.world_seed = arg.get_slice("=", 1).to_int()
+		elif arg.begins_with("--mode="):
+			config.mode = _mode_from_arg(arg.get_slice("=", 1))
 	return config
+
+
+static func _mode_from_arg(name: String) -> int:
+	match name:
+		"foerderung", "1":
+			return MODE_EXTRACTION
+		"veredelung", "2":
+			return MODE_REFINING
+		_:
+			return MODE_CLEARING

@@ -7,6 +7,8 @@ signal load_requested(path: String)
 
 var _seed := LineEdit.new()
 var _size := 256
+var _mode := SimConfig.MODE_CLEARING
+var _mode_hint: Label
 
 
 func _ready() -> void:
@@ -50,6 +52,27 @@ func _ready() -> void:
 			selected = button
 	_select_size(256, selected)
 
+	var modes := HBoxContainer.new()
+	modes.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(modes)
+	var mode_buttons: Array[Button] = []
+	var mode_values := [SimConfig.MODE_CLEARING, SimConfig.MODE_EXTRACTION, SimConfig.MODE_REFINING]
+	var mode_names := ["Räumung", "Förderung", "Veredelung"]
+	for index in mode_values.size():
+		var button := Button.new()
+		button.text = mode_names[index]
+		button.toggle_mode = true
+		button.pressed.connect(_select_mode.bind(mode_values[index], button))
+		modes.add_child(button)
+		mode_buttons.append(button)
+	_select_mode(SimConfig.MODE_CLEARING, mode_buttons[0])
+
+	_mode_hint = Label.new()
+	_mode_hint.add_theme_color_override("font_color", UiTheme.MUTED)
+	_mode_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(_mode_hint)
+	_apply_mode_hint()
+
 	_seed.placeholder_text = "Seed"
 	_seed.text = "1337"
 	_seed.custom_minimum_size = Vector2(220, 0)
@@ -70,7 +93,7 @@ func _ready() -> void:
 	box.add_child(load)
 
 	var note := Label.new()
-	note.text = "Abbaugebiete markieren  ·  Dots verschmelzen  ·  Fähigkeiten kaufen."
+	note.text = "Der Modus bestimmt das Ziel. Fähigkeiten und Gebäude bleiben im Fenster."
 	note.add_theme_color_override("font_color", UiTheme.MUTED)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(note)
@@ -85,10 +108,32 @@ func _select_size(value: int, button: Button) -> void:
 			UiTheme.style_button(child, selected)
 
 
+func _select_mode(value: int, button: Button) -> void:
+	_mode = value
+	for child in button.get_parent().get_children():
+		if child is Button:
+			var selected := child == button
+			child.button_pressed = selected
+			UiTheme.style_button(child, selected)
+	_apply_mode_hint()
+
+
+func _apply_mode_hint() -> void:
+	if _mode_hint == null:
+		return
+	if _mode == SimConfig.MODE_EXTRACTION:
+		_mode_hint.text = "Liefere 1.000 Energie. Quellen lassen Material nachwachsen."
+	elif _mode == SimConfig.MODE_REFINING:
+		_mode_hint.text = "Liefere 400 veredelte Energie durch einen Veredler."
+	else:
+		_mode_hint.text = "Masse 100, zwei Fähigkeiten und 90 % der Welt."
+
+
 func _play() -> void:
 	var config := SimConfig.new()
 	config.world_size = _size
 	config.world_seed = int(_seed.text) if _seed.text.is_valid_int() else 1337
+	config.mode = _mode
 	config.group_quotas = PackedInt32Array([40, 30, 30])
 	var errors := config.validate()
 	if not errors.is_empty():
