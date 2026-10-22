@@ -111,17 +111,17 @@ Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 Gesam
 * Die Welt wird als eine Textur gezeichnet. Teilweise abgebaute Zellen dunkeln ab. Kamera, Zoom und Debug-Raster sind im Fenster.
 * Arbeiter werden als zweite Textur gezeichnet, große Einheiten über ihr Quadrat.
 * Das Startmenü startet ein Spiel mit drei Gruppen (40/30/30) oder lädt einen Speicherstand.
-* Das HUD bietet zwei Modi: „Abbau“ markiert ein Gebiet per Linksklick/Ziehen, „Bewegen“ setzt einen gemeinsamen Sammelpunkt in einem Tunnel. Die Farbgruppen-Auswahl ist nicht sichtbar.
+* Das HUD bietet zwei Modi: „Abbau“ markiert ein Gebiet per Ziehen, „Bewegen“ setzt einen gemeinsamen Sammelpunkt im Tunnel. Gebiete und Sammelpunkte sind auf der Welt sichtbar. Die drei Schwarmfarben zeigen ihre Masse; die opfernde Farbe ist beschriftet. Quotenregler gibt es nicht.
 * Die Gruppenverwaltung existiert weiterhin als interne API. Die Quoten bleiben in der Simulation exakt 100 %, aber die Standardoberfläche zeigt keine Quotenregler und keine Gruppenliste.
 * Verschmelzung auf 2×2 und 3×3 ist nach dem passenden Upgrade die Wunschgröße der Gruppe. Masse bleibt erhalten, enge Tunnel sind nicht passierbar.
 * Energie kauft Tempo, Abbauleistung und die beiden Verschmelzungsstufen. Die Kosten stehen in `docs/DECISIONS.md`.
 * Gewonnen ist, wenn Masse, zwei Upgrades und 90 % Abbau zusammen erreicht sind. Danach läuft das Spiel weiter, die Statistik bleibt sichtbar.
 * Pause, Spielgeschwindigkeit 1×, 2× und 4×, Speichern und Laden.
+* Kleine Tunneländerungen korrigieren die Zielsuche lokal. Ab 33 Zellen, bei einem neuen Gebiet oder einem neuen Laufziel wird das Feld neu aufgebaut.
 * Die Fraktions-ID liegt am Arbeiter und ist beim Start 0. Nur diese eine Fraktion wird verwendet.
 
 ## Was noch nicht da ist
 
 * Mehrere Fraktionen mit eigenem Besitz.
-* Eine Zielsuche, die nach einem einzelnen Abbau nur die betroffene Tunnelumgebung neu rechnet.
 * Ein geprüfter Windows-Release-Build und eine Steam-Veröffentlichung. Die Vorbereitung steht in `docs/RELEASE.md` und `docs/STEAM.md`.
 * Hintergrundmusik. Es liegt kein lizenziertes Stück bei. Abgeschlossener Abbau spielt einen kurzen erzeugten Ton, wenn ein Audiogerät vorhanden ist.

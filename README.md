@@ -27,12 +27,14 @@ Die Szene prüft die Konfiguration, zeichnet die Welt und lässt die Arbeiter mi
 
 Steuerung im Fenster:
 
-* Linksklick setzt das Laufziel der gewählten Gruppe. Ziehen mit der linken Taste markiert ihr Abbaugebiet.
-* Tasten `1` bis `8` wählen die Gruppe. Die Leiste setzt Quoten, Wunschgröße, Opferauftrag und Käufe.
-* Leertaste pausiert. `1×`, `2×` und `4×` ändern die Spielgeschwindigkeit.
-* F5 speichert, F9 lädt `user://slot.dw`. Alle 600 Takte entsteht zusätzlich `user://autosave.dw`.
-* F11 schaltet zwischen Fenster und Vollbild.
-* Mausrad zoomt zur Cursorposition.
+* „Abbau“ ist der Startmodus. Ziehen mit der linken Taste markiert das Abbaugebiet des Schwarms. Die Fläche bleibt als Rahmen sichtbar.
+* „Bewegen“ und ein Klick in einen Tunnel setzen den Sammelpunkt. Er wird als farbige Zelle gezeichnet.
+* „Opfern“ schickt die letzte Schwarmfarbe zum Opferloch. Ein zweiter Klick holt sie zurück. Die Leiste zeigt, welche Farbe opfert.
+* „1×1“, „2×2“ und „3×3“ setzen die Wunschgröße. 2×2 und 3×3 brauchen das passende Upgrade.
+* „Upgrades“ öffnet Tempo, Abbau und Verschmelzung. „1×“ wechselt auf 2× und 4×.
+* „Speichern“ und „Laden“ nutzen `user://slot.dw`, ebenso F5 und F9. Alle 600 Takte entsteht `user://autosave.dw`.
+* Leertaste oder „Pause“ hält die Simulation an. F11 schaltet Vollbild.
+* Die Übersicht unten rechts springt die Kamera. Mausrad zoomt zur Cursorposition.
 * Rechte oder mittlere Maustaste verschiebt die Ansicht, ebenso WASD und die Pfeiltasten.
 * `G` schaltet das Zellraster ein, sobald eine Zelle mindestens 8 Pixel groß ist.
 * `C` schaltet die Chunk-Grenzen ein.
@@ -81,7 +83,7 @@ Ergebnisse und die Grenzen der Messung stehen in `docs/PERFORMANCE.md`.
 src/sim/                 headlesse Simulation
 src/main.gd              Menü, Takt, Aufträge
 src/ui/                  Startmenü, reduziertes HUD, klickbare Minimap
-src/render/              Kamera, Weltbild, Arbeiter, Koordinaten
+src/render/              Kamera, Weltbild, Arbeiter, Auftragsrahmen, Koordinaten
 scenes/main.tscn
 tests/                   Test-Runner und Fälle
 bench/benchmark.gd

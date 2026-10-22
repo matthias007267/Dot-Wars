@@ -60,5 +60,8 @@ func test_fusion_size_is_applied_to_all_working_groups() -> void:
 	check(hud.set_size_all(2), "Größe zwei gesetzt")
 	for g in hud.sim.group_open.size():
 		check_eq(hud.sim.desired_size[g], 2, "interne Gruppen nutzen dieselbe Größe")
+	check(hud.toggle_sacrifice(), "Opfern für die Größenprüfung")
+	check(hud.set_size_all(1), "Größe gilt auch für die opfernde Gruppe")
+	check_eq(hud.sim.desired_size[2], 1, "Opfergruppe behält die gemeinsame Größe")
 	check_no_errors(hud.sim.check_invariants(), "keine Masse durch Größeneinstellung verloren")
 	hud.free()

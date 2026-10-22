@@ -63,9 +63,7 @@ static func _box(fill: Color, border: Color) -> StyleBoxFlat:
 static func style_progress(bar: ProgressBar, fill: Color) -> void:
 	var track := StyleBoxFlat.new()
 	track.bg_color = PANEL_HOVER
-	track.set_corner_radius_all(4)
 	var progress := StyleBoxFlat.new()
 	progress.bg_color = fill
-	progress.set_corner_radius_all(4)
 	bar.add_theme_stylebox_override("background", track)
 	bar.add_theme_stylebox_override("fill", progress)

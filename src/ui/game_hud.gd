@@ -3,6 +3,8 @@ extends CanvasLayer
 ## Minimalistische Spieloberfläche. Farbgruppen/Quoten sind interne Simulationsdetails.
 ## Der Spieler steuert den Schwarm über gemeinsame Befehle und eine Aktionsleiste.
 
+signal load_requested(path: String)
+
 enum Command { MINE, MOVE }
 
 var sim: Simulation
@@ -31,6 +33,9 @@ var _mine_button: Button
 var _move_button: Button
 var _sacrifice_button: Button
 var _pause_button: Button
+var _speed_button: Button
+var _swarm_ids: Array[int] = []
+var _swarm_labels: Array[Label] = []
 var _upgrade_panel: PanelContainer
 var _upgrade_buttons: Array[Button] = []
 var _size_buttons: Array[Button] = []
@@ -131,7 +136,7 @@ func set_size_all(unit_size: int) -> bool:
 		return false
 	var changed := false
 	for group_id in sim.group_open.size():
-		if not _available_for_work(group_id):
+		if not _has_presence(group_id):
 			continue
 		changed = sim.set_desired_size(group_id, unit_size) or changed
 	_notice("Dot-Größe: %d×%d" % [unit_size, unit_size] if changed else "Keine aktive Einheitengruppe.")
@@ -162,7 +167,9 @@ func refresh() -> void:
 	_goal_mining_value.text = "%d / 90 %%" % percent
 	_victory.visible = sim.won
 	_pause_button.text = "WEITER" if clock.paused else "PAUSE"
+	_speed_button.text = "%d×" % clock.speed
 	_sacrifice_button.text = "OPFERN AN" if _is_sacrificing() else "OPFERN"
+	_refresh_swarm()
 
 	_refresh_selection()
 	_refresh_upgrades()
@@ -188,8 +195,9 @@ func _build_stats(layer: Control) -> void:
 	_mined_value = mined[0]
 	_mined_bar = mined[1]
 
-	_message = _label(content, "Bereich markieren: Abbau starten.", 12, UiTheme.MUTED)
+	_message = _label(content, "Ziehen markiert den Abbau. Bewegen setzt einen Punkt im Tunnel.", 12, UiTheme.MUTED)
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_build_swarm(content)
 
 
 func _build_goals(layer: Control) -> void:
@@ -247,8 +255,12 @@ func _build_dock(layer: Control) -> void:
 	upgrades.tooltip_text = "Verbesserungen mit Energie kaufen."
 	_pause_button = _button(buttons, "PAUSE", _pause_game)
 	_pause_button.tooltip_text = "Leertaste pausiert ebenfalls."
+	_speed_button = _button(buttons, "1×", _cycle_speed)
+	_speed_button.tooltip_text = "Wechselt zwischen 1×, 2× und 4×."
 	var save := _button(buttons, "SPEICHERN", _save_game)
-	save.tooltip_text = "Alternativ F5. Laden mit F9."
+	save.tooltip_text = "Alternativ F5."
+	var load := _button(buttons, "LADEN", _load_game)
+	load.tooltip_text = "Lädt user://slot.dw. Alternativ F9."
 
 
 func _build_upgrade_panel(layer: Control) -> void:
@@ -289,8 +301,8 @@ func _build_minimap(layer: Control) -> void:
 	frame.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	frame.offset_left = -201
 	frame.offset_right = -16
-	frame.offset_top = -222
-	frame.offset_bottom = -16
+	frame.offset_top = -318
+	frame.offset_bottom = -112
 	var content := _column(frame, 5)
 	_label(content, "ÜBERSICHT", 12, UiTheme.MUTED)
 	_map = WorldMinimap.new()
@@ -388,10 +400,14 @@ func _divider(parent: Node) -> void:
 	parent.add_child(separator)
 
 
-func _available_for_work(group_id: int) -> bool:
-	return sim.group_open[group_id] == 1 and sim.sacrifice_on[group_id] == 0 and (
+func _has_presence(group_id: int) -> bool:
+	return sim.group_open[group_id] == 1 and (
 		sim.quotas[group_id] > 0 or sim.workers.group_mass[group_id] > 0
 	)
+
+
+func _available_for_work(group_id: int) -> bool:
+	return _has_presence(group_id) and sim.sacrifice_on[group_id] == 0
 
 
 func _sacrifice_group() -> int:
@@ -413,6 +429,25 @@ func _set_mode(next: int) -> void:
 	command_mode = next
 	_notice("Abbaufläche aufziehen." if next == Command.MINE else "Ziel im Tunnel anklicken.")
 	refresh()
+
+
+func _cycle_speed() -> void:
+	if clock.speed == 1:
+		clock.speed = 2
+	elif clock.speed == 2:
+		clock.speed = 4
+	else:
+		clock.speed = 1
+	_notice("Tempo %d×." % clock.speed)
+	refresh()
+
+
+func _load_game() -> void:
+	load_requested.emit("user://slot.dw")
+
+
+func report(text: String) -> void:
+	_notice(text)
 
 
 func _pause_game() -> void:
@@ -479,6 +514,36 @@ func _refresh_selection() -> void:
 		_last_size_style = unit_size
 	for i in _size_buttons.size():
 		_size_buttons[i].disabled = i + 1 > sim.upgrades.max_size()
+
+
+func _build_swarm(parent: Node) -> void:
+	if sim == null:
+		return
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(row)
+	for group_id in sim.group_open.size():
+		if not _has_presence(group_id):
+			continue
+		var chip := ColorRect.new()
+		chip.custom_minimum_size = Vector2(12, 12)
+		chip.color = sim.group_colors[group_id]
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(chip)
+		var label := _label(row, "0", 12, UiTheme.TEXT)
+		_swarm_ids.append(group_id)
+		_swarm_labels.append(label)
+
+
+func _refresh_swarm() -> void:
+	for index in _swarm_ids.size():
+		var group_id := _swarm_ids[index]
+		var mass := sim.workers.group_mass[group_id]
+		if sim.sacrifice_on[group_id] == 1:
+			_swarm_labels[index].text = "opfert %d" % mass
+		else:
+			_swarm_labels[index].text = str(mass)
 
 
 func _notice(message: String) -> void:

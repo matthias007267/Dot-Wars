@@ -16,7 +16,7 @@ Die Simulation läuft mit 20 Takten pro Sekunde. Spielregeln rechnen mit ganzen 
 src/sim/          Simulation, headless
 src/main.gd       Menü, Takt, Mausaufträge, Pause
 src/ui/           Startmenü, reduziertes HUD und Weltübersicht
-src/render/       Kamera, Weltbild, Arbeiter, Koordinaten
+src/render/       Kamera, Weltbild, Arbeiter, Auftragsrahmen, Koordinaten
 scenes/main.tscn
 tests/            projekteigener Test-Runner und Tests
 bench/            headless Benchmark
@@ -31,6 +31,7 @@ docs/             verbindliche Dokumentation
 | `WorldCoordinates` | Zelle, Welt, Bildschirm |
 | `WorldRenderer` | eine Textur, Chunk-Aktualisierung, Raster, Texturzugriff für Minimap |
 | `WorkerRenderer` | zweite Textur, Fußabdruck je Einheit, nur geänderte Pixel |
+| `OrderOverlay` | Rahmen der Abbaugebiete und Markierung der Sammelpunkte |
 | `CameraController` | Zoom, Verschieben, Grenzen, Minimap-Sprung |
 | `WorldState` | Zellen, Fortschritt, Chunk-Dirty-Flags |
 | `WorldGenerator` | reproduzierbare Welt und Starttunnel |
@@ -48,7 +49,7 @@ docs/             verbindliche Dokumentation
 | `TickClock` | feste Takte, Pause ohne Nachholen |
 | `Simulation` | Reihenfolge der Systeme, Statistik, Invarianten |
 
-Verschmelzung, Opferloch, Upgrades, Siegbedingungen und Speicherstände existieren bewusst nicht. Leere Platzhalterklassen werden nicht angelegt.
+Verschmelzung, Opferloch, Upgrades, Siegbedingungen und Speicherstände hängen an `Simulation.tick_once`. Leere Platzhalterklassen werden nicht angelegt.
 
 ## Welt und Arbeiter
 
@@ -58,7 +59,7 @@ Ein Basis-Arbeiter hat Zelle, Gruppe, Fraktion, Zustand, Ziel und den Tick der l
 
 ## Takt
 
-`Simulation.tick_once` macht in dieser Reihenfolge: Zielsuche, Bewegung, Abbau, Entstehung. Innerhalb eines Systems gilt aufsteigende ID. Das ist die Konfliktauflösung und hält den Takt deterministisch.
+`Simulation.tick_once` macht in dieser Reihenfolge: Zielsuche, Bewegung, Abbau, Entstehung, Verschmelzung, Opferung, danach die Siegprüfung. Innerhalb eines Systems gilt aufsteigende ID. Das ist die Konfliktauflösung und hält den Takt deterministisch.
 
 `TickClock` wandelt Frame-Zeit in Takte um, 50 ms pro Takt, höchstens fünf Takte pro Frame. In der Pause vergeht keine Simulationszeit.
 
@@ -78,7 +79,7 @@ Bis zu 32 Materialänderungen korrigieren das letzte veröffentlichte Feld. Grö
 
 Jede abgebaute Zelle wird ein FIFO-Eintrag. Ist der Ort belegt, sucht eine BFS in der Reihenfolge Nord, Ost, Süd, West die nächste freie leere Zelle. Findet sie keine, bleibt der Eintrag liegen. Die Gruppe wählt `GroupQuotas.pick_group`: kleinster Quotient Anzahl/Quote, bei Gleichstand die größere Quote, danach der kleinere Index. Quote 0 wird nie gewählt.
 
-Invariante des Prototyps, solange es keine Opferung gibt: Arbeiter plus wartende Entstehungen = Startarbeiter plus abgebaute Zellen. `Simulation.check_invariants()` prüft das zusammen mit der Belegung.
+Masseninvariante: lebende Masse plus wartende Entstehungen = Startmasse plus abgebaute Zellen minus geopferte Masse. `Simulation.check_invariants()` prüft das zusammen mit der Belegung.
 
 ## Darstellung
 
@@ -86,9 +87,9 @@ Invariante des Prototyps, solange es keine Opferung gibt: Arbeiter plus wartende
 
 `WorldCoordinates` rechnet ohne Szene zwischen Bildschirm, Welt und Zelle. Die Kamera hat keine Drehung. Bildmitte ist die Kameraposition.
 
-`WorkerRenderer` schreibt die Arbeiter in eine zweite RGBA-Textur mit transparentem Grund. Gruppe 0 ist Gelb `#FFE45E`, Gruppe 1 ist Blau `#53C7FF`. Die Textur wird neu gefüllt, wenn ein neuer Simulationstakt gezeichnet wird. `_draw` zeichnet ein Rechteck. Es gibt keine Node pro Arbeiter. Die Opferlochzelle wird beim Malen `#C77AFF`, ohne den Materialwert zu ändern.
+`WorkerRenderer` schreibt die Arbeiter in eine zweite RGBA-Textur mit transparentem Grund. Die Farben stehen in `Simulation.GROUP_PALETTE`; die ersten beiden sind Gelb `#FFE45E` und Blau `#53C7FF`. Die Textur wird neu gefüllt, wenn ein neuer Simulationstakt gezeichnet wird. `_draw` zeichnet diese eine Textur. Es gibt keine Node pro Arbeiter und keinen Lichtakzent je Einheit. Die Opferlochzelle wird beim Malen `#C77AFF`, ohne den Materialwert zu ändern.
 
-Die Hauptszene erzeugt die Simulation, zeichnet Welt und Arbeiter und treibt `TickClock` mit 20 Hz. `GameHud` bündelt Spielerbefehle für alle arbeitenden internen Farbgruppen. Abbau zieht ein Gebiet auf, Bewegung setzt per Linksklick einen gemeinsamen Sammelpunkt; eine Teilgruppe übernimmt auf Anforderung die Opferung. Quotenverwaltung existiert nur noch intern. `WorldMinimap` zeigt die vorhandene Welttextur und lässt die Kamera zum angeklickten Punkt springen. Die Leertaste schaltet die Pause. Eine ungültige Konfiguration oder eine verletzte Startinvariante beendet das Programm mit Code 1.
+Die Hauptszene erzeugt die Simulation, zeichnet Welt und Arbeiter und treibt `TickClock` mit 20 Hz. `GameHud` bündelt Spielerbefehle für alle arbeitenden internen Farbgruppen und zeigt die Schwarmfarben. Abbau zieht ein Gebiet auf, Bewegung setzt per Linksklick einen gemeinsamen Sammelpunkt; eine Teilgruppe übernimmt auf Anforderung die Opferung. `OrderOverlay` zeichnet diese Aufträge. Quotenverwaltung existiert nur noch intern. `WorldMinimap` zeigt die vorhandene Welttextur und lässt die Kamera zum angeklickten Punkt springen. Die Leertaste schaltet die Pause. Eine ungültige Konfiguration oder eine verletzte Startinvariante beendet das Programm mit Code 1.
 
 ## Tests
 
@@ -98,9 +99,5 @@ Die Hauptszene erzeugt die Simulation, zeichnet Welt und Arbeiter und treibt `Ti
 
 | Späteres System | Anknüpfung |
 |---|---|
-| Verschmelzung | `WorkerStore` muss Einheiten entfernen können. Die Massenformel zählt dann die Masse, nicht nur die Anzahl. |
-| Opferloch | eigenes System mit Daten und einem Schritt in `tick_once` |
-| Upgrades | `dig_power` und `move_period_ticks` in `SimConfig` |
-| Speicherstand | Zustand liegt in Packed-Arrays und Ganzzahlen. `state_hash()` nennt die relevanten Felder. |
 | Mehrere Fraktionen | `WorkerStore.faction` ist vorhanden. Die Ansicht setzt immer 0. |
 | GDExtension | `MovementSystem`, `MiningSystem`, `FlowField` haben datenorientierte Signaturen |

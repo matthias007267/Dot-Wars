@@ -7,6 +7,7 @@ var renderer: WorldRenderer
 var workers_view: WorkerRenderer
 var camera: CameraController
 var hud: GameHud
+var orders: OrderOverlay
 var clock := TickClock.new()
 
 var _menu: MainMenu
@@ -57,6 +58,8 @@ func _boot_from_save(path: String) -> void:
 	var loaded := SaveGame.read_file(path)
 	if loaded == null:
 		push_error("Speicherstand ungültig")
+		if hud != null:
+			hud.report("Speicherstand ungültig.")
 		return
 	print("DOT WARS bereit: %dx%d Seed %d" % [loaded.world.width, loaded.world.height, loaded.config.world_seed])
 	print("Spielstand geladen, Arbeiter %d" % loaded.workers.count)
@@ -79,7 +82,6 @@ func _attach(next: Simulation) -> void:
 	workers_view.workers = sim.workers
 	workers_view.colors = sim.group_colors
 	camera = CameraController.new()
-	workers_view.camera = camera
 	camera.world_size = Vector2(world.width, world.height)
 	renderer.camera = camera
 	if _has_flag("--grid"):
@@ -88,23 +90,28 @@ func _attach(next: Simulation) -> void:
 		renderer.show_chunks = true
 	add_child(renderer)
 	add_child(workers_view)
+	orders = OrderOverlay.new()
+	orders.sim = sim
+	add_child(orders)
 	add_child(camera)
 	hud = GameHud.new()
 	hud.sim = sim
 	hud.clock = clock
 	hud.camera = camera
 	hud.renderer = renderer
+	hud.load_requested.connect(_boot_from_save)
 	add_child(hud)
 	workers_view.show_tick(sim.tick_count)
 	_prepare_tone()
 
 
 func _clear_playfield() -> void:
-	for node in [renderer, workers_view, camera, hud, _tone]:
+	for node in [renderer, workers_view, orders, camera, hud, _tone]:
 		if node != null and is_instance_valid(node):
 			node.queue_free()
 	renderer = null
 	workers_view = null
+	orders = null
 	camera = null
 	hud = null
 	_tone = null
