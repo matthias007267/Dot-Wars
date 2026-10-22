@@ -79,6 +79,7 @@ func _attach(next: Simulation) -> void:
 	workers_view.workers = sim.workers
 	workers_view.colors = sim.group_colors
 	camera = CameraController.new()
+	workers_view.camera = camera
 	camera.world_size = Vector2(world.width, world.height)
 	renderer.camera = camera
 	if _has_flag("--grid"):
