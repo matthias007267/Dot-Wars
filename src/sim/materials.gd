@@ -22,6 +22,8 @@ const COLORS: Array[Color] = [
 ]
 ## Nur die Darstellung. Die Zelle bleibt unzerstörbares Material.
 const PIT_COLOR := Color8(0xC7, 0x7A, 0xFF)
+## Freie Kernfläche. Leer wie ein Tunnel, aber als Fläche erkennbar. Kein eigenes Material.
+const PLAZA_COLOR := Color8(0x5A, 0x3D, 0x78)
 const BACKDROP := Color8(0x0D, 0x10, 0x15)
 
 

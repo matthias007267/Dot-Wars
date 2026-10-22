@@ -70,7 +70,7 @@ func _ready() -> void:
 	box.add_child(load)
 
 	var note := Label.new()
-	note.text = "Abbaugebiete markieren  ·  Dots verschmelzen  ·  Upgrades freischalten."
+	note.text = "Abbaugebiete markieren  ·  Dots verschmelzen  ·  Fähigkeiten kaufen."
 	note.add_theme_color_override("font_color", UiTheme.MUTED)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(note)

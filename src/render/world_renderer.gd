@@ -10,6 +10,8 @@ var world: WorldState
 var camera: Camera2D
 var show_grid := false
 var show_chunks := false
+## 1 färbt eine leere Zelle als Kernfläche. Leer lässt den Tunnel unverändert.
+var core_mask := PackedByteArray()
 
 var _bytes := PackedByteArray()
 var _image: Image
@@ -19,7 +21,7 @@ var _texture: ImageTexture
 func _ready() -> void:
 	texture_filter = TEXTURE_FILTER_NEAREST
 	_bytes.resize(world.cell_count() * 4)
-	paint_all(_bytes, world, palette_bytes(), _pit_index())
+	paint_all(_bytes, world, palette_bytes(), _pit_index(), core_mask)
 	_upload()
 	world.consume_dirty_chunks()
 	queue_redraw()
@@ -31,7 +33,7 @@ func _process(_delta: float) -> void:
 		return
 	var palette := palette_bytes()
 	for chunk in dirty:
-		paint_rect(_bytes, world, palette, world.chunk_rect(chunk), _pit_index())
+		paint_rect(_bytes, world, palette, world.chunk_rect(chunk), _pit_index(), core_mask)
 	_upload()
 	queue_redraw()
 
@@ -66,15 +68,24 @@ static func palette_bytes() -> PackedByteArray:
 
 
 static func paint_all(
-	bytes: PackedByteArray, world: WorldState, palette: PackedByteArray, pit: int = -1
+	bytes: PackedByteArray,
+	world: WorldState,
+	palette: PackedByteArray,
+	pit: int = -1,
+	mask: PackedByteArray = PackedByteArray(),
 ) -> void:
 	var cells := world.cells
 	for idx in cells.size():
-		_write_cell(bytes, palette, world, idx, cells[idx], pit)
+		_write_cell(bytes, palette, world, idx, cells[idx], pit, mask)
 
 
 static func paint_rect(
-	bytes: PackedByteArray, world: WorldState, palette: PackedByteArray, rect: Rect2i, pit: int = -1
+	bytes: PackedByteArray,
+	world: WorldState,
+	palette: PackedByteArray,
+	rect: Rect2i,
+	pit: int = -1,
+	mask: PackedByteArray = PackedByteArray(),
 ) -> void:
 	var cells := world.cells
 	var width := world.width
@@ -82,7 +93,17 @@ static func paint_rect(
 		var row := y * width
 		for x in range(rect.position.x, rect.end.x):
 			var idx := row + x
-			_write_cell(bytes, palette, world, idx, cells[idx], pit)
+			_write_cell(bytes, palette, world, idx, cells[idx], pit, mask)
+
+
+## Zeichnet die Kernfläche neu. Der Aufruf kommt nach einem Kauf oder einem geladenen Stand.
+func set_core_mask(mask: PackedByteArray) -> void:
+	core_mask = mask
+	if _bytes.is_empty() or world == null:
+		return
+	paint_all(_bytes, world, palette_bytes(), _pit_index(), core_mask)
+	_upload()
+	queue_redraw()
 
 
 func _upload() -> void:
@@ -157,7 +178,13 @@ func _pit_index() -> int:
 
 
 static func _write_cell(
-	bytes: PackedByteArray, palette: PackedByteArray, world: WorldState, idx: int, material: int, pit: int = -1
+	bytes: PackedByteArray,
+	palette: PackedByteArray,
+	world: WorldState,
+	idx: int,
+	material: int,
+	pit: int = -1,
+	mask: PackedByteArray = PackedByteArray(),
 ) -> void:
 	var dst := idx * 4
 	if idx == pit:
@@ -165,6 +192,13 @@ static func _write_cell(
 		bytes[dst] = _channel(pit_color.r)
 		bytes[dst + 1] = _channel(pit_color.g)
 		bytes[dst + 2] = _channel(pit_color.b)
+		bytes[dst + 3] = 255
+		return
+	if material == Materials.EMPTY and idx < mask.size() and mask[idx] == 1:
+		var plaza := Materials.PLAZA_COLOR
+		bytes[dst] = _channel(plaza.r)
+		bytes[dst + 1] = _channel(plaza.g)
+		bytes[dst + 2] = _channel(plaza.b)
 		bytes[dst + 3] = 255
 		return
 	var src := material * 4

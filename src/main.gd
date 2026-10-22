@@ -78,6 +78,7 @@ func _attach(next: Simulation) -> void:
 	_autosave_tick = sim.tick_count
 	renderer = WorldRenderer.new()
 	renderer.world = world
+	renderer.core_mask = sim.core_mask
 	energy_view = EnergyRenderer.new()
 	energy_view.world = world
 	energy_view.energy = sim.energy_dots

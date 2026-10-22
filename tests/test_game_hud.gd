@@ -59,3 +59,22 @@ func test_fusion_size_is_applied_to_all_working_groups() -> void:
 	check_eq(hud.sim.desired_size[2], 1, "alle internen Gruppen gleich")
 	check_no_errors(hud.sim.check_invariants(), "keine Masse durch Größeneinstellung verloren")
 	hud.free()
+
+
+func test_status_card_shows_the_core_stage() -> void:
+	var hud := _new_hud()
+	var layer := Control.new()
+	hud._build_stats(layer)
+	hud._build_goals(layer)
+	hud._build_dock(layer)
+	hud._build_upgrade_panel(layer)
+	hud.refresh()
+	check_eq(hud._kern_value.text, "Stufe 0", "Start ohne erweiterte Fläche")
+	check_eq(hud._kern_bar.value, 0.0, "Balken leer")
+	hud.sim.upgrades.energy = 40
+	check(hud.sim.buy(Upgrades.KIND_CORE), "Kernkauf")
+	hud.refresh()
+	check_eq(hud._kern_value.text, "Stufe 1", "Stufe nach dem Kauf")
+	check_eq(hud._kern_bar.value, 1.0, "Balken zeigt die Stufe")
+	layer.free()
+	hud.free()

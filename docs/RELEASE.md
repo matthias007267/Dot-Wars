@@ -4,7 +4,7 @@ Stand: 22. Oktober 2026. Version in `project.godot`: 0.3.0, Test-Beta mit Energi
 
 ## Was hier geprüft wurde
 
-* 122 automatisierte Tests, 22 226 Prüfungen, headless, Godot 4.3. Kein Fehler.
+* 124 automatisierte Tests, 22 238 Prüfungen, headless, Godot 4.3. Kein Fehler.
 * Headless-Start schreibt `DOT WARS bereit`.
 * Startmenü und die Spielansicht wurden in dieser Linux-Umgebung geöffnet.
 * Simulation mit 1.000, 10.000 und 50.000 Arbeitern, dazu eine 1.000×1.000-Welt. Zahlen in `docs/PERFORMANCE.md`.
@@ -14,7 +14,7 @@ Stand: 22. Oktober 2026. Version in `project.godot`: 0.3.0, Test-Beta mit Energi
 ## Was hier nicht geprüft wurde
 
 * Ein Windows-Rechner. Exportvorlagen für Godot 4.3 sind in dieser Umgebung nicht installiert, deshalb gibt es keine `build/dotwars.exe`.
-* Eine komplette Partie bis zu den drei Siegzielen. 90 % einer 256er- oder 500er-Welt sind ein langer Lauf. Die Arbeitermasse wächst nur noch durch Käufe.
+* Eine von einem Menschen gespielte Partie bis zu den drei Siegzielen. Ein skriptierter Lauf mit Seed 1337 erreicht sie auf der 256er-Welt nach 37:28. Zahlen in `docs/PERFORMANCE.md`.
 * Eine volle Partie, in der Abbau und mehrere tausend Energie-Dots gleichzeitig laufen.
 * Ton auf einem echten Audiogerät. Diese Maschine fällt auf den Dummy-Treiber zurück.
 

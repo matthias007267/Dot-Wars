@@ -99,7 +99,7 @@ Der Energiekern steht im Startbereich und ist unzerstörbar. Ankommende Energie-
 
 Kostenformeln sind zentral und testbar. Effekte gelten global und konsistent. Die Abbildung von +25 % auf den Ganzzahl-Takt ist noch offen.
 
-Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 gekaufte und vorhandene Arbeitermasse, mindestens zwei gekaufte Upgrades, mindestens 90 % des ursprünglich abbaubaren Materials. Leer und unzerstörbar zählen nicht zur Bezugsmenge. Nach dem Sieg kann weiter abgebaut werden. Die Statistik zeigt Spielzeit, abgebaute Zellen, höchste Masse, geopferte Masse, gekaufte Upgrades und die maximale Zahl Einheiten. 20 bis 40 Minuten auf der Standardwelt sind ein Balancingziel, kein belegtes Ergebnis.
+Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 gekaufte und vorhandene Arbeitermasse, mindestens zwei gekaufte Upgrades, mindestens 90 % des ursprünglich abbaubaren Materials. Leer und unzerstörbar zählen nicht zur Bezugsmenge. Nach dem Sieg kann weiter abgebaut werden. Die Statistik zeigt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades und die maximale Zahl Einheiten. 20 bis 40 Minuten auf der Standardwelt sind das Balancingziel. Ein skriptierter Lauf mit Seed 1337 hat die drei Ziele auf der 256er-Welt nach 37:28 erreicht. Ein menschliches Spiel ist damit nicht gemessen.
 
 ## Simulation
 
@@ -108,7 +108,7 @@ Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 gekau
 ## Was der Stand heute bereits tut
 
 * Quadratische Welt in 256, 500 und 1.000, gleicher Seed, drei abbaubare Materialien mit Härte 1, 3 und 8.
-* Premium-Pixel-Farben: Grün, Orange, Blau, dunkles Grau. Der Tunnel ist `#161C24`, der Hintergrund `#0D1015`. Der Energiekern wird magenta gezeichnet und bleibt unzerstörbar.
+* Premium-Pixel-Farben: Grün, Orange, Blau, dunkles Grau. Der Tunnel ist `#161C24`, der Hintergrund `#0D1015`. Der Energiekern wird magenta `#C77AFF` gezeichnet und bleibt unzerstörbar. Die freie Kernfläche ist dunkelmagenta `#5A3D78`. Die Statuskarte zeigt die Kernstufe.
 * Gelbe Dots sind Arbeiter. Cyanfarbene Dots sind Energie auf dem Weg zum Kern. Rote Dots sind für spätere Krieger reserviert und nicht im Spiel.
 * Die Welt wird als eine Textur gezeichnet. Teilweise abgebaute Zellen dunkeln ab. Kamera, Zoom und Debug-Raster sind im Fenster.
 * Arbeiter werden als zweite Textur gezeichnet, große Einheiten über ihr Quadrat.

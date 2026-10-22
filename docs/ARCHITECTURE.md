@@ -92,6 +92,8 @@ Masseninvariante: lebende Masse plus wartende Käufe = Startmasse plus gekaufte 
 
 `WorldCoordinates` rechnet ohne Szene zwischen Bildschirm, Welt und Zelle. Die Kamera hat keine Drehung. Bildmitte ist die Kameraposition.
 
+Leere Zellen der Kernfläche werden `#5A3D78`, der Kern selbst `#C77AFF`. Beides steht nur in der Welttextur. `GameHud` zeigt die Kernstufe in der Statuskarte; der Kauf bleibt im Fähigkeiten-Fenster.
+
 `EnergyRenderer` zeichnet jede Zelle mit mindestens einem Energie-Dot als `#53C7FF`. `WorkerRenderer` liegt darüber und schreibt die Arbeiter in eine zweite RGBA-Textur. Alle Gruppenfarben in `Simulation.GROUP_PALETTE` sind Gelb `#FFE45E`. Die Textur wird neu gefüllt, wenn ein neuer Simulationstakt gezeichnet wird. Es gibt keine Node pro Dot. Die Energiekernzelle wird beim Malen `#C77AFF`, ohne den Materialwert zu ändern.
 
 Die Hauptszene erzeugt die Simulation, zeichnet Welt und Arbeiter und treibt `TickClock` mit 20 Hz. `GameHud` bündelt Spielerbefehle für alle arbeitenden internen Farbgruppen und zeigt die Schwarmfarben. Die Leiste hat einen Knopf für das Fähigkeiten-Fenster. Die Knoten stehen in diesem Fenster, gruppiert nach Kern und Schwarm. Abbau zieht ein Gebiet auf, Bewegung setzt per Linksklick einen gemeinsamen Sammelpunkt; eine Teilgruppe übernimmt auf Anforderung die Opferung. `OrderOverlay` zeichnet diese Aufträge. Quotenverwaltung existiert nur noch intern. `WorldMinimap` zeigt die vorhandene Welttextur und lässt die Kamera zum angeklickten Punkt springen. Die Leertaste schaltet die Pause. Eine ungültige Konfiguration oder eine verletzte Startinvariante beendet das Programm mit Code 1.

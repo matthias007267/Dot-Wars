@@ -16,9 +16,11 @@ var command_mode: int = Command.MINE
 var _mass_value: Label
 var _energy_value: Label
 var _mined_value: Label
+var _kern_value: Label
 var _mass_bar: ProgressBar
 var _energy_bar: ProgressBar
 var _mined_bar: ProgressBar
+var _kern_bar: ProgressBar
 
 var _goal_mass: ProgressBar
 var _goal_upgrade: ProgressBar
@@ -137,9 +139,11 @@ func refresh() -> void:
 	_mass_value.text = str(mass)
 	_energy_value.text = "%d (+%d)" % [energy, sim.energy_dots.pending()]
 	_mined_value.text = "%d %%" % percent
+	_kern_value.text = "Stufe %d" % sim.upgrades.core_level
 	_mass_bar.value = minf(100.0, float(mass))
 	_energy_bar.value = minf(250.0, float(energy))
 	_mined_bar.value = float(percent)
+	_kern_bar.value = sim.upgrades.core_level
 
 	_goal_mass.value = minf(100.0, float(mass))
 	_goal_upgrade.value = mini(sim.upgrades.purchased, 2)
@@ -181,6 +185,10 @@ func _build_stats(layer: Control) -> void:
 	var mined := _stat_row(content, "Abgebaut", Materials.COLORS[Materials.SOFT], 100)
 	_mined_value = mined[0]
 	_mined_bar = mined[1]
+	var kern := _stat_row(content, "Kern", Materials.PIT_COLOR, Upgrades.CORE_MAX)
+	_kern_value = kern[0]
+	_kern_bar = kern[1]
+	_kern_value.custom_minimum_size.x = 78
 
 	_message = _label(content, "Ziehen markiert den Abbau. Bewegen setzt einen Punkt im Tunnel.", 12, UiTheme.MUTED)
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -469,6 +477,8 @@ func _add_upgrade_button(parent: Node, kind: int, indent: int) -> void:
 func _buy(kind: int) -> void:
 	if sim.buy(kind):
 		if kind == Upgrades.KIND_CORE:
+			if renderer != null:
+				renderer.set_core_mask(sim.core_mask)
 			_notice("Energiekern erweitert. Arbeiter betreten die Fläche nicht.")
 		else:
 			_notice("Fähigkeit gekauft.")

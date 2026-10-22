@@ -131,3 +131,20 @@ Dieselbe Maschine. Leere Welt 64 × 64, ein Arbeiter, 4 000 Energie-Dots, 20 T
 | 4 000 | 20 | 46,70 ms | 2,34 ms | 221 | 3 779 |
 
 Invarianten ohne Fehler. Ein Gang von einer Zelle Breite mit 24 Dots und einem Arbeiter davor ist als Test festgehalten: nichts kommt an, solange der Arbeiter die Zelle hält; danach kommt jede Einheit an. Die Messung ersetzt keine volle Partie.
+
+## Skriptierte Partie vom 22. Oktober 2026
+
+Befehl:
+
+```bash
+godot --headless --path . -s bench/match_probe.gd -- --size=256 --seed=1337 --cap-minutes=60
+```
+
+Dieselbe Maschine. Eine Gruppe, die ganze Welt als Abbaugebiet, Seed 1337. Der Lauf kauft den Kern einmal, Abbau viermal, Tempo einmal und Arbeiter, bis die Masse 100 ist. Danach gräbt er weiter. Das ist kein menschliches Spiel. Die Siegbedingungen sind unverändert.
+
+| Welt | Simulationszeit | Wandzeit | Masse | Abbau | Energie am Ende | Fähigkeiten | Kern | Arbeiter |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 64 × 64 | 2:16 | 2,8 s | 100 | 90 % | 8 023, 398 unterwegs | 6 | 1 | 100 |
+| 256 × 256 | 37:28 | 283 s | 100 | 90 % | 174 103, 1 959 unterwegs | 6 | 1 | 100 |
+
+Beide Läufe enden mit erfüllten Siegzielen und ohne Invariantenfehler. Auf der 256er-Welt ist die Masse nach zwei Minuten erreicht, der Abbau bleibt der lange Teil. Nach zehn Minuten sind 39 % abgebaut, nach dreißig Minuten 70 %. 37:28 liegt am oberen Rand des Ziels von 20 bis 40 Minuten. Ein zweiter Seed und ein menschlicher Lauf fehlen.

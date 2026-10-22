@@ -59,6 +59,36 @@ func test_pixels_use_the_material_colors() -> void:
 		_check_pixel(image, seen[material], material, "Material %d" % material)
 
 
+func test_core_plaza_is_tinted_and_the_pit_stays_bright() -> void:
+	var config := TestHelpers.default_config()
+	config.world_size = 32
+	var sim := Simulation.create(config)
+	sim.upgrades.energy = 40
+	check(sim.buy(Upgrades.KIND_CORE), "Kernkauf")
+	var palette := WorldRenderer.palette_bytes()
+	var bytes := PackedByteArray()
+	bytes.resize(sim.world.cell_count() * 4)
+	var pit := WorldGenerator.sacrifice_cell(sim.world)
+	var pit_index := sim.pit_index()
+	WorldRenderer.paint_all(bytes, sim.world, palette, pit_index, sim.core_mask)
+	var image := Image.create_from_data(sim.world.width, sim.world.height, false, Image.FORMAT_RGBA8, bytes)
+	_check_color(image, pit, Materials.PIT_COLOR, "Kern bleibt hell")
+	var plaza := Vector2i(-1, -1)
+	for idx in sim.core_mask.size():
+		if sim.core_mask[idx] == 1 and sim.world.cells[idx] == Materials.EMPTY:
+			plaza = Vector2i(idx % sim.world.width, idx / sim.world.width)
+			break
+	check(plaza.x >= 0, "eine freie Kernzelle")
+	_check_color(image, plaza, Materials.PLAZA_COLOR, "Kernfläche")
+	var outside := Vector2i(pit.x - 5, pit.y - 1)
+	check_eq(sim.core_mask[sim.world.index(outside.x, outside.y)], 0, "der äußere Tunnel bleibt frei")
+	_check_color(image, outside, Materials.COLORS[Materials.EMPTY], "Tunnel außerhalb")
+	var chunk_id := (plaza.y / sim.world.chunk_size) * sim.world.chunks_x + plaza.x / sim.world.chunk_size
+	WorldRenderer.paint_rect(bytes, sim.world, palette, sim.world.chunk_rect(chunk_id), pit_index, sim.core_mask)
+	var repainted := Image.create_from_data(sim.world.width, sim.world.height, false, Image.FORMAT_RGBA8, bytes)
+	_check_color(repainted, plaza, Materials.PLAZA_COLOR, "Chunk-Nachmalung behält die Fläche")
+
+
 func test_chunk_repaint_leaves_other_chunks_unchanged() -> void:
 	var world := WorldState.new(64, 64, 32, Materials.SOFT)
 	var palette := WorldRenderer.palette_bytes()
@@ -74,6 +104,12 @@ func test_chunk_repaint_leaves_other_chunks_unchanged() -> void:
 	var variance := WorldRenderer.material_variation(changed, Materials.HARD)
 	check_eq(bytes[changed * 4], clampi(int(palette[Materials.HARD * 4]) + variance, 0, 255), "geänderte Zelle")
 	check_eq(bytes[changed * 4 + 2], clampi(int(palette[Materials.HARD * 4 + 2]) + variance, 0, 255), "Blaukanal")
+
+
+func _check_color(image: Image, cell: Vector2i, expected: Color, label: String) -> void:
+	var pixel := image.get_pixel(cell.x, cell.y)
+	var distance := absf(pixel.r - expected.r) + absf(pixel.g - expected.g) + absf(pixel.b - expected.b)
+	check(distance < 0.02, "%s Farbe (Abstand %.3f)" % [label, distance])
 
 
 func _check_pixel(image: Image, cell: Vector2i, material: int, label: String) -> void:
