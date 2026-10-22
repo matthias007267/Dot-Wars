@@ -65,7 +65,7 @@ func test_narrow_tunnel_delivers_every_dot_after_the_worker_steps_aside() -> voi
 	check_eq(sim.workers.cell[0], worker_cell, "Energie verschiebt den Arbeiter nicht")
 	check_eq(sim.energy_dots.pending(), count, "die Dots warten vollständig")
 	sim.workers.move_to(0, pocket, sim.tick_count)
-	sim.run_ticks(40)
+	sim.run_ticks(96)
 	check_eq(sim.energy_dots.delivered, count, "danach kommt jede Einheit an")
 	check_eq(sim.energy_dots.pending(), 0, "nichts bleibt im Gang")
 	check_eq(sim.upgrades.energy, count, "Guthaben entspricht der Lieferung")
@@ -223,3 +223,44 @@ func _park_off_approach(sim: Simulation, pit: Vector2i, source: int) -> void:
 			return
 		sim.workers.move_to(id, parking[cursor], sim.tick_count)
 		cursor += 1
+
+
+func test_energy_starts_slow_and_each_purchase_is_faster() -> void:
+	var upgrades := Upgrades.new()
+	check_eq(upgrades.energy_period(), 8, "Energie startet alle 8 Takte")
+	check_eq(upgrades.worker_period(8), 8, "Arbeiter starten alle 8 Takte")
+	check_eq(upgrades.energy_speed_cost(), 30, "erste Energiekosten")
+	check_eq(upgrades.speed_cost(), 25, "erste Arbeiterkosten")
+	upgrades.energy = 30
+	check(upgrades.try_buy(Upgrades.KIND_ENERGY_SPEED), "erste Energiestufe")
+	check_eq(upgrades.energy_period(), 6, "danach alle 6 Takte")
+	check_eq(upgrades.energy, 0, "30 Energie bezahlt")
+	var slow := _energy_run(0)
+	var fast := _energy_run(Upgrades.ENERGY_SPEED_MAX)
+	check(fast > slow, "höhere Stufe liefert in derselben Zeit mehr (%d > %d)" % [fast, slow])
+	var filled := Upgrades.new()
+	filled.energy = 10000
+	while filled.energy_speed_cost() >= 0:
+		check(filled.try_buy(Upgrades.KIND_ENERGY_SPEED), "weitere Energiestufe")
+	check_eq(filled.energy_period(), 1, "letzte Stufe ist ein Schritt je Takt")
+	check(not filled.try_buy(Upgrades.KIND_ENERGY_SPEED), "danach kein weiterer Kauf")
+	var restored := SaveGame.from_bytes(SaveGame.to_bytes(_sim_with_energy_speed(3)))
+	check(restored != null, "Stufe wird gespeichert")
+	if restored != null:
+		check_eq(restored.upgrades.energy_speed_level, 3, "Energiestufe bleibt erhalten")
+
+
+func _energy_run(level: int) -> int:
+	var world := WorldState.new(16, 16, 8, Materials.EMPTY)
+	var config := TestHelpers.default_config()
+	var sim := Simulation.from_world(config, world, PackedInt32Array([world.index(8, 8)]))
+	sim.upgrades.energy_speed_level = level
+	sim.energy_dots.enqueue(world.index(2, 8), 6)
+	sim.run_ticks(40)
+	return sim.energy_dots.delivered
+
+
+func _sim_with_energy_speed(level: int) -> Simulation:
+	var sim := Simulation.create(TestHelpers.default_config())
+	sim.upgrades.energy_speed_level = level
+	return sim

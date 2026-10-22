@@ -57,6 +57,7 @@ static func snapshot(sim: Simulation) -> Dictionary:
 		"queue": sim.spawner.export_queue(),
 		"energy": sim.upgrades.energy,
 		"speed_level": sim.upgrades.speed_level,
+		"energy_speed": sim.upgrades.energy_speed_level,
 		"dig_level": sim.upgrades.dig_level,
 		"fusion2": sim.upgrades.fusion2,
 		"fusion3": sim.upgrades.fusion3,
@@ -156,6 +157,7 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 	sim.spawner.import_queue(queue)
 	sim.upgrades.energy = int(data.get("energy", 0))
 	sim.upgrades.speed_level = int(data.get("speed_level", 0))
+	sim.upgrades.energy_speed_level = int(data.get("energy_speed", 0))
 	sim.upgrades.dig_level = int(data.get("dig_level", 0))
 	sim.upgrades.fusion2 = bool(data.get("fusion2", false))
 	sim.upgrades.fusion3 = bool(data.get("fusion3", false))

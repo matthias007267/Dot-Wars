@@ -5,7 +5,8 @@ extends RefCounted
 ## verwendet. Jeder Punkt ist genau eine Energieeinheit. Keine Nodes je Punkt.
 
 const COLOR := Color8(0x53, 0xC7, 0xFF)
-const MOVE_PERIOD := 2
+## Langsamer Start, solange kein Aufrufer eine Stufe übergibt.
+const MOVE_PERIOD := 8
 
 var cells := PackedInt32Array()
 var generated: int = 0
@@ -27,10 +28,13 @@ func enqueue(origin: int, count: int) -> void:
 	generated += count
 
 
-func step(world: WorldState, workers: WorkerStore, gate: PackedInt32Array, tick: int) -> int:
+func step(
+	world: WorldState, workers: WorkerStore, gate: PackedInt32Array, tick: int, period: int = MOVE_PERIOD
+) -> int:
 	if cells.is_empty():
 		return 0
-	if tick % MOVE_PERIOD != 0:
+	var pace := MOVE_PERIOD if period < 1 else period
+	if tick % pace != 0:
 		return 0
 	var stamp := hash(gate)
 	if stamp != _exit_stamp or _width != world.width or (_revision != world.revision and tick - _last_rebuild_tick >= 10):

@@ -115,6 +115,22 @@ func test_neighbor_helper_rejects_out_of_world_steps() -> void:
 	check_eq(MovementSystem.neighbor(5, FlowField.DIR_NONE, w, count), -1, "keine Richtung")
 
 
+func test_worker_speed_upgrade_covers_more_ground() -> void:
+	var rows := ["#########", "#w.....M#", "#########"]
+	var slow := TestHelpers.sim_from_ascii(rows, TestHelpers.default_config())
+	var fast := TestHelpers.sim_from_ascii(rows, TestHelpers.default_config())
+	slow.assign_area(0, Rect2i(7, 1, 1, 1))
+	fast.assign_area(0, Rect2i(7, 1, 1, 1))
+	check_eq(slow.upgrades.worker_period(slow.config.move_period_ticks), 8, "Start ist langsam")
+	fast.upgrades.energy = 1000
+	while fast.upgrades.speed_cost() >= 0:
+		check(fast.buy(Upgrades.KIND_SPEED), "Arbeiterstufe")
+	check_eq(fast.upgrades.worker_period(fast.config.move_period_ticks), 1, "letzte Stufe jeden Takt")
+	slow.run_ticks(16)
+	fast.run_ticks(16)
+	check(TestHelpers.worker_xy(fast, 0).x > TestHelpers.worker_xy(slow, 0).x, "die schnellere Einheit ist weiter")
+
+
 func test_move_period_limits_speed() -> void:
 	var config := _config()
 	config.move_period_ticks = 4

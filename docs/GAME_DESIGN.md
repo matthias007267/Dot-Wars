@@ -92,7 +92,8 @@ Der Energiekern steht im Startbereich und ist unzerstörbar. Ankommende Energie-
 | Fähigkeit | Startkosten | Effekt | Wiederholung |
 |---|---:|---|---|
 | Kern | 40 | Fläche um den Kern, Radius +1 bis 4 | ja, Kosten steigen |
-| Bewegungsgeschwindigkeit | 25 | +20 % | ja, Kosten steigen |
+| Arbeiter-Tempo | 25 | Schritt alle 8, 6, 4, 3, 2, dann 1 Takt | ja, fünf Stufen, Kosten steigen |
+| Energie-Tempo | 30 | dieselbe Stufenleiter für Energie-Dots | ja, fünf Stufen, Kosten steigen |
 | Abbauleistung | 50 | +25 % | ja, Kosten steigen |
 | Verschmelzung | 100 | schaltet 2×2 frei | einmal |
 | Erweiterte Verschmelzung | 250 | schaltet 3×3 frei | einmal |
@@ -116,7 +117,7 @@ Die Runde ist gewonnen, wenn alle drei Ziele erreicht sind: mindestens 100 gekau
 * Das HUD bietet zwei Modi: „Abbau“ markiert ein Gebiet per Ziehen, „Bewegen“ setzt einen gemeinsamen Sammelpunkt im Tunnel. Gebiete und Sammelpunkte sind auf der Welt sichtbar. „Arbeiter +10“ kauft einen Arbeiter für 10 gelieferte Energie. Die Energiezeile nennt das Guthaben und die noch unterwegs befindlichen Dots. Quotenregler gibt es nicht.
 * Die Gruppenverwaltung existiert weiterhin als interne API. Die Quoten bleiben in der Simulation exakt 100 %, aber die Standardoberfläche zeigt keine Quotenregler und keine Gruppenliste.
 * Verschmelzung auf 2×2 und 3×3 ist nach dem passenden Upgrade die Wunschgröße der Gruppe. Masse bleibt erhalten, enge Tunnel sind nicht passierbar.
-* Die Leiste öffnet ein Fähigkeiten-Fenster. Darin liegen Kern und Schwarm (Tempo, Abbau, 2×2, 3×3). Weitere Zweige kommen in dieses Fenster, nicht in die Leiste. Die Kosten stehen in `docs/DECISIONS.md`.
+* Die Leiste öffnet ein Fähigkeiten-Fenster. Darin liegen Kern, Bewegung (Arbeiter- und Energie-Tempo) und Schwarm (Abbau, 2×2, 3×3). Weitere Zweige kommen in dieses Fenster, nicht in die Leiste. Die Kosten stehen in `docs/DECISIONS.md`.
 * Gewonnen ist, wenn Arbeitermasse, zwei Upgrades und 90 % Abbau zusammen erreicht sind. Danach läuft das Spiel weiter. Die Auswertung nennt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades und die höchste Zahl gleichzeitiger Einheiten. Die Masse wächst nur durch Käufe.
 * Pause, Spielgeschwindigkeit 1×, 2× und 4×, Speichern und Laden.
 * Kleine Tunneländerungen korrigieren die Zielsuche lokal. Ab 33 Zellen, bei einem neuen Gebiet oder einem neuen Laufziel wird das Feld neu aufgebaut.

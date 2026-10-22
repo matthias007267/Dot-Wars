@@ -147,4 +147,4 @@ Dieselbe Maschine. Eine Gruppe, die ganze Welt als Abbaugebiet, Seed 1337. Der L
 | 64 × 64 | 2:16 | 2,8 s | 100 | 90 % | 8 023, 398 unterwegs | 6 | 1 | 100 |
 | 256 × 256 | 37:28 | 283 s | 100 | 90 % | 174 103, 1 959 unterwegs | 6 | 1 | 100 |
 
-Beide Läufe enden mit erfüllten Siegzielen und ohne Invariantenfehler. Auf der 256er-Welt ist die Masse nach zwei Minuten erreicht, der Abbau bleibt der lange Teil. Nach zehn Minuten sind 39 % abgebaut, nach dreißig Minuten 70 %. 37:28 liegt am oberen Rand des Ziels von 20 bis 40 Minuten. Ein zweiter Seed und ein menschlicher Lauf fehlen.
+Beide Läufe enden mit erfüllten Siegzielen und ohne Invariantenfehler. Auf der 256er-Welt ist die Masse nach zwei Minuten erreicht, der Abbau bleibt der lange Teil. Nach zehn Minuten sind 39 % abgebaut, nach dreißig Minuten 70 %. 37:28 liegt am oberen Rand des Ziels von 20 bis 40 Minuten. Ein zweiter Seed und ein menschlicher Lauf fehlen. Arbeiter und Energie machten in diesem Lauf noch einen Schritt alle zwei Takte. Seit D-028 starten neue Spiele bei acht Takten. Die Zahl beschreibt also nicht mehr das aktuelle Starttempo.

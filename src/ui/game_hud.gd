@@ -278,7 +278,7 @@ func _build_upgrade_panel(layer: Control) -> void:
 	center.anchor_right = 1.0
 	center.anchor_top = 1.0
 	center.anchor_bottom = 1.0
-	center.offset_top = -470
+	center.offset_top = -560
 	center.offset_bottom = -94
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(center)
@@ -293,8 +293,10 @@ func _build_upgrade_panel(layer: Control) -> void:
 	_button(head, "SCHLIESSEN", _toggle_upgrades)
 	_label(content, "KERN", 12, UiTheme.MUTED)
 	_add_upgrade_button(content, Upgrades.KIND_CORE, 0)
-	_label(content, "SCHWARM", 12, UiTheme.MUTED)
+	_label(content, "BEWEGUNG", 12, UiTheme.MUTED)
 	_add_upgrade_button(content, Upgrades.KIND_SPEED, 0)
+	_add_upgrade_button(content, Upgrades.KIND_ENERGY_SPEED, 0)
+	_label(content, "SCHWARM", 12, UiTheme.MUTED)
 	_add_upgrade_button(content, Upgrades.KIND_DIG, 0)
 	_add_upgrade_button(content, Upgrades.KIND_FUSION2, 0)
 	_add_upgrade_button(content, Upgrades.KIND_FUSION3, 22)
@@ -480,6 +482,10 @@ func _buy(kind: int) -> void:
 			if renderer != null:
 				renderer.set_core_mask(sim.core_mask)
 			_notice("Energiekern erweitert. Arbeiter betreten die Fläche nicht.")
+		elif kind == Upgrades.KIND_SPEED:
+			_notice("Arbeiter bewegen sich schneller.")
+		elif kind == Upgrades.KIND_ENERGY_SPEED:
+			_notice("Energie bewegt sich schneller.")
 		else:
 			_notice("Fähigkeit gekauft.")
 	else:
@@ -504,7 +510,18 @@ func _refresh_upgrades() -> void:
 					button.text = "KERN   Stufe %d    •    %d Energie" % [u.core_level + 1, cost]
 			Upgrades.KIND_SPEED:
 				cost = u.speed_cost()
-				button.text = "TEMPO   Stufe %d    •    %d Energie" % [u.speed_level + 1, cost]
+				if cost < 0:
+					button.text = "ARBEITER  jeder Takt  VOLL"
+					locked = true
+				else:
+					button.text = "ARBEITER  %s    •    %d Energie" % [u.pace_text(u.next_worker_period(sim.config.move_period_ticks)), cost]
+			Upgrades.KIND_ENERGY_SPEED:
+				cost = u.energy_speed_cost()
+				if cost < 0:
+					button.text = "ENERGIE  jeder Takt  VOLL"
+					locked = true
+				else:
+					button.text = "ENERGIE  %s    •    %d Energie" % [u.pace_text(u.next_energy_period()), cost]
 			Upgrades.KIND_DIG:
 				cost = u.dig_cost()
 				button.text = "ABBAU   Stufe %d    •    %d Energie" % [u.dig_level + 1, cost]

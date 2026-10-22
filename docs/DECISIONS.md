@@ -106,9 +106,7 @@ Eine Einheit wird nur geopfert, wenn danach mindestens Masse 1 im Spiel bleibt. 
 
 Datum: 22. Oktober 2026.
 
-Der Grundtakt bleibt unverändert: ein Schritt alle `move_period_ticks` Takte, versetzt nach Arbeiter-ID. Ab der ersten gekauften Stufe sammelt jede Einheit Punkte. 100 Punkte sind ein Schritt, höchstens einer je Takt. Startwert ist `100 / move_period_ticks`. Jede Stufe multipliziert mit 6/5, ganzzahlig. Bei Periode 2 sind das 50, 60, 72, 86 und danach 100.
-
-Kosten: 25 × (gekaufte Stufe + 1).
+Der Grundtakt ist ein Schritt alle `move_period_ticks` Takte, versetzt nach Arbeiter-ID. Die Stufenleiter, die diesen Takt verkürzt, steht in D-028. Die frühere Punkterechnung mit dem Faktor 6/5 gilt nicht mehr.
 
 ### D-016 Abbau-Upgrade
 
@@ -199,7 +197,7 @@ Datum: 22. Oktober 2026.
 
 Der Energiekern bleibt auf Stufe 0 so, wie er ist: zwei leere Nachbarzellen auf dem Startkreuz nehmen Energie an, und Arbeiter dürfen dort stehen. Jeder Kauf der Fähigkeit Kern vergrößert die Fläche um eine Chebyshev-Stufe, höchstens bis Radius 4. Die Fläche selbst, ohne die unzerstörbare Kernzelle, nimmt Energie an und ist für Arbeiter gesperrt, sowohl in der Zielsuche als auch in der Bewegung. Der Ring direkt außerhalb wird leer gelegt, damit die Tunnelarme verbunden bleiben. Diese Zellen zählen nicht als Abbau und erzeugen keine Energie. `opened_count` hält den Abbauanteil stabil. Die Kosten sind vorläufig 40, 80, 120 und 160 Energie. Steht ein Arbeiter in der neuen Fläche, wird er vorher auf eine freie Zelle außerhalb gesetzt. Gelingt das nicht für jeden betroffenen Arbeiter, passiert nichts: kein Aushub, keine Kosten. Neue Arbeiter entstehen neben der Fläche, nicht darauf.
 
-Weitere Fähigkeiten kommen in dasselbe Fenster, nicht als eigene Knöpfe in die Leiste. Die Leiste hat einen Knopf „Fähigkeiten“. Darin liegen die Zweige Kern und Schwarm. Speicherstände bleiben Version 2. `core_level`, `opened` und der letzte Bewegungstakt eines Arbeiters sind optionale Felder und fehlen in älteren Ständen als 0 beziehungsweise -1.
+Weitere Fähigkeiten kommen in dasselbe Fenster, nicht als eigene Knöpfe in die Leiste. Die Leiste hat einen Knopf „Fähigkeiten“. Darin liegen die Zweige Kern und Schwarm. Der Zweig Bewegung folgt in D-028. Speicherstände bleiben Version 2. `core_level`, `opened` und der letzte Bewegungstakt eines Arbeiters sind optionale Felder und fehlen in älteren Ständen als 0 beziehungsweise -1.
 
 
 ### D-027 Kernfläche ist sichtbar, die Partiedauer ist einmal gemessen
@@ -208,4 +206,13 @@ Datum: 22. Oktober 2026.
 
 Die freie Kernfläche wird dunkelmagenta `#5A3D78` gezeichnet. Der Energiekern selbst bleibt `#C77AFF`. Die Farbe ist nur Darstellung; die Zelle bleibt leer. Die Kernstufe steht in der Statuskarte als „Kern“ mit Balken bis 4. Der Kauf bleibt im Fähigkeiten-Fenster.
 
-Ein skriptierter Lauf mit Seed 1337 markiert die ganze Welt, kauft einmal den Kern, viermal Abbau, einmal Tempo und Arbeiter bis Masse 100. Auf der 64er-Welt sind die drei Siegziele nach 2:16 Simulationszeit erreicht, auf der Standardwelt 256 nach 37:28. Wandzeit auf dieser Maschine: 2,8 s und 283 s. Invarianten ohne Fehler. Das liegt am oberen Rand des Ziels von 20 bis 40 Minuten und ist ein Lauf, kein menschliches Spiel. Die Siegbedingungen bleiben unverändert.
+Ein skriptierter Lauf mit Seed 1337 markiert die ganze Welt, kauft einmal den Kern, viermal Abbau, einmal Tempo und Arbeiter bis Masse 100. Auf der 64er-Welt sind die drei Siegziele nach 2:16 Simulationszeit erreicht, auf der Standardwelt 256 nach 37:28. Wandzeit auf dieser Maschine: 2,8 s und 283 s. Invarianten ohne Fehler. Das liegt am oberen Rand des Ziels von 20 bis 40 Minuten und ist ein Lauf, kein menschliches Spiel. Die Siegbedingungen bleiben unverändert. Dieser Lauf nutzte noch einen Schritt alle zwei Takte, vor der langsameren Startgeschwindigkeit aus D-028.
+
+
+### D-028 Tempo von Arbeitern und Energie
+
+Datum: 22. Oktober 2026.
+
+Arbeiter und Energie-Dots starten langsam: ein Schritt alle 8 Takte, also zweieinhalb Zellen je Simulationssekunde. Jede Fähigkeit verkürzt das in festen Stufen auf 6, 4, 3, 2 und schließlich 1 Takt. Ein Takt je Schritt ist der Anschlag. Die Stufen sind getrennt. Arbeiter kosten vorläufig 25, 50, 75, 100 und 125 Energie. Energie-Dots kosten vorläufig 30, 60, 90, 120 und 150. Beide Käufe liegen im Fähigkeiten-Fenster unter Bewegung, nicht in der Leiste. Rote Krieger haben keine Geschwindigkeit, weil es sie noch nicht gibt.
+
+Stufe 0 der Arbeiter folgt weiterhin `move_period_ticks`. Neue Spiele stehen auf 8. Ein älterer Speicherstand ohne eigene Periode bleibt bei 2. `energy_speed` fehlt in älteren Ständen und ist dann 0, also der langsame Start. Die Siegbedingungen und die Kosten 10 und 250 bleiben unverändert.

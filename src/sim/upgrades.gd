@@ -3,20 +3,27 @@ extends RefCounted
 ## Energie und Käufe eines Durchlaufs. Kosten und Wirkungen sind Ganzzahlen.
 
 const SPEED_BASE := 25
+const SPEED_MAX := 5
+const ENERGY_SPEED_BASE := 30
+const ENERGY_SPEED_MAX := 5
 const DIG_BASE := 50
 const FUSION2_COST := 100
 const FUSION3_COST := 250
 const CORE_BASE := 40
 const CORE_MAX := 4
+## Takte zwischen zwei Schritten. Index ist die gekaufte Stufe. 8 ist der langsame Start.
+const PACE_LADDER := [8, 6, 4, 3, 2, 1]
 
 const KIND_SPEED := 0
 const KIND_DIG := 1
 const KIND_FUSION2 := 2
 const KIND_FUSION3 := 3
 const KIND_CORE := 4
+const KIND_ENERGY_SPEED := 5
 
 var energy: int = 0
 var speed_level: int = 0
+var energy_speed_level: int = 0
 var dig_level: int = 0
 var fusion2: bool = false
 var fusion3: bool = false
@@ -25,7 +32,15 @@ var purchased: int = 0
 
 
 func speed_cost() -> int:
+	if speed_level >= SPEED_MAX:
+		return -1
 	return SPEED_BASE * (speed_level + 1)
+
+
+func energy_speed_cost() -> int:
+	if energy_speed_level >= ENERGY_SPEED_MAX:
+		return -1
+	return ENERGY_SPEED_BASE * (energy_speed_level + 1)
 
 
 func dig_cost() -> int:
@@ -54,15 +69,36 @@ func max_size() -> int:
 	return 1
 
 
-## Bewegungspunkte je Takt. 50 sind ein Schritt alle zwei Takte. Obergrenze ist ein Schritt je Takt.
-func move_points(base_period: int) -> int:
-	var points := 100 / base_period
-	var num := points
-	var den := 1
-	for _level in speed_level:
-		num *= 6
-		den *= 5
-	return mini(100, num / den)
+## Takte zwischen zwei Arbeiterschritten. Stufe 0 nutzt die konfigurierte Periode.
+func worker_period(configured: int) -> int:
+	if speed_level <= 0:
+		return maxi(1, configured)
+	return PACE_LADDER[mini(speed_level, PACE_LADDER.size() - 1)]
+
+
+## Takte zwischen zwei Energieschritten. Stufe 0 ist der langsame Start.
+func energy_period() -> int:
+	return PACE_LADDER[mini(energy_speed_level, PACE_LADDER.size() - 1)]
+
+
+func next_worker_period(configured: int) -> int:
+	if speed_level >= SPEED_MAX:
+		return 1
+	if speed_level <= 0:
+		return PACE_LADDER[1]
+	return PACE_LADDER[mini(speed_level + 1, SPEED_MAX)]
+
+
+func next_energy_period() -> int:
+	if energy_speed_level >= ENERGY_SPEED_MAX:
+		return 1
+	return PACE_LADDER[mini(energy_speed_level + 1, ENERGY_SPEED_MAX)]
+
+
+func pace_text(period: int) -> String:
+	if period <= 1:
+		return "jeder Takt"
+	return "alle %d Takte" % period
 
 
 ## Zähler und Nenner der Abbauleistung. Basis 1/1, jede Stufe multipliziert mit 5/4.
@@ -84,6 +120,8 @@ func try_buy(kind: int) -> bool:
 	match kind:
 		KIND_SPEED:
 			speed_level += 1
+		KIND_ENERGY_SPEED:
+			energy_speed_level += 1
 		KIND_DIG:
 			dig_level += 1
 		KIND_FUSION2:
@@ -96,13 +134,15 @@ func try_buy(kind: int) -> bool:
 
 
 func state_hash() -> int:
-	return hash([energy, speed_level, dig_level, fusion2, fusion3, core_level, purchased])
+	return hash([energy, speed_level, energy_speed_level, dig_level, fusion2, fusion3, core_level, purchased])
 
 
 func _cost(kind: int) -> int:
 	match kind:
 		KIND_SPEED:
 			return speed_cost()
+		KIND_ENERGY_SPEED:
+			return energy_speed_cost()
 		KIND_DIG:
 			return dig_cost()
 		KIND_FUSION2:

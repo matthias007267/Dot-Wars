@@ -80,9 +80,8 @@ func tick_once() -> void:
 	for g in fields.size():
 		fields[g].step(config.field_budget_per_tick)
 	var t1 := Time.get_ticks_usec()
-	var speed_points := 0 if upgrades.speed_level == 0 else upgrades.move_points(config.move_period_ticks)
 	MovementSystem.step(
-		tick_count, workers, world, areas, fields, config.move_period_ticks, speed_points, core_mask
+		tick_count, workers, world, areas, fields, upgrades.worker_period(config.move_period_ticks), 0, core_mask
 	)
 	var t2 := Time.get_ticks_usec()
 	if upgrades.dig_level == 0 and workers.max_size == 1:
@@ -95,7 +94,7 @@ func tick_once() -> void:
 	var t3 := Time.get_ticks_usec()
 	spawner.process(world, workers, quotas, core_mask)
 	FusionSystem.step(workers, world, desired_size)
-	upgrades.energy += energy_dots.step(world, workers, energy_exits(), tick_count)
+	upgrades.energy += energy_dots.step(world, workers, energy_exits(), tick_count, upgrades.energy_period())
 	var mass_now := total_mass()
 	if mass_now > peak_mass:
 		peak_mass = mass_now

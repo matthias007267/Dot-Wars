@@ -172,7 +172,9 @@ func test_save_roundtrip_continues_identically() -> void:
 
 func _mining_ticks(unit_size: int, upgrade: bool = false) -> int:
 	var rows := ["###", "#w#", "###"] if unit_size == 1 else ["####", "#ww#", "#ww#", "####"]
-	var sim := TestHelpers.sim_from_ascii(rows)
+	var config := TestHelpers.default_config()
+	config.move_period_ticks = 1
+	var sim := TestHelpers.sim_from_ascii(rows, config)
 	if unit_size == 2:
 		while sim.workers.count > 0:
 			sim.workers.remove_swap(0)

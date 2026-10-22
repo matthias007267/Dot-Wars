@@ -27,7 +27,8 @@ var work_per_hardness: int = TICKS_PER_SECOND
 ## Fortschrittspunkte, die ein Arbeiter pro Tick beiträgt.
 var dig_power: int = 1
 ## Ein Arbeiter bewegt sich alle `move_period_ticks` Takte um eine Zelle.
-var move_period_ticks: int = 2
+## 8 ist der langsame Start. Die Fähigkeit Arbeiter verkürzt das in Stufen bis auf 1.
+var move_period_ticks: int = 8
 
 ## Zellbesuche pro Tick und Gruppe für die Zielsuche.
 var field_budget_per_tick: int = 2048
