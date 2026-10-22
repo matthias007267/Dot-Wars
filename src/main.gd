@@ -5,6 +5,7 @@ var sim: Simulation
 var world: WorldState
 var renderer: WorldRenderer
 var workers_view: WorkerRenderer
+var energy_view: EnergyRenderer
 var camera: CameraController
 var hud: GameHud
 var orders: OrderOverlay
@@ -77,6 +78,9 @@ func _attach(next: Simulation) -> void:
 	_autosave_tick = sim.tick_count
 	renderer = WorldRenderer.new()
 	renderer.world = world
+	energy_view = EnergyRenderer.new()
+	energy_view.world = world
+	energy_view.energy = sim.energy_dots
 	workers_view = WorkerRenderer.new()
 	workers_view.world = world
 	workers_view.workers = sim.workers
@@ -89,6 +93,7 @@ func _attach(next: Simulation) -> void:
 	if _has_flag("--chunks"):
 		renderer.show_chunks = true
 	add_child(renderer)
+	add_child(energy_view)
 	add_child(workers_view)
 	orders = OrderOverlay.new()
 	orders.sim = sim
@@ -106,11 +111,12 @@ func _attach(next: Simulation) -> void:
 
 
 func _clear_playfield() -> void:
-	for node in [renderer, workers_view, orders, camera, hud, _tone]:
+	for node in [renderer, energy_view, workers_view, orders, camera, hud, _tone]:
 		if node != null and is_instance_valid(node):
 			node.queue_free()
 	renderer = null
 	workers_view = null
+	energy_view = null
 	orders = null
 	camera = null
 	hud = null
@@ -155,6 +161,7 @@ func _process(delta: float) -> void:
 	if ticks > 0:
 		sim.run_ticks(ticks)
 		workers_view.show_tick(sim.tick_count)
+		energy_view.show_energy()
 		if world.mined_count != _last_mined:
 			_last_mined = world.mined_count
 			_play_tone()
