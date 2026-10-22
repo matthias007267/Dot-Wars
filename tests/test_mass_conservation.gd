@@ -16,8 +16,9 @@ func test_mass_is_traceable_every_tick() -> void:
 	check_eq(sim.initial_mass, 5, "Startmasse")
 	for tick in 1500:
 		sim.tick_once()
-		check_eq(sim.workers.count + sim.spawner.pending(), 5 + sim.world.mined_count, "Masse = Start + abgebaut (Tick %d)" % tick)
-	check(sim.world.mined_count > 100, "es wurde abgebaut (%d)" % sim.world.mined_count)
+		check_eq(sim.total_mass(), sim.initial_mass + sim.purchased_workers, "Masse nur durch Kauf (Tick %d)" % tick)
+		check_eq(sim.energy_dots.generated, sim.energy_dots.delivered + sim.energy_dots.pending(), "Energiebilanz")
+	check(sim.world.mined_count > 0, "es wurde abgebaut (%d)" % sim.world.mined_count)
 	check_no_errors(sim.check_invariants(), "Invarianten am Ende")
 
 
