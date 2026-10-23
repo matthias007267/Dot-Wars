@@ -40,6 +40,7 @@ func test_march_toward_a_sealed_cell_approaches() -> void:
 	var layer := Control.new()
 	hud._build_stats(layer)
 	var goal := world.index(7, 3)
+	hud.select_at(sim.workers.cell[0])
 	check(hud.issue_march(goal), "Marsch zur abgeschnittenen Zelle")
 	check(hud._message.text.contains("nächstmöglichen"), "Hinweis nennt den nächsten Punkt")
 	sim.run_ticks(10)
@@ -62,13 +63,24 @@ func test_march_mines_the_rock_on_the_way() -> void:
 	var hud := GameHud.new()
 	hud.sim = sim
 	var goal := sim.world.index(3, 1)
+	hud.select_at(sim.workers.cell[0])
 	check(hud.issue_march(goal), "Marsch durch die Wand")
 	check(sim.areas.is_marked(sim.command_group, sim.world.index(2, 1)), "der Fels auf dem Weg")
 	sim.tick_once()
 	check_eq(sim.world.cells[sim.world.index(2, 1)], Materials.EMPTY, "der Fels ist weg")
-	sim.run_ticks(6)
+	var guard := 0
+	while sim.workers.cell[0] != goal and guard < 12:
+		sim.tick_once()
+		guard += 1
 	check_eq(sim.workers.cell[0], goal, "am Ziel")
-	check_eq(sim.world.mined_count, 1, "nur der Fels auf dem Weg")
+	check_eq(sim.world.mined_count, 1, "bis zur Ankunft nur der Fels auf dem Weg")
+	guard = 0
+	while sim.move_goal(sim.command_group) >= 0 and guard < 20:
+		sim.tick_once()
+		guard += 1
+	check(sim.move_goal(sim.command_group) < 0, "danach ist der Marsch vorbei")
+	sim.run_ticks(8)
+	check(sim.world.mined_count > 1, "er sucht sich wieder Arbeit")
 	check_no_errors(sim.check_invariants(), "Bilanz")
 	hud.free()
 
@@ -100,6 +112,7 @@ func test_war_order_does_not_move_workers() -> void:
 func test_command_group_survives_a_save() -> void:
 	var hud := _hud_row()
 	var goal := hud.sim.world.index(12, 1)
+	hud.select_at(hud.sim.workers.cell[0])
 	check(hud.issue_march(goal), "Marsch")
 	var restored := SaveGame.from_bytes(SaveGame.to_bytes(hud.sim))
 	check(restored != null, "Stand lesbar")
@@ -121,6 +134,43 @@ func _hud_row() -> GameHud:
 	var hud := GameHud.new()
 	hud.sim = Simulation.from_world(config, world, starts)
 	return hud
+
+
+func test_unselected_workers_keep_mining() -> void:
+	var config := TestHelpers.default_config()
+	config.move_period_ticks = 1
+	var sim := TestHelpers.sim_from_ascii([
+		"#######",
+		"#w...w#",
+		"#######",
+	], config)
+	var hud := GameHud.new()
+	hud.sim = sim
+	var other := 1
+	var home := sim.workers.group[other]
+	hud.select_at(sim.workers.cell[0])
+	check(hud.issue_march(sim.world.index(3, 1)), "nur der linke Arbeiter")
+	check_eq(sim.workers.group_counts[sim.command_group], 1, "ein Arbeiter hat den Befehl")
+	sim.run_ticks(40)
+	check_eq(sim.workers.group[other], home, "der andere bleibt in seiner Gruppe")
+	check(sim.areas.rects[home].size() > 0, "seine Gruppe sucht sich Arbeit")
+	check(sim.world.mined_count > 0, "es wird weiter abgebaut")
+	check_no_errors(sim.check_invariants(), "Bilanz")
+	hud.free()
+
+
+func test_empty_selection_orders_nobody() -> void:
+	var hud := _hud_row()
+	var layer := Control.new()
+	hud._build_stats(layer)
+	var before := hud.sim.workers.group.duplicate()
+	check(not hud.issue_march(hud.sim.world.index(12, 1)), "Marsch ohne Auswahl")
+	check(hud._message.text.contains("Wähle"), "Hinweis zur Auswahl")
+	check(not hud.issue_conquer(Rect2i(2, 2, 4, 4)), "Gebiet ohne Auswahl")
+	check_eq(hud.sim.workers.group, before, "niemand wechselt die Gruppe")
+	check_eq(hud.sim.command_group, -1, "keine Befehlsgruppe")
+	layer.free()
+	hud.free()
 
 
 func _outside(sim: Simulation) -> int:

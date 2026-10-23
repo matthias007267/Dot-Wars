@@ -20,7 +20,9 @@ var _screenshot := ""
 var _screenshot_in := -1
 var _press_at := Vector2.ZERO
 var _press_button := -1
+var _press_ctrl := false
 var _pressing := false
+var _panning := false
 var _last_mined := 0
 var _tone: AudioStreamPlayer
 var _autosave_tick := 0
@@ -163,7 +165,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.pressed:
 			_press_button = event.button_index
 			_press_at = event.position
+			_press_ctrl = event.ctrl_pressed
 			_pressing = true
+			_panning = false
 			_preview_drag(event.position)
 		elif _pressing and event.button_index == _press_button:
 			_pressing = false
@@ -216,11 +220,21 @@ func _process(delta: float) -> void:
 
 
 func _preview_drag(screen: Vector2) -> void:
+	var dragged := _press_at.distance_to(screen) >= 8.0
+	if _press_button == MOUSE_BUTTON_RIGHT and not _press_ctrl:
+		if dragged and camera != null:
+			if not _panning:
+				camera.begin_pan(screen)
+				_panning = true
+			else:
+				camera.drag_pan(screen)
+		if orders != null:
+			orders.drag_active = false
+		return
 	if orders == null:
 		return
-	var dragged := _press_at.distance_to(screen) >= 8.0
 	orders.drag_active = dragged
-	orders.drag_conquer = _press_button == MOUSE_BUTTON_RIGHT
+	orders.drag_conquer = _press_button == MOUSE_BUTTON_RIGHT and _press_ctrl
 	if not dragged:
 		return
 	var start := _cell_at(_press_at)
@@ -236,18 +250,24 @@ func _preview_drag(screen: Vector2) -> void:
 func _finish_pointer(event: InputEventMouseButton) -> void:
 	if orders != null:
 		orders.drag_active = false
-	if hud == null:
-		return
 	var screen := event.position
 	var dragged := _press_at.distance_to(screen) >= 8.0
+	if _press_button == MOUSE_BUTTON_RIGHT and not _press_ctrl and dragged:
+		if camera != null:
+			camera.end_pan()
+		_panning = false
+		return
+	if hud == null:
+		return
 	var end := _cell_at(screen)
 	if end.x < 0:
 		return
-	if _press_button == MOUSE_BUTTON_LEFT:
-		if hud.command_mode == GameHud.Command.BUILD and not dragged:
+	var gesture := GameHud.pointer_gesture(_press_button, _press_ctrl, dragged)
+	if gesture == GameHud.Pointer.SELECT_ONE or gesture == GameHud.Pointer.SELECT_RECT:
+		if gesture == GameHud.Pointer.SELECT_ONE and hud.command_mode == GameHud.Command.BUILD:
 			hud.issue_build(world.index(end.x, end.y))
 			return
-		if not dragged:
+		if gesture == GameHud.Pointer.SELECT_ONE:
 			hud.select_at(world.index(end.x, end.y))
 			return
 		var start := _cell_at(_press_at)
@@ -258,11 +278,13 @@ func _finish_pointer(event: InputEventMouseButton) -> void:
 		hud.select_in_rect(rect)
 		return
 	var target := world.index(end.x, end.y)
-	if event.ctrl_pressed and not dragged:
+	if gesture == GameHud.Pointer.WAR:
 		hud.issue_war(target)
 		return
-	if not dragged:
+	if gesture == GameHud.Pointer.MARCH:
 		hud.issue_march(target)
+		return
+	if gesture != GameHud.Pointer.CONQUER:
 		return
 	var origin := _cell_at(_press_at)
 	if origin.x < 0:

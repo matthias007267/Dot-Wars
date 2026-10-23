@@ -303,3 +303,15 @@ Datum: 23. Oktober 2026.
 Ein Laufziel, ein Marsch und später ein Kriegerbefehl merken sich den gewünschten Punkt. Die Wegsuche läuft nicht auf diesen Punkt zu, wenn die Gruppe ihn nicht betreten kann. Sie sucht in der erreichbaren leeren Fläche die Zelle mit dem kleinsten Manhattan-Abstand und läuft dorthin. Ist der Punkt selbst erreichbar, bleibt er der Standpunkt. Mehrere Arbeiter sammeln sich dort und reihen sich davor auf. Eine feste oder abgeschnittene Zelle ist trotzdem ein gültiger Wunsch: der Schwarm geht so nah heran, wie die Fläche es erlaubt, und gräbt nur, wenn auf dem Weg abbaubares Material liegt.
 
 Abbaugebiete bleiben bei der nächsten Arbeitszelle. Ein unerreichbares Gebiet wird weiter angebaggert. Die Speicherversion bleibt 2. Die drei Prüfungen der Räumung bleiben.
+
+### D-036 Auswahl, eigene Arbeit und Karte
+
+Datum: 23. Oktober 2026.
+
+Ein Handbefehl überschreibt nur die Aufträge der ausgewählten Arbeiter. Ohne Auswahl bleibt der Schwarm, wo er ist, und ein Hinweis sagt „Wähle zuerst Arbeiter.“ Die Abordnung von etwa zehn Prozent aus D-033 gilt für Marsch und Eroberung nicht mehr.
+
+Die anderen Gruppen graben weiter. Ein neues Gebiet rechnet nur das Wegfeld dieser Gruppe neu. So bleibt ein Befehl an ein paar Arbeiter stehen, ohne die übrigen anzuhalten.
+
+Ist in der Befehlsgruppe nichts Markiertes mehr übrig und läuft niemand mehr auf das Ziel zu, fallen Laufziel, Marschzelle und Gebiet weg. Dieselben Arbeiter suchen sich danach wieder selbst die nächste Arbeitsfront, höchstens 32 angrenzende Felszellen auf einmal. Steht jemand noch auf dem Weg, bleibt der Befehl. Laufziele von Hügel, Reliquie und KI bleiben davon unberührt.
+
+Gedrückt gehaltene rechte Taste verschiebt die Karte. Zusammen mit Strg markiert derselbe Zug ein Gebiet. Ein kurzer Rechtsklick schickt die Auswahl, Strg und ein kurzer Rechtsklick bleibt der spätere Kriegerbefehl. Mittlere Taste, WASD und Pfeiltasten verschieben wie bisher. Die Speicherversion bleibt 2. Die drei Prüfungen der Räumung bleiben.

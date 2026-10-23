@@ -157,6 +157,7 @@ func run_ticks(count: int) -> void:
 
 
 func _guide_digging() -> void:
+	_release_finished_command()
 	var note := ""
 	for group_id in fields.size():
 		if not _group_is_open(group_id):
@@ -169,6 +170,56 @@ func _guide_digging() -> void:
 			note = "Das Gebiet ist nicht erreichbar. Der Schwarm gräbt sich dorthin."
 	_settle_march()
 	approach_text = note
+
+
+## Ein erledigter Handbefehl gibt die Befehlsgruppe wieder für die eigene Arbeitssuche frei.
+## Laufziele der KI bleiben. Solange jemand noch auf das Marschziel zuläuft, bleibt der Befehl.
+func _release_finished_command() -> void:
+	var group_id := command_group
+	if group_id < 0 or not _group_is_open(group_id):
+		return
+	var goal := move_goal(group_id)
+	var group_rects: Array = areas.rects[group_id]
+	if march_cell < 0 and goal < 0 and group_rects.is_empty():
+		return
+	var field := fields[group_id]
+	if not field.settled():
+		return
+	if DigGuidance.mineable_left(self, group_id):
+		return
+	if not _party_is_holding(group_id):
+		return
+	clear_area(group_id)
+	clear_move_goal(group_id)
+	march_cell = -1
+
+
+func _party_is_holding(group_id: int) -> bool:
+	var field := fields[group_id]
+	var width := world.width
+	var count := world.cell_count()
+	for id in workers.count:
+		if int(workers.group[id]) != group_id:
+			continue
+		var cell := int(workers.cell[id])
+		if cell < 0 or cell >= count or field.dist[cell] <= 0:
+			continue
+		var next := _step_cell(cell, int(field.dir[cell]), width, count)
+		if next >= 0 and world.cells[next] == Materials.EMPTY and workers.occupant[next] == WorkerStore.NO_WORKER:
+			return false
+	return true
+
+
+func _step_cell(cell: int, direction: int, width: int, count: int) -> int:
+	if direction == FlowField.DIR_UP and cell >= width:
+		return cell - width
+	if direction == FlowField.DIR_DOWN and cell + width < count:
+		return cell + width
+	if direction == FlowField.DIR_RIGHT and cell % width < width - 1:
+		return cell + 1
+	if direction == FlowField.DIR_LEFT and cell % width > 0:
+		return cell - 1
+	return -1
 
 
 func _settle_march() -> void:
@@ -184,6 +235,10 @@ func _settle_march() -> void:
 ## Weist einer Gruppe ein Abbaugebiet zu (Weltzellkoordinaten). Gibt false zurück, wenn nichts zugewiesen wurde.
 func assign_area(group_id: int, rect: Rect2i) -> bool:
 	return areas.assign_rect(group_id, rect)
+
+
+func assign_cells(group_id: int, cells: PackedInt32Array) -> bool:
+	return areas.assign_cells(group_id, cells)
 
 
 func clear_area(group_id: int) -> void:

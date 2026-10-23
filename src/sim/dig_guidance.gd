@@ -1,12 +1,14 @@
 class_name DigGuidance
 extends RefCounted
 ## Ergänzt Abbauaufträge, wenn das gesetzte Gebiet nicht erreichbar ist oder nichts mehr enthält.
-## Ein Laufziel bleibt unangetastet. Die Ergänzung ist ein Pfad oder eine einzelne Nachbarzelle.
+## Ein Laufziel bleibt unangetastet. Die Ergänzung ist ein Pfad oder die nächste Arbeitsfront.
 
 const REACHABLE := 0
 const TOWARD := 1
 const NEAREST := 2
 const EMPTY := 3
+## So viele nächste Felszellen sucht sich eine freie Gruppe auf einmal.
+const FRONTIER_CAP := 32
 
 
 ## Prüft ein neues Rechteck, bevor das Wegfeld neu gerechnet ist.
@@ -89,15 +91,16 @@ static func mark_route(sim: Simulation, group_id: int, goal: int) -> int:
 				queue.append(next)
 	if found < 0:
 		return ROUTE_BLOCKED
-	var added := false
+	var along := PackedInt32Array()
 	var step := found
+	var mask: PackedByteArray = sim.areas.masks[group_id]
 	while step >= 0:
-		if Materials.is_mineable(world.cells[step]):
-			var mask: PackedByteArray = sim.areas.masks[group_id]
-			if mask[step] == 0:
-				added = sim.assign_area(group_id, Rect2i(step % width, step / width, 1, 1)) or added
+		if Materials.is_mineable(world.cells[step]) and mask[step] == 0:
+			along.append(step)
 		step = parent[step]
-	return ROUTE_MINING if added else ROUTE_CLEAR
+	if along.is_empty():
+		return ROUTE_CLEAR
+	return ROUTE_MINING if sim.assign_cells(group_id, along) else ROUTE_CLEAR
 
 
 static func _worker_reaches_field(sim: Simulation, group_id: int) -> bool:
@@ -205,15 +208,17 @@ static func _mark_path(sim: Simulation, group_id: int) -> bool:
 			queue.append(next)
 	if goal < 0:
 		return false
-	var added := false
+	var along := PackedInt32Array()
 	var step := goal
 	while step >= 0:
 		if Materials.is_mineable(world.cells[step]) and mask[step] == 0:
-			var x := step % width
-			var y := step / width
-			added = sim.assign_area(group_id, Rect2i(x, y, 1, 1)) or added
+			along.append(step)
 		step = parent[step]
-	return added
+	return sim.assign_cells(group_id, along)
+
+
+static func mineable_left(sim: Simulation, group_id: int) -> bool:
+	return _has_mineable_order(sim, group_id)
 
 
 static func _mark_nearest(sim: Simulation, group_id: int) -> bool:
@@ -230,19 +235,23 @@ static func _mark_nearest(sim: Simulation, group_id: int) -> bool:
 		if world.cells[cell] == Materials.EMPTY and seen[cell] == 0:
 			seen[cell] = 1
 			queue.append(cell)
+	var found := PackedInt32Array()
 	var head := 0
-	while head < queue.size():
+	while head < queue.size() and found.size() < FRONTIER_CAP:
 		var cell := queue[head]
 		head += 1
 		for next in _neighbors(cell, width, count):
 			if Materials.is_mineable(world.cells[next]):
-				var x := next % width
-				var y := next / width
-				return sim.assign_area(group_id, Rect2i(x, y, 1, 1))
+				if seen[next] == 0:
+					seen[next] = 1
+					found.append(next)
+					if found.size() >= FRONTIER_CAP:
+						break
+				continue
 			if seen[next] == 0 and world.cells[next] == Materials.EMPTY:
 				seen[next] = 1
 				queue.append(next)
-	return false
+	return sim.assign_cells(group_id, found)
 
 
 static func _neighbors(cell: int, width: int, count: int) -> PackedInt32Array:

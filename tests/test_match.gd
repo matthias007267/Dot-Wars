@@ -128,6 +128,9 @@ func test_hud_dig_does_not_overwrite_the_ai_rect() -> void:
 	check(sim.assign_area(group_id, rect), "KI-Gebiet")
 	var hud := GameHud.new()
 	hud.sim = sim
+	var player := _worker(sim, 0)
+	check(player >= 0, "Spielerarbeiter")
+	hud.select_at(sim.workers.cell[player])
 	check(hud.issue_conquer(Rect2i(8, 8, 4, 4)), "der Spieler erobert")
 	var kept: Array = sim.areas.rects[group_id]
 	check_eq(kept.size(), 1, "das KI-Gebiet bleibt eines")

@@ -8,6 +8,7 @@ signal restart_requested
 signal leave_requested
 
 enum Command { MINE, MOVE, BUILD }
+enum Pointer { SELECT_ONE, SELECT_RECT, MARCH, WAR, CONQUER, PAN }
 
 var sim: Simulation
 var clock: TickClock
@@ -114,13 +115,28 @@ func select_at(cell: int) -> void:
 	_set_selection(DotOrder.filter_highest(ids, kinds))
 
 
-## Rechtsklick: die Auswahl, sonst etwa ein Zehntel der nächsten Arbeiter, geht dorthin und gräbt den Weg frei.
+## Rechte Taste allein verschiebt die Karte. Mit Strg setzt ein Zug das Gebiet, ein Klick schickt Krieger.
+static func pointer_gesture(button: int, ctrl: bool, dragged: bool) -> int:
+	if button == MOUSE_BUTTON_LEFT:
+		if dragged:
+			return Pointer.SELECT_RECT
+		return Pointer.SELECT_ONE
+	if ctrl and dragged:
+		return Pointer.CONQUER
+	if ctrl:
+		return Pointer.WAR
+	if dragged:
+		return Pointer.PAN
+	return Pointer.MARCH
+
+
+## Rechtsklick schickt nur die aktuelle Auswahl. Sie gräbt den Weg frei und sucht sich danach wieder selbst Arbeit.
 func issue_march(cell: int) -> bool:
 	if sim == null or cell < 0 or cell >= sim.world.cell_count():
 		return false
 	var party := _party_for(cell, Rect2i())
 	if party.is_empty():
-		_notice("Keine Arbeiter in der Nähe.")
+		_notice("Wähle zuerst Arbeiter.")
 		return false
 	var group_id := sim.take_party(party)
 	if group_id < 0:
@@ -136,7 +152,7 @@ func issue_march(cell: int) -> bool:
 	return true
 
 
-## Rechtszug: dasselbe Aufgebot erobert das Rechteck und baut alles darin ab.
+## Strg und Rechtszug: die Auswahl erobert das Rechteck und baut alles darin ab.
 func issue_conquer(rect: Rect2i) -> bool:
 	if sim == null:
 		return false
@@ -145,7 +161,7 @@ func issue_conquer(rect: Rect2i) -> bool:
 		return false
 	var party := _party_for(-1, clipped)
 	if party.is_empty():
-		_notice("Keine Arbeiter in der Nähe.")
+		_notice("Wähle zuerst Arbeiter.")
 		return false
 	var group_id := sim.take_party(party)
 	if group_id < 0 or not sim.assign_area(group_id, clipped):
@@ -840,14 +856,14 @@ func _build_button(parent: Node, action: Callable) -> Button:
 
 func _opening_hint() -> String:
 	if sim == null:
-		return "Linke Taste wählt. Rechtsklick schickt, ein Rechtszug erobert."
+		return "Linke Taste wählt. Rechtsklick schickt die Auswahl. Rechte Taste verschiebt, mit Strg ein Gebiet."
 	if sim.config.mode == SimConfig.MODE_MATCH:
-		return "Gegen KI (%s). Linke Taste wählt, Rechtsklick schickt, ein Rechtszug erobert." % sim.rules.difficulty_label()
+		return "Gegen KI (%s). Rechtsklick schickt die Auswahl. Rechte Taste verschiebt, mit Strg ein Gebiet." % sim.rules.difficulty_label()
 	if sim.config.mode == SimConfig.MODE_EXTRACTION:
-		return "Quellen lassen Material nachwachsen. Rechtszug erobert ein Gebiet."
+		return "Quellen lassen Material nachwachsen. Rechtsklick schickt die Auswahl, mit Strg ein Gebiet."
 	if sim.config.mode == SimConfig.MODE_REFINING:
-		return "Setze den Veredler in eine Ader. Rechtszug erobert ein Gebiet."
-	return "Linke Taste wählt. Rechtsklick schickt, ein Rechtszug erobert."
+		return "Setze den Veredler in eine Ader. Rechtsklick schickt die Auswahl, mit Strg ein Gebiet."
+	return "Linke Taste wählt. Rechtsklick schickt die Auswahl. Rechte Taste verschiebt, mit Strg ein Gebiet."
 
 
 func _grouped(value: int) -> String:
@@ -921,7 +937,7 @@ func _set_selection(ids: PackedInt32Array) -> void:
 	sim.picked = ids
 
 
-func _party_for(cell: int, rect: Rect2i) -> PackedInt32Array:
+func _party_for(_cell: int, _rect: Rect2i) -> PackedInt32Array:
 	var chosen := PackedInt32Array()
 	for id in selection:
 		if id < 0 or id >= sim.workers.count:
@@ -929,9 +945,7 @@ func _party_for(cell: int, rect: Rect2i) -> PackedInt32Array:
 		if int(sim.workers.faction[id]) != 0:
 			continue
 		chosen.append(id)
-	if not chosen.is_empty():
-		return chosen
-	return DotOrder.nearest_share(sim, 0, cell, rect)
+	return chosen
 
 
 func _unit_hits(id: int, rect: Rect2i) -> bool:
@@ -950,12 +964,11 @@ func _unit_hits(id: int, rect: Rect2i) -> bool:
 
 
 func _march_notice(route: int, reaches: bool) -> String:
-	var share := selection.is_empty()
 	if route == DigGuidance.ROUTE_MINING:
-		return "Die nächsten Arbeiter graben sich den Weg frei." if share else "Die Auswahl gräbt sich den Weg frei."
+		return "Die Auswahl gräbt sich den Weg frei."
 	if reaches:
-		return "Etwa ein Zehntel der nächsten Arbeiter ist unterwegs." if share else "Die Auswahl ist unterwegs."
-	return "Der Schwarm geht zum nächstmöglichen Punkt."
+		return "Die Auswahl ist unterwegs."
+	return "Die Auswahl geht zum nächstmöglichen Punkt."
 
 
 func _dig_notice(rect: Rect2i) -> String:

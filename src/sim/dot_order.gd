@@ -1,7 +1,7 @@
 class_name DotOrder
 extends RefCounted
 ## Auswahl und Abordnung. Arbeiter und spätere Krieger sind Dot-Fraktionen mit fester Priorität.
-## Eine Auswahl behält nur die Fraktion mit der höchsten Priorität. Ohne Auswahl geht etwa ein Zehntel.
+## Eine Auswahl behält nur die Fraktion mit der höchsten Priorität. Manuelle Befehle gehen nur an diese Auswahl.
 
 const KIND_WORKER := 0
 const KIND_WARRIOR := 1

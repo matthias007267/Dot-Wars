@@ -49,11 +49,11 @@ Zustände bleiben wenige und klar, zum Beispiel Warten, Bewegen, Abbauen, Blocki
 
 * Bewegung nur orthogonal durch leere Zellen innerhalb der Welt.
 * Kein Weg durch Material. Tunnel entstehen durch Abbau.
-* Ein Marsch merkt sich den gewünschten Punkt. Die Wegsuche läuft zum nächstmöglichen erreichbaren Punkt. Ist der Punkt selbst erreichbar, ist er das Ziel. Sonst sammelt sich der Schwarm an der nächsten Zelle.
+* Ein Marsch merkt sich den gewünschten Punkt und gilt nur für die ausgewählten Arbeiter. Die Wegsuche läuft zum nächstmöglichen erreichbaren Punkt. Ist der Punkt selbst erreichbar, ist er das Ziel. Sonst sammelt sich die Auswahl an der nächsten Zelle. Danach suchen sich diese Arbeiter wieder selbst Arbeit.
 * Abbau nur von einer orthogonal benachbarten, begehbaren Zelle.
 * Größere Dots brauchen entsprechend breite, freie Durchgänge.
 * Gekaufte Arbeiter entstehen nur auf freien Tunnelzellen in der Nähe des Energiekerns.
-* Der Spieler setzt nur Auftrag und Zielgebiet.
+* Der Spieler setzt Auftrag und Zielgebiet nur für die aktuelle Auswahl. Ohne Auswahl bleibt der automatische Abbau.
 
 Die Wegfindung gilt für den Schwarm gemeinsam: Distanzfelder oder Flow-Fields, zwischengespeichert, bei Tunneländerungen gezielt aktualisiert, über mehrere Takte verteilt. Bis zu 32 geänderte Zellen korrigieren das bestehende Feld. Ein neues Gebiet, ein neues Laufziel oder eine größere Änderung berechnet es neu. Die Grenzen stehen in D-020.
 
@@ -136,12 +136,12 @@ Das Menü trennt zuerst Einzelspieler und Mehrspieler. Im Einzelspieler folgt de
 * Die Welt wird als eine Textur gezeichnet. Teilweise abgebaute Zellen dunkeln ab. Kamera, Zoom und Debug-Raster sind im Fenster.
 * Arbeiter werden als zweite Textur gezeichnet, große Einheiten über ihr Quadrat.
 * Das Startmenü fragt zuerst Einzelspieler oder Mehrspieler und zeigt danach nur die passenden Einstellungen. Ein neues Spiel startet mit drei Gruppen (40/30/30) oder lädt einen Speicherstand.
-* Die linke Taste wählt Arbeiter. Die rechte Taste schickt die Auswahl, ein Rechtszug erobert ein Gebiet und baut alles darin ab. Unterwegs werden die Ressourcen auf dem Weg abgebaut. Ohne Auswahl gehen etwa zehn Prozent der nächsten Arbeiter. Liegen mehrere Dot-Fraktionen in der Auswahl, bleibt die mit der höchsten Priorität. Gebiete und Sammelpunkte tragen die Farbe der Fraktion. Ein unerreichbares Gebiet nennt den Hinweis und der Schwarm gräbt sich dorthin. „Arbeiter +10“ kauft einen Arbeiter für 10 gelieferte Energie. Die Energiezeile nennt das eigene Guthaben und die eigenen Dots unterwegs. Im Mehrspieler steht die gegnerische Masse in einer eigenen Zeile. Quotenregler gibt es nicht.
+* Die linke Taste wählt Arbeiter. Ein Rechtsklick schickt nur diese Auswahl, unterwegs werden die Ressourcen auf dem Weg abgebaut. Ist der Auftrag erledigt, suchen sich dieselben Arbeiter wieder selbst die nächste Arbeitsfront. Die übrigen arbeiten dabei weiter. Ohne Auswahl bleibt alles beim automatischen Abbau. Liegen mehrere Dot-Fraktionen in der Auswahl, bleibt die mit der höchsten Priorität. Gebiete und Sammelpunkte tragen die Farbe der Fraktion. Ein unerreichbares Gebiet nennt den Hinweis und die Auswahl gräbt sich dorthin. Die gehaltene rechte Taste verschiebt die Karte. Zusammen mit Strg markiert der Zug ein Gebiet. „Arbeiter +10“ kauft einen Arbeiter für 10 gelieferte Energie. Die Energiezeile nennt das eigene Guthaben und die eigenen Dots unterwegs. Im Mehrspieler steht die gegnerische Masse in einer eigenen Zeile. Quotenregler gibt es nicht.
 * Die Gruppenverwaltung existiert weiterhin als interne API. Die Quoten bleiben in der Simulation exakt 100 %, aber die Standardoberfläche zeigt keine Quotenregler und keine Gruppenliste.
 * Verschmelzung auf 2×2 und 3×3 ist nach dem passenden Upgrade die Wunschgröße der Gruppe. Masse bleibt erhalten, enge Tunnel sind nicht passierbar.
 * Die Leiste öffnet ein Fähigkeiten-Fenster. Darin liegen Kern, Bewegung (Arbeiter- und Energie-Tempo), Schwarm (Abbau, 2×2, 3×3) und Bauen. Der Modus entscheidet, ob dort die Quelle oder der Veredler steht. Weitere Zweige kommen in dieses Fenster, nicht in die Leiste. Die Kosten stehen in `docs/DECISIONS.md`.
 * Der Modus steht im Einzelspieler. Räumung gewinnt mit Arbeitermasse, zwei Käufen und 90 % Abbau. Förderung gewinnt mit 1.000 gelieferter Energie, Veredelung mit 400 veredelter Energie. Mehrspieler gewinnt über die gewählten Ziele gegen KI. Die Schwierigkeit steht nur dort und ändert den Plan der KI. Danach läuft das Spiel weiter. Die Auswertung nennt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades, die höchste Zahl gleichzeitiger Einheiten und die veredelte Menge. Die Masse wächst durch Käufe. Im Mehrspieler zieht das Entfernen einer Fraktion die entfernte Masse wieder ab.
-* Escape öffnet das Pausenmenü mit Weiter, Speichern, Laden, Neu starten, Lautstärke und Beenden. Die untere Leiste behält Arbeiter, Größe, Fähigkeiten und die Stufen 1×, 2× und 4×. Die Kamera folgt der mittleren Taste, WASD und den Pfeiltasten.
+* Escape öffnet das Pausenmenü mit Weiter, Speichern, Laden, Neu starten, Lautstärke und Beenden. Die untere Leiste behält Arbeiter, Größe, Fähigkeiten und die Stufen 1×, 2× und 4×. Die Kamera folgt der rechten Taste, der mittleren Taste, WASD und den Pfeiltasten. Ein Gebietsauftrag braucht zusätzlich Strg.
 * Kleine Tunneländerungen korrigieren die Zielsuche lokal. Ab 33 Zellen, bei einem neuen Gebiet oder einem neuen Laufziel wird das Feld neu aufgebaut. Eine geöffnete Zelle setzt eine laufende vollständige Berechnung nicht zurück.
 * Die Fraktions-ID liegt am Arbeiter. Einzelspieler bleibt bei 0. Mehrspieler vergibt je KI eine eigene Fraktion, ein eigenes Guthaben und einen eigenen Kern.
 

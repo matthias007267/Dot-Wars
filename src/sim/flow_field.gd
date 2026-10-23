@@ -92,16 +92,17 @@ func settled() -> bool:
 	return (
 		_phase == Phase.IDLE
 		and generation > 0
-		and _built_area_revision == _areas.revision
+		and _built_area_revision == _area_revision()
 		and _built_world_revision == _world.revision
 		and _applied_epoch == _world.change_epoch
+		and _built_goal == goal_cell
 	)
 
 
 ## Führt höchstens `budget` Zellbesuche aus und startet bei veralteten Daten einen neuen Aufbau.
 func step(budget: int) -> void:
 	var goal_changed := goal_cell != _built_goal
-	var area_changed := _areas.revision != _built_area_revision
+	var area_changed := _area_revision() != _built_area_revision
 	var world_changed := _world.revision != _built_world_revision or _world.change_epoch != _applied_epoch
 	var stand_changed := false
 	if _phase == Phase.IDLE and goal_cell >= 0 and (goal_changed or world_changed):
@@ -150,7 +151,7 @@ func _begin() -> void:
 	full_rebuilds += 1
 	_count_rects_on_publish = false
 	_built_world_revision = _world.revision
-	_built_area_revision = _areas.revision
+	_built_area_revision = _area_revision()
 	_next_dist.fill(UNREACHABLE)
 	_next_dir.fill(DIR_NONE)
 	_queue.clear()
@@ -248,6 +249,13 @@ func _nearest_stand() -> int:
 				best = next
 				best_rank = next_rank
 	return best
+
+
+func _area_revision() -> int:
+	var stamps := _areas.group_revision
+	if _group < 0 or _group >= stamps.size():
+		return 0
+	return stamps[_group]
 
 
 func _manhattan(a: int, b: int) -> int:

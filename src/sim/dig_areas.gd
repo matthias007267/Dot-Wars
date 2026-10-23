@@ -11,12 +11,16 @@ var rects: Array = []
 var masks: Array = []
 ## Ändert sich bei jeder semantischen Änderung der Gebiete (nicht beim Aufräumen).
 var revision: int = 0
+## Dieselbe Zählung je Gruppe. Ein Auftrag einer Gruppe startet die Wegsuche der anderen nicht neu.
+var group_revision := PackedInt32Array()
 
 
 func _init(p_width: int, p_height: int, p_group_count: int) -> void:
 	width = p_width
 	height = p_height
 	group_count = p_group_count
+	group_revision.resize(group_count)
+	group_revision.fill(0)
 	for g in group_count:
 		rects.append([] as Array[Rect2i])
 		var mask := PackedByteArray()
@@ -40,7 +44,26 @@ func assign_rect(group_id: int, rect: Rect2i) -> bool:
 		var row := y * width
 		for x in range(clipped.position.x, clipped.end.x):
 			mask[row + x] = 1
-	revision += 1
+	_bump(group_id, 1)
+	return true
+
+
+## Markiert einzelne Zellen und zählt sie wie ebenso viele Rechtecke, aber in einem Schritt.
+func assign_cells(group_id: int, cells: PackedInt32Array) -> bool:
+	if group_id < 0 or group_id >= group_count or cells.is_empty():
+		return false
+	var mask: PackedByteArray = masks[group_id]
+	var group_rects: Array[Rect2i] = rects[group_id]
+	var added := 0
+	for cell in cells:
+		if cell < 0 or cell >= mask.size() or mask[cell] != 0:
+			continue
+		mask[cell] = 1
+		group_rects.append(Rect2i(cell % width, int(cell / width), 1, 1))
+		added += 1
+	if added == 0:
+		return false
+	_bump(group_id, added)
 	return true
 
 
@@ -50,6 +73,7 @@ func add_group() -> void:
 	mask.resize(width * height)
 	mask.fill(0)
 	masks.append(mask)
+	group_revision.append(0)
 	group_count += 1
 
 
@@ -62,7 +86,7 @@ func clear_group(group_id: int) -> void:
 	group_rects.clear()
 	var mask: PackedByteArray = masks[group_id]
 	mask.fill(0)
-	revision += 1
+	_bump(group_id, 1)
 
 
 func is_marked(group_id: int, cell_idx: int) -> bool:
@@ -79,4 +103,9 @@ func remove_rects(group_id: int, rect_indices: PackedInt32Array) -> void:
 
 
 func state_hash() -> int:
-	return hash([hash(rects), hash(masks), revision])
+	return hash([hash(rects), hash(masks), revision, hash(group_revision)])
+
+
+func _bump(group_id: int, amount: int) -> void:
+	revision += amount
+	group_revision[group_id] += amount
