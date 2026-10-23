@@ -1,0 +1,7 @@
+.godot/
+.import/
+*.translation
+export/
+build/
+bench/results/
+*.tmp

@@ -1,0 +1,827 @@
+class_name Simulation
+extends RefCounted
+## Orchestriert alle Systeme in fester Reihenfolge. Enthält keinerlei Darstellung oder Eingabe.
+##
+## Takt: Zielsuche → Bewegung → Abbau → Entstehung → Verschmelzung → Nachwuchs → Veredelung → Energietransport → Mehrspieler.
+
+enum Stage { TARGET_SEARCH, MOVEMENT, MINING, SPAWN }
+
+var config: SimConfig
+var world: WorldState
+var workers: WorkerStore
+var areas: DigAreas
+var spawner: SpawnSystem
+var energy_dots := EnergyStore.new()
+var buildings := Buildings.new()
+var rules := MatchRules.new()
+var purchased_workers: int = 0
+const WORKER_COST := 10
+var fields: Array[FlowField] = []
+var quotas: PackedInt32Array
+var tick_count: int = 0
+## Arbeiter zu Beginn (Basis der Massenbilanz).
+var initial_mass: int = 0
+var sacrificed_mass: int = 0
+var peak_mass: int = 0
+var max_units: int = 0
+var won: bool = false
+var win_tick: int = -1
+var upgrades := Upgrades.new()
+## 1 verbietet die Zelle für Arbeiter. Leer, solange der Kern noch nicht erweitert wurde.
+var core_mask := PackedByteArray()
+var group_names := PackedStringArray()
+var group_colors: Array[Color] = []
+var group_open := PackedByteArray()
+var desired_size := PackedByteArray()
+var sacrifice_on := PackedByteArray()
+var selected_group: int = 0
+
+## Alle internen Gruppen verwenden dieselbe Arbeiterfarbe. Rot bleibt für spätere Krieger reserviert.
+const GROUP_PALETTE: Array[Color] = [
+	Color8(0xFF, 0xE4, 0x5E),
+	Color8(0xFF, 0xE4, 0x5E),
+	Color8(0xFF, 0xE4, 0x5E),
+	Color8(0xFF, 0xE4, 0x5E),
+	Color8(0xFF, 0xE4, 0x5E),
+	Color8(0xFF, 0xE4, 0x5E),
+	Color8(0xFF, 0xE4, 0x5E),
+	Color8(0xFF, 0xE4, 0x5E),
+]
+
+## Kumulierte Laufzeit je Stufe in Mikrosekunden (Profiling, Benchmark, HUD).
+var stage_usec := PackedInt64Array([0, 0, 0, 0])
+var last_tick_usec: int = 0
+
+
+## Erzeugt Welt aus der Konfiguration. Gibt bei ungültiger Konfiguration oder fehlenden
+## Startpositionen null zurück.
+static func create(p_config: SimConfig) -> Simulation:
+	var errors := p_config.validate()
+	if not errors.is_empty():
+		push_error("Ungültige Konfiguration: " + ", ".join(errors))
+		return null
+	return from_world(p_config, WorldGenerator.generate(p_config))
+
+
+## Erzeugt eine Simulation für eine vorhandene Welt. Ohne `start_cells` werden
+## `config.initial_workers` Arbeiter deterministisch um die Weltmitte platziert.
+static func from_world(
+	p_config: SimConfig,
+	p_world: WorldState,
+	start_cells: PackedInt32Array = PackedInt32Array(),
+	place_workers: bool = true,
+) -> Simulation:
+	var sim := Simulation.new()
+	if not sim._setup(p_config, p_world, start_cells, place_workers):
+		return null
+	return sim
+
+
+var approach_text := ""
+
+
+func tick_once() -> void:
+	var t0 := Time.get_ticks_usec()
+	_guide_digging()
+	for g in fields.size():
+		fields[g].step(config.field_budget_per_tick)
+	var t1 := Time.get_ticks_usec()
+	var move_forbidden := core_mask
+	var move_periods := PackedByteArray()
+	if _match_live():
+		move_forbidden = PackedByteArray()
+		move_periods = rules.worker_periods(self)
+	MovementSystem.step(
+		tick_count, workers, world, areas, fields,
+		upgrades.worker_period(config.move_period_ticks), 0, move_forbidden, move_periods
+	)
+	var t2 := Time.get_ticks_usec()
+	if _match_live():
+		var nums := PackedInt32Array()
+		var dens := PackedInt32Array()
+		for faction in rules.faction_count:
+			var fraction := rules.wallet(self, faction).dig_fraction()
+			nums.append(fraction.x)
+			dens.append(fraction.y)
+		MiningSystem.step_scaled(
+			workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power, 1, 1, nums, dens
+		)
+	elif upgrades.dig_level == 0 and workers.max_size == 1:
+		MiningSystem.step(workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power)
+	else:
+		var fraction := upgrades.dig_fraction()
+		MiningSystem.step_scaled(
+			workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power, fraction.x, fraction.y
+		)
+	var t3 := Time.get_ticks_usec()
+	spawner.process(world, workers, quotas, core_mask)
+	FusionSystem.step(workers, world, desired_size)
+	buildings.grow(world, workers, energy_dots, core_mask)
+	buildings.refine(energy_dots, world, tick_count)
+	if _match_live():
+		var route: Dictionary = rules.gates(self)
+		var gate_cells: PackedInt32Array = route.cells
+		var gate_owners: PackedByteArray = route.owners
+		var before := energy_dots.delivered_to.duplicate()
+		energy_dots.step(
+			world, workers, gate_cells, tick_count, upgrades.energy_period(), gate_owners, rules.energy_periods(self)
+		)
+		rules.credit_energy(self, before)
+	else:
+		upgrades.energy += energy_dots.step(world, workers, energy_exits(), tick_count, upgrades.energy_period())
+	var mass_now := total_mass()
+	if mass_now > peak_mass:
+		peak_mass = mass_now
+	if workers.count > max_units:
+		max_units = workers.count
+	var t4 := Time.get_ticks_usec()
+	stage_usec[Stage.TARGET_SEARCH] += t1 - t0
+	stage_usec[Stage.MOVEMENT] += t2 - t1
+	stage_usec[Stage.MINING] += t3 - t2
+	stage_usec[Stage.SPAWN] += t4 - t3
+	last_tick_usec = t4 - t0
+	tick_count += 1
+	if _match_live():
+		rules.pulse(self)
+	elif not won and _goals_met():
+		won = true
+		win_tick = tick_count
+
+
+func run_ticks(count: int) -> void:
+	for i in count:
+		tick_once()
+
+
+func _guide_digging() -> void:
+	var note := ""
+	for group_id in fields.size():
+		if not _group_is_open(group_id):
+			continue
+		var kind := DigGuidance.consider(self, group_id)
+		if kind != DigGuidance.TOWARD:
+			continue
+		var human := rules.group_faction.is_empty() or group_id >= rules.group_faction.size() or rules.group_faction[group_id] == 0
+		if human:
+			note = "Das Gebiet ist nicht erreichbar. Der Schwarm gräbt sich dorthin."
+	approach_text = note
+
+
+## Weist einer Gruppe ein Abbaugebiet zu (Weltzellkoordinaten). Gibt false zurück, wenn nichts zugewiesen wurde.
+func assign_area(group_id: int, rect: Rect2i) -> bool:
+	return areas.assign_rect(group_id, rect)
+
+
+func clear_area(group_id: int) -> void:
+	areas.clear_group(group_id)
+
+
+## Setzt ein Laufziel auf eine leere Zelle. Die Gruppe läuft dorthin, ohne abzubauen.
+## Gibt false zurück, wenn Gruppe oder Zelle ungültig sind oder Material auf der Zelle liegt.
+func set_move_goal(group_id: int, cell_idx: int) -> bool:
+	if group_id < 0 or group_id >= fields.size():
+		return false
+	if cell_idx < 0 or cell_idx >= world.cell_count() or world.cells[cell_idx] != Materials.EMPTY:
+		return false
+	if _in_core(cell_idx):
+		return false
+	fields[group_id].goal_cell = cell_idx
+	return true
+
+
+func clear_move_goal(group_id: int) -> void:
+	if group_id < 0 or group_id >= fields.size():
+		return
+	fields[group_id].goal_cell = -1
+
+
+func move_goal(group_id: int) -> int:
+	if group_id < 0 or group_id >= fields.size():
+		return -1
+	return fields[group_id].goal_cell
+
+
+## Ändert die Zielquoten. Gibt false zurück, wenn sie ungültig sind (Zustand bleibt unverändert).
+func set_quotas(new_quotas: PackedInt32Array) -> bool:
+	if new_quotas.size() != quotas.size() or not GroupQuotas.validate(new_quotas).is_empty():
+		return false
+	quotas = new_quotas.duplicate()
+	return true
+
+
+## Gesamtmasse: lebende Arbeiter plus noch nicht platzierte Entstehungen.
+func total_mass() -> int:
+	return workers.mass_sum() + spawner.pending()
+
+
+## Masse einer Fraktion. Wartende Käufe des Spielers zählen zu Fraktion 0.
+func faction_mass(faction: int) -> int:
+	var total := 0
+	for id in workers.count:
+		if int(workers.faction[id]) == faction:
+			total += int(workers.mass[id])
+	if faction == 0:
+		total += spawner.pending()
+	return total
+
+
+func opponent_mass() -> int:
+	var total := 0
+	for id in workers.count:
+		if int(workers.faction[id]) != 0:
+			total += int(workers.mass[id])
+	return total
+
+
+func expected_mass() -> int:
+	return initial_mass + purchased_workers + rules.match_bought - rules.removed_mass
+
+
+## Zeilen der Sieganzeige. Die Zeit ist die Simulationszeit bis zum Sieg, 20 Takte je Sekunde.
+func victory_lines() -> PackedStringArray:
+	var ticks := tick_count
+	if won and win_tick >= 0:
+		ticks = win_tick
+	var seconds := ticks / 20
+	var clock := "%d:%02d" % [seconds / 60, seconds % 60]
+	return PackedStringArray([
+		"Spielzeit  %s" % clock,
+		"Abgebaut  %d" % world.mined_count,
+		"Höchste Masse  %d" % peak_mass,
+		"Gekaufte Arbeiter  %d" % purchased_workers,
+		"Gelieferte Energie  %d" % energy_dots.delivered,
+		"Upgrades  %d" % upgrades.purchased,
+		"Einheiten zugleich  %d" % max_units,
+		"Veredelt  %d" % energy_dots.refined_delivered,
+	])
+
+
+func stats() -> Dictionary:
+	var group_total := quotas.size()
+	var waiting := PackedInt32Array()
+	waiting.resize(group_total)
+	for id in workers.count:
+		if workers.state[id] == WorkerStore.STATE_WAITING:
+			waiting[workers.group[id]] += 1
+	return {
+		"tick": tick_count,
+		"workers": workers.count,
+		"pending_spawns": spawner.pending(),
+		"energy_in_transit": energy_dots.pending(),
+		"energy_generated": energy_dots.generated,
+		"energy_delivered": energy_dots.delivered,
+		"energy_refined": energy_dots.refined_delivered,
+		"workers_purchased": purchased_workers,
+		"group_counts": workers.group_counts.duplicate(),
+		"group_waiting": waiting,
+		"quotas": quotas.duplicate(),
+		"mined": world.mined_count,
+		"mined_fraction": world.mined_fraction(),
+		"mass_total": total_mass(),
+		"mass_expected": expected_mass(),
+		"last_tick_usec": last_tick_usec,
+	}
+
+
+## Prüft alle Invarianten. Leeres Ergebnis = alles konsistent.
+func check_invariants() -> PackedStringArray:
+	var errors := PackedStringArray()
+	energy_dots.ensure_tracks()
+	if total_mass() != expected_mass():
+		errors.append("Massenbilanz verletzt: %d != %d" % [total_mass(), expected_mass()])
+	if energy_dots.generated != energy_dots.delivered + energy_dots.pending():
+		errors.append("Energiebilanz verletzt")
+	if energy_dots.birth.size() != energy_dots.cells.size() or energy_dots.refined.size() != energy_dots.cells.size():
+		errors.append("Energie-Dots ohne Herkunft")
+	if energy_dots.owner.size() != energy_dots.cells.size():
+		errors.append("Energie-Dots ohne Besitzer")
+	if energy_dots.refined_delivered > energy_dots.delivered:
+		errors.append("Veredelte Energie übersteigt die Lieferung")
+	errors.append_array(_building_errors())
+	var recount := PackedInt32Array()
+	recount.resize(quotas.size())
+	var occupied := 0
+	var footprint_cells := 0
+	for id in workers.count:
+		var c := workers.cell[id]
+		var unit_size := int(workers.size[id])
+		recount[workers.group[id]] += 1
+		footprint_cells += unit_size * unit_size
+		if c < 0 or c >= world.cell_count():
+			errors.append("Arbeiter %d außerhalb der Welt" % id)
+			continue
+		if not _footprint_consistent(id):
+			errors.append("Arbeiter %d hat einen ungültigen Fußabdruck" % id)
+		if workers.state[id] == WorkerStore.STATE_MINING and not _touches_target(id, workers.target[id]):
+			errors.append("Arbeiter %d baut nicht an einer Nachbarzelle ab" % id)
+		if not _match_live() and _footprint_hits_mask(id, core_mask):
+			errors.append("Arbeiter %d steht im Energiekern" % id)
+	for o in workers.occupant:
+		if o != WorkerStore.NO_WORKER:
+			occupied += 1
+	if occupied != footprint_cells:
+		errors.append("Belegte Zellen (%d) != Fußabdruck (%d)" % [occupied, footprint_cells])
+	if recount != workers.group_counts:
+		errors.append("Gruppenzähler inkonsistent")
+	return errors
+
+
+func state_hash() -> int:
+	return hash([
+		tick_count,
+		world.state_hash(),
+		workers.state_hash(),
+		areas.state_hash(),
+		spawner.pending(),
+		energy_dots.state_hash(),
+		purchased_workers,
+		sacrificed_mass,
+		upgrades.state_hash(),
+		config.mode,
+		config.ai_count,
+		config.victory_mask,
+		config.difficulty,
+		rules.state_hash(),
+		buildings.state_hash(),
+		hash(desired_size),
+		hash(sacrifice_on),
+		won,
+	])
+
+
+func _setup(
+	p_config: SimConfig, p_world: WorldState, start_cells: PackedInt32Array, place_workers: bool = true
+) -> bool:
+	config = p_config
+	world = p_world
+	quotas = config.group_quotas.duplicate()
+	areas = DigAreas.new(world.width, world.height, quotas.size())
+	workers = WorkerStore.new(world.cell_count(), quotas.size(), world.width)
+	spawner = SpawnSystem.new(world.cell_count(), config.spawn_search_limit)
+	for g in quotas.size():
+		fields.append(FlowField.new(world, areas, g))
+		_append_group_meta(g)
+	if place_workers:
+		if config.mode == SimConfig.MODE_MATCH:
+			if not rules.install(self):
+				return false
+		elif not _place_initial_workers(start_cells):
+			return false
+	initial_mass = workers.mass_sum()
+	peak_mass = initial_mass
+	max_units = workers.count
+	return true
+
+
+func _place_initial_workers(start_cells: PackedInt32Array) -> bool:
+	if not start_cells.is_empty():
+		for c in start_cells:
+			if c < 0 or c >= world.cell_count() or world.cells[c] != Materials.EMPTY or not workers.is_free(c):
+				push_error("Ungültige Startposition %d" % c)
+				return false
+			workers.add(c, GroupQuotas.pick_group(workers.group_mass, quotas))
+		return true
+	var origin := world.find_nearest_empty(world.width / 2, world.height / 2)
+	if origin < 0:
+		push_error("Die Welt enthält keine leere Zelle für Startarbeiter")
+		return false
+	var cells := spawner.find_free_cells(world, workers, origin, config.initial_workers, world.cell_count())
+	if cells.size() < config.initial_workers:
+		push_error("Nicht genug freie Startpositionen für %d Arbeiter" % config.initial_workers)
+		return false
+	for c in cells:
+		workers.add(c, GroupQuotas.pick_group(workers.group_mass, quotas))
+	return true
+
+
+func add_group(group_name: String = "") -> int:
+	if quotas.size() >= SimConfig.MAX_GROUPS:
+		return -1
+	var id := quotas.size()
+	quotas.append(0)
+	_append_group_meta(id)
+	if not group_name.is_empty():
+		group_names[id] = group_name
+	areas.add_group()
+	var field := FlowField.new(world, areas, id)
+	if config.mode != SimConfig.MODE_MATCH:
+		field.blocked = core_mask
+	fields.append(field)
+	workers.ensure_groups(quotas.size())
+	return id
+
+
+func remove_group(group_id: int) -> bool:
+	if not _group_is_open(group_id):
+		return false
+	var dest := -1
+	var alive := 0
+	for g in group_open.size():
+		if group_open[g] == 0:
+			continue
+		alive += 1
+		if g != group_id and dest < 0:
+			dest = g
+	if alive < 2 or dest < 0:
+		return false
+	var id := 0
+	while id < workers.count:
+		if workers.group[id] == group_id:
+			workers.reassign_group(id, dest)
+		id += 1
+	quotas[dest] += quotas[group_id]
+	quotas[group_id] = 0
+	group_open[group_id] = 0
+	desired_size[group_id] = 1
+	sacrifice_on[group_id] = 0
+	areas.clear_group(group_id)
+	clear_move_goal(group_id)
+	if selected_group == group_id:
+		selected_group = dest
+	return true
+
+
+func rename_group(group_id: int, group_name: String) -> bool:
+	if not _group_is_open(group_id) or group_name.is_empty():
+		return false
+	group_names[group_id] = group_name
+	return true
+
+
+func set_group_color(group_id: int, color: Color) -> bool:
+	if not _group_is_open(group_id):
+		return false
+	group_colors[group_id] = color
+	return true
+
+
+func set_desired_size(group_id: int, unit_size: int) -> bool:
+	if not _group_is_open(group_id) or unit_size < 1 or unit_size > upgrades.max_size():
+		return false
+	desired_size[group_id] = unit_size
+	return true
+
+
+## Legacy-API für ältere Aufrufer; Arbeiteropfer sind nicht mehr möglich.
+func set_sacrifice(group_id: int, enabled: bool) -> bool:
+	if not _group_is_open(group_id) or enabled:
+		return false
+	sacrifice_on[group_id] = 0
+	return true
+
+func buy(kind: int) -> bool:
+	if kind == Upgrades.KIND_RESEARCH:
+		if config.mode != SimConfig.MODE_MATCH or (config.victory_mask & MatchRules.VICTORY_RESEARCH) == 0:
+			return false
+	if kind == Upgrades.KIND_CORE:
+		return _buy_core()
+	var before := upgrades.max_size()
+	if not upgrades.try_buy(kind):
+		return false
+	if upgrades.max_size() < before:
+		return true
+	for g in desired_size.size():
+		if desired_size[g] > upgrades.max_size():
+			desired_size[g] = upgrades.max_size()
+	return true
+
+
+## Arbeiter werden ausschließlich gegen bereits gelieferte Energie gekauft.
+## Der Spawn beginnt am zentralen Tunnel; die bestehende Warteschlange erhält die Masse.
+## Setzt eine Quelle oder einen Veredler auf eine leere Tunnelzelle. Der Kern bleibt frei.
+func place_building(kind: int, idx: int) -> bool:
+	if not buildings.allowed(config.mode, kind):
+		return false
+	var cost := buildings.place_cost(kind)
+	if cost < 0 or upgrades.energy < cost or not _cell_accepts_building(idx):
+		return false
+	upgrades.energy -= cost
+	upgrades.purchased += 1
+	buildings.add(kind, idx)
+	return true
+
+
+## Hebt die gemeinsame Stufe aller Quellen oder aller Veredler an.
+func upgrade_building(kind: int) -> bool:
+	if not buildings.allowed(config.mode, kind):
+		return false
+	var cost := buildings.tier_cost(kind)
+	if cost < 0 or upgrades.energy < cost:
+		return false
+	upgrades.energy -= cost
+	upgrades.purchased += 1
+	buildings.raise_tier(kind)
+	return true
+
+
+func buy_worker() -> bool:
+	if upgrades.energy < WORKER_COST:
+		return false
+	var origin := _worker_origin()
+	if origin < 0:
+		return false
+	upgrades.energy -= WORKER_COST
+	purchased_workers += 1
+	spawner.enqueue(origin)
+	return true
+
+
+func open_group_count() -> int:
+	var total := 0
+	for flag in group_open:
+		total += int(flag)
+	return total
+
+
+## Ablage der Energie. Ohne Kern-Upgrade sind das die leeren Nachbarn des Kerns.
+## Danach ist die ganze freie Fläche um den Kern die Ablage.
+func energy_exits() -> PackedInt32Array:
+	if upgrades.core_level <= 0 or core_mask.is_empty():
+		return _delivery_cells()
+	var exits := PackedInt32Array()
+	for idx in core_mask.size():
+		if core_mask[idx] == 1 and world.cells[idx] == Materials.EMPTY:
+			exits.append(idx)
+	return exits
+
+
+func pit_index() -> int:
+	if _match_live():
+		return rules.cores[0]
+	var pit := WorldGenerator.sacrifice_cell(world)
+	if not world.in_bounds(pit.x, pit.y):
+		return -1
+	return world.index(pit.x, pit.y)
+
+
+func _append_group_meta(group_id: int) -> void:
+	group_names.append("Gruppe %d" % [group_id + 1])
+	group_colors.append(GROUP_PALETTE[group_id % GROUP_PALETTE.size()])
+	group_open.append(1)
+	desired_size.append(1)
+	sacrifice_on.append(0)
+
+
+func _group_is_open(group_id: int) -> bool:
+	return group_id >= 0 and group_id < group_open.size() and group_open[group_id] == 1
+
+
+func _delivery_cells() -> PackedInt32Array:
+	var pit := pit_index()
+	if pit < 0:
+		return PackedInt32Array()
+	return SacrificeSystem.delivery_cells(world, pit)
+
+
+func _footprint_consistent(id: int) -> bool:
+	var unit_size := int(workers.size[id])
+	var anchor := workers.cell[id]
+	var width := world.width
+	var x0 := anchor % width
+	var y0 := anchor / width
+	if x0 + unit_size > width or y0 + unit_size > world.height:
+		return false
+	if workers.mass[id] != WorkerStore.SIZE_MASS[unit_size]:
+		return false
+	for dy in unit_size:
+		for dx in unit_size:
+			var idx := anchor + dy * width + dx
+			if world.cells[idx] != Materials.EMPTY or workers.occupant[idx] != id:
+				return false
+	return true
+
+
+func _touches_target(id: int, target: int) -> bool:
+	var unit_size := int(workers.size[id])
+	var anchor := workers.cell[id]
+	var width := world.width
+	for dy in unit_size:
+		for dx in unit_size:
+			if _is_adjacent(anchor + dy * width + dx, target):
+				return true
+	return false
+
+
+func _is_adjacent(a: int, b: int) -> bool:
+	if b < 0:
+		return false
+	var w := world.width
+	var delta := absi(a - b)
+	return delta == w or (delta == 1 and a / w == b / w)
+
+
+func _match_live() -> bool:
+	return config.mode == SimConfig.MODE_MATCH and rules.faction_count > 1
+
+
+func _worker_origin() -> int:
+	if _match_live():
+		var core := rules.cores[0]
+		return world.find_nearest_empty(core % world.width, core / world.width)
+	return world.find_nearest_empty(world.width / 2, world.height / 2)
+
+
+func _goals_met() -> bool:
+	if config.mode == SimConfig.MODE_MATCH:
+		return false
+	match config.mode:
+		SimConfig.MODE_EXTRACTION:
+			return energy_dots.delivered >= SimConfig.EXTRACTION_GOAL
+		SimConfig.MODE_REFINING:
+			return energy_dots.refined_delivered >= SimConfig.REFINING_GOAL
+		_:
+			return total_mass() >= 100 and upgrades.purchased >= 2 and world.mined_fraction() >= 0.9
+
+
+func _cell_accepts_building(idx: int) -> bool:
+	if idx < 0 or idx >= world.cell_count() or world.cells[idx] != Materials.EMPTY:
+		return false
+	if _in_core(idx) or buildings.occupies(idx):
+		return false
+	return true
+
+
+func _building_errors() -> PackedStringArray:
+	var errors := PackedStringArray()
+	var seen := {}
+	if buildings.kind.size() != buildings.cell.size() or buildings.buds.size() != buildings.cell.size():
+		errors.append("Gebäudelisten ungleich lang")
+		return errors
+	for i in buildings.cell.size():
+		var idx := buildings.cell[i]
+		if seen.has(idx):
+			errors.append("zwei Gebäude auf einer Zelle")
+		seen[idx] = true
+		if idx < 0 or idx >= world.cell_count() or world.cells[idx] != Materials.EMPTY or _in_core(idx):
+			errors.append("Gebäude steht nicht auf einem freien Tunnel")
+		if not buildings.allowed(config.mode, int(buildings.kind[i])):
+			errors.append("Gebäude passt nicht zum Modus")
+		if int(buildings.kind[i]) == Buildings.KIND_SOURCE:
+			for bud in buildings.buds[i]:
+				if bud < 0 or bud >= world.cell_count() or not Materials.is_mineable(world.cells[bud]):
+					errors.append("Knospe ist kein Material")
+	return errors
+
+
+func _in_core(idx: int) -> bool:
+	return idx >= 0 and idx < core_mask.size() and core_mask[idx] == 1
+
+
+## Räumt die nächste Kernfläche, legt den Ring frei und sperrt sie für Arbeiter.
+## Schlägt die Räumung fehl, bleibt Welt und Guthaben unverändert.
+func _buy_core() -> bool:
+	var cost := upgrades.core_cost()
+	if cost < 0 or upgrades.energy < cost:
+		return false
+	if not _bind_core(upgrades.core_level + 1, true):
+		return false
+	return upgrades.try_buy(Upgrades.KIND_CORE)
+
+
+## Setzt die Kernfläche für eine Stufe. `apply_carve` legt neue Zellen leer, ohne sie als Abbau zu zählen.
+func _bind_core(radius: int, apply_carve: bool) -> bool:
+	var around := rules.cores[0] if _match_live() else -1
+	var plan := CoreZone.plan(world, radius, around)
+	var carve: PackedInt32Array = plan.carve if apply_carve else PackedInt32Array()
+	if not _evict_workers(plan.mask, carve):
+		return false
+	if apply_carve:
+		for idx in plan.carve:
+			world.open_without_mining(idx)
+	core_mask = plan.mask
+	for field in fields:
+		if config.mode != SimConfig.MODE_MATCH:
+			field.blocked = core_mask
+		field.force_rebuild()
+	return true
+
+
+func _footprint_hits_mask(id: int, mask: PackedByteArray) -> bool:
+	if mask.is_empty():
+		return false
+	var unit_size := int(workers.size[id])
+	var anchor := workers.cell[id]
+	var width := world.width
+	var x0 := anchor % width
+	var y0 := anchor / width
+	if x0 + unit_size > width or y0 + unit_size > world.height:
+		return true
+	for dy in unit_size:
+		for dx in unit_size:
+			var idx := anchor + dy * width + dx
+			if idx < mask.size() and mask[idx] == 1:
+				return true
+	return false
+
+
+## Verschiebt jeden Arbeiter, dessen Fußabdruck in der Maske liegt, auf eine Zelle außerhalb.
+## Die Ziele werden zuerst vollständig gesucht. Erst dann wird bewegt.
+func _evict_workers(mask: PackedByteArray, carve: PackedInt32Array) -> bool:
+	if mask.is_empty():
+		return true
+	var count := world.cell_count()
+	var will_open := PackedByteArray()
+	will_open.resize(count)
+	for idx in count:
+		if world.cells[idx] == Materials.EMPTY:
+			will_open[idx] = 1
+	for idx in carve:
+		will_open[idx] = 1
+	var reserved := PackedByteArray()
+	reserved.resize(count)
+	var movers: Array[int] = []
+	for id in workers.count:
+		if _footprint_hits_mask(id, mask):
+			movers.append(id)
+		else:
+			_reserve_footprint(id, reserved)
+	var plans := PackedInt32Array()
+	for id in movers:
+		var dest := _evac_destination(id, mask, will_open, reserved)
+		if dest < 0:
+			return false
+		plans.append(id)
+		plans.append(dest)
+		_reserve_anchor(dest, int(workers.size[id]), reserved)
+	var cursor := 0
+	while cursor < plans.size():
+		var id := plans[cursor]
+		var dest := plans[cursor + 1]
+		cursor += 2
+		if int(workers.size[id]) <= 1:
+			workers.move_to(id, dest, tick_count)
+		else:
+			workers.move_footprint(id, dest, tick_count)
+	return true
+
+
+func _evac_destination(
+	id: int, mask: PackedByteArray, will_open: PackedByteArray, reserved: PackedByteArray
+) -> int:
+	var unit_size := int(workers.size[id])
+	var origin := workers.cell[id]
+	var stamp := PackedByteArray()
+	stamp.resize(world.cell_count())
+	var frontier := PackedInt32Array()
+	frontier.append(origin)
+	stamp[origin] = 1
+	var head := 0
+	var width := world.width
+	var size := world.cell_count()
+	while head < frontier.size():
+		var c := frontier[head]
+		head += 1
+		if _footprint_evac_ok(c, unit_size, mask, will_open, reserved):
+			return c
+		var x := c % width
+		if c >= width:
+			_evac_push(frontier, stamp, will_open, c - width)
+		if x < width - 1:
+			_evac_push(frontier, stamp, will_open, c + 1)
+		if c < size - width:
+			_evac_push(frontier, stamp, will_open, c + width)
+		if x > 0:
+			_evac_push(frontier, stamp, will_open, c - 1)
+	return -1
+
+
+func _evac_push(
+	frontier: PackedInt32Array, stamp: PackedByteArray, will_open: PackedByteArray, idx: int
+) -> void:
+	if stamp[idx] != 0 or will_open[idx] == 0:
+		return
+	stamp[idx] = 1
+	frontier.append(idx)
+
+
+func _footprint_evac_ok(
+	anchor: int,
+	unit_size: int,
+	mask: PackedByteArray,
+	will_open: PackedByteArray,
+	reserved: PackedByteArray,
+) -> bool:
+	var width := world.width
+	var x0 := anchor % width
+	var y0 := anchor / width
+	if x0 + unit_size > width or y0 + unit_size > world.height:
+		return false
+	for dy in unit_size:
+		for dx in unit_size:
+			var idx := anchor + dy * width + dx
+			if mask[idx] == 1 or will_open[idx] == 0 or reserved[idx] == 1:
+				return false
+			if workers.occupant[idx] != WorkerStore.NO_WORKER:
+				return false
+	return true
+
+
+func _reserve_footprint(id: int, reserved: PackedByteArray) -> void:
+	_reserve_anchor(workers.cell[id], int(workers.size[id]), reserved)
+
+
+func _reserve_anchor(anchor: int, unit_size: int, reserved: PackedByteArray) -> void:
+	var width := world.width
+	for dy in unit_size:
+		for dx in unit_size:
+			reserved[anchor + dy * width + dx] = 1
