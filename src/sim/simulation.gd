@@ -103,21 +103,17 @@ func tick_once() -> void:
 	)
 	var t2 := Time.get_ticks_usec()
 	if _match_live():
-		var nums := PackedInt32Array()
-		var dens := PackedInt32Array()
+		var levels := PackedInt32Array()
 		for faction in rules.faction_count:
-			var fraction := rules.wallet(self, faction).dig_fraction()
-			nums.append(fraction.x)
-			dens.append(fraction.y)
+			levels.append(rules.wallet(self, faction).dig_level)
 		MiningSystem.step_scaled(
-			workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power, 1, 1, nums, dens
+			workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power, 0, levels
 		)
 	elif upgrades.dig_level == 0 and workers.max_size == 1:
 		MiningSystem.step(workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power)
 	else:
-		var fraction := upgrades.dig_fraction()
 		MiningSystem.step_scaled(
-			workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power, fraction.x, fraction.y
+			workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power, upgrades.dig_level
 		)
 	var t3 := Time.get_ticks_usec()
 	spawner.process(world, workers, quotas, core_mask)

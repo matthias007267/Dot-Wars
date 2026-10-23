@@ -98,7 +98,7 @@ Der Energiekern steht im Startbereich und ist unzerstörbar. Ankommende Energie-
 | Verschmelzung | 100 | schaltet 2×2 frei | einmal |
 | Erweiterte Verschmelzung | 250 | schaltet 3×3 frei | einmal |
 
-Kostenformeln sind zentral und testbar. Effekte gelten global und konsistent. Die Abbildung von +25 % auf den Ganzzahl-Takt ist noch offen.
+Kostenformeln sind zentral und testbar. Effekte gelten global und konsistent. Jede Abbaustufe multipliziert die Leistung mit 5/4, ohne Rundung, auch bei hohen Stufen.
 
 Die Ziele hängen am Modus und sind vorläufig. In der Räumung ist die Runde gewonnen, wenn alle drei Prüfungen erfüllt sind: mindestens 100 gekaufte und vorhandene Arbeitermasse, mindestens zwei Käufe, mindestens 90 % des ursprünglich abbaubaren Materials. Leer und unzerstörbar zählen nicht zur Bezugsmenge. Förderung endet bei 1.000 gelieferten Energieeinheiten. Veredelung endet bei 400 veredelten Einheiten am Kern. Nach dem Sieg kann weitergespielt werden. Die Statistik zeigt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades, die maximale Zahl Einheiten und die veredelte Menge. 20 bis 40 Minuten auf der Standardwelt sind das Balancingziel der Räumung. Ein skriptierter Lauf mit Seed 1337 hat die drei Räumungsziele auf der 256er-Welt nach 37:28 erreicht, noch mit dem alten Zwei-Takt-Tempo. Ein menschliches Spiel ist damit nicht gemessen.
 

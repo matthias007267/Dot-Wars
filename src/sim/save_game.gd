@@ -63,6 +63,7 @@ static func snapshot(sim: Simulation) -> Dictionary:
 		"cells": sim.world.cells.duplicate(),
 		"progress": sim.world.progress.duplicate(),
 		"progress_frac": sim.world.progress_frac.duplicate(),
+		"progress_frac_high": _export_frac_high(sim.world),
 		"mined": sim.world.mined_count,
 		"opened": sim.world.opened_count,
 		"core_level": sim.upgrades.core_level,
@@ -81,6 +82,40 @@ static func snapshot(sim: Simulation) -> Dictionary:
 		"move_period": sim.config.move_period_ticks,
 		"quotas_config": sim.config.group_quotas.duplicate(),
 	}
+
+
+static func _export_frac_high(world: WorldState) -> Array:
+	var keys: Array = world.progress_frac_high.keys()
+	keys.sort()
+	var rows: Array = []
+	for key in keys:
+		var copy: Array = []
+		for limb in world.progress_frac_high[key]:
+			copy.append(int(limb))
+		rows.append({"cell": int(key), "limbs": copy})
+	return rows
+
+
+static func _restore_frac_high(world: WorldState, rows) -> bool:
+	if typeof(rows) != TYPE_ARRAY:
+		return false
+	for row in rows:
+		if typeof(row) != TYPE_DICTIONARY:
+			return false
+		var cell := int(row.get("cell", -1))
+		if cell < 0 or cell >= world.cell_count():
+			return false
+		var limbs = row.get("limbs", [])
+		if typeof(limbs) != TYPE_ARRAY or limbs.is_empty():
+			return false
+		var clean: Array = []
+		for limb in limbs:
+			var value := int(limb)
+			if value < 0 or value >= 2147483648:
+				return false
+			clean.append(value)
+		world.progress_frac_high[cell] = clean
+	return true
 
 
 static func to_bytes(sim: Simulation) -> PackedByteArray:
@@ -129,6 +164,8 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 			world.set_material(idx, cells[idx])
 		world.progress[idx] = progress[idx]
 		world.progress_frac[idx] = frac[idx]
+	if not _restore_frac_high(world, data.get("progress_frac_high", [])):
+		return null
 	world.mined_count = int(data.get("mined", 0))
 	world.opened_count = int(data.get("opened", 0))
 	var sim := Simulation.from_world(config, world, PackedInt32Array(), false)

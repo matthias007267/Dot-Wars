@@ -287,3 +287,11 @@ Die rechte Taste setzt das Ziel. Die Auswahl geht dorthin und baut die Ressource
 Ohne Auswahl gehen etwa zehn Prozent der eigenen Arbeiter, mindestens einer. Es sind die, die dem Ziel am nächsten stehen. Bei gleichem Abstand gewinnt die kleinere ID. Die Abordnung liegt in einer eigenen Gruppe mit Quote 0. Die übrigen Gruppen behalten ihren Auftrag. Ein Laufziel unterdrückt den Abbau der nächsten beliebigen Ressource. Felsen auf dem Weg zum Marschziel werden markiert. Ist das Ziel noch fest, wird es zum Laufziel, sobald es leer ist.
 
 Gruppen über Strg und die Tasten 0 bis 9 kommen später. Zehn Kontrollgruppen sind vorgesehen und noch nicht belegt. Die Kamera verschiebt sich mit der mittleren Taste, WASD und den Pfeiltasten. Die Speicherversion bleibt 2. Fehlt die Befehlsgruppe in einem älteren Stand, gibt es keinen offenen Marsch. Die drei Prüfungen der Räumung bleiben.
+
+### D-034 Hohe Abbaustufen
+
+Datum: 23. Oktober 2026.
+
+Die Abbauleistung bleibt der Bruch 5/4 je Stufe aus D-016, ohne Rundungsverlust. Zähler und Nenner liefen bisher über 32 Bit. Ab Stufe 14 wurde der Zähler falsch, ab Stufe 16 war der Nenner 0, und der Abbau blieb stehen. Große Einheiten treffen das früher, weil ihre Leistung den Zähler noch multipliziert.
+
+Die Rechnung nutzt jetzt breite Ganzzahlen. Der Restbruch steht weiter in `progress_frac`, solange er in 31 Bit passt. Darüber kommen weitere Glieder dazu. Ein älterer Speicherstand ohne diese Glieder lädt wie bisher. Die Version bleibt 2. Stufe 0 dauert 20 Takte, Stufe 1 dauert 16 Takte. Die drei Prüfungen der Räumung bleiben.

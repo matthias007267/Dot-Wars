@@ -68,7 +68,7 @@ Ein Basis-Arbeiter hat Zelle, Gruppe, Fraktion, Zustand, Ziel und den Tick der l
 
 ## Abbauzeit
 
-Haltbarkeit = Härte × `work_per_hardness`. Der Standard von `work_per_hardness` ist 20, also eine Simulationssekunde je Härtepunkt. `dig_power` 1 ist ein Fortschrittspunkt pro Tick. Härte 8 braucht 160 Punkte und damit 8 Sekunden. Der Fortschritt liegt an der Zelle. Die erste Prüfung im Tick, die die Haltbarkeit erreicht, entfernt die Zelle. Weitere Arbeiter desselben Ticks sehen eine leere Zelle.
+Haltbarkeit = Härte × `work_per_hardness`. Der Standard von `work_per_hardness` ist 20, also eine Simulationssekunde je Härtepunkt. `dig_power` 1 ist ein Fortschrittspunkt pro Tick. Härte 8 braucht 160 Punkte und damit 8 Sekunden. Jede gekaufte Abbaustufe multipliziert diese Punkte mit 5/4. Die Bruchrechnung bleibt exakt, auch wenn Zähler und Nenner nicht mehr in 32 Bit passen. Der Fortschritt und der Restbruch liegen an der Zelle. Die erste Prüfung im Tick, die die Haltbarkeit erreicht, entfernt die Zelle. Weitere Arbeiter desselben Ticks sehen eine leere Zelle.
 
 ## Zielsuche
 

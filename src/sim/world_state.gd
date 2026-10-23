@@ -11,8 +11,10 @@ var chunks_y: int
 var cells := PackedByteArray()
 ## Abbaufortschritt je Zelle in Arbeitspunkten (immer kleiner als die Haltbarkeit).
 var progress := PackedInt32Array()
-## Restbrüche der Abbauleistung, kleiner als der aktuelle Nenner.
+## Niederes Glied des Restbruchs, Basis 2^31. Kleiner als der Nenner, solange der Rest hier hineinpasst.
 var progress_frac := PackedInt32Array()
+## Weitere Glieder desselben Restbruchs. Leer, solange `progress_frac` den ganzen Rest trägt.
+var progress_frac_high := {}
 
 ## Zählt jede Änderung an `cells`. Abgeleitete Daten erkennen damit Veralterung.
 var revision: int = 0
@@ -86,6 +88,8 @@ func set_material(idx: int, material: int) -> void:
 	cells[idx] = material
 	progress[idx] = 0
 	progress_frac[idx] = 0
+	if progress_frac_high.has(idx):
+		progress_frac_high.erase(idx)
 	revision += 1
 	change_log.append(idx)
 	change_from.append(old)
@@ -163,7 +167,19 @@ func note_progress(idx: int) -> void:
 
 
 func state_hash() -> int:
-	return hash([hash(cells), hash(progress), hash(progress_frac), mined_count, opened_count, solid_count])
+	var base := hash([hash(cells), hash(progress), hash(progress_frac), mined_count, opened_count, solid_count])
+	if progress_frac_high.is_empty():
+		return base
+	var keys: Array = progress_frac_high.keys()
+	keys.sort()
+	var packed := PackedInt32Array()
+	for key in keys:
+		packed.append(int(key))
+		var limbs: Array = progress_frac_high[key]
+		packed.append(limbs.size())
+		for limb in limbs:
+			packed.append(int(limb))
+	return hash([base, hash(packed)])
 
 
 func _mark_dirty(idx: int) -> void:

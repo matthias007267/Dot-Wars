@@ -27,6 +27,7 @@ const KIND_RESEARCH := 6
 var energy: int = 0
 var speed_level: int = 0
 var energy_speed_level: int = 0
+## Jede Stufe multipliziert die Abbauleistung mit 5/4. Gerechnet wird das in `MiningSystem`.
 var dig_level: int = 0
 var fusion2: bool = false
 var fusion3: bool = false
@@ -109,16 +110,6 @@ func pace_text(period: int) -> String:
 	if period <= 1:
 		return "jeder Takt"
 	return "alle %d Takte" % period
-
-
-## Zähler und Nenner der Abbauleistung. Basis 1/1, jede Stufe multipliziert mit 5/4.
-func dig_fraction() -> Vector2i:
-	var num := 1
-	var den := 1
-	for _level in dig_level:
-		num *= 5
-		den *= 4
-	return Vector2i(num, den)
 
 
 func try_buy(kind: int) -> bool:
