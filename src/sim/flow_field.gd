@@ -2,10 +2,11 @@ class_name FlowField
 extends RefCounted
 ## Gemeinsame Zielsuche einer Gruppe.
 ##
-## Quellen sind leere Zellen neben festem, markiertem Material und ein gesetztes Laufziel.
-## Eine Multi-Source-BFS über leere Zellen liefert für jede erreichbare Zelle die Distanz zur
-## nächsten Quelle und die Richtung des nächsten Schritts. Das Ergebnis gilt für alle Arbeiter der
-## Gruppe, es gibt keine individuelle Wegsuche.
+## Quellen sind leere Zellen neben festem, markiertem Material und der nächstmögliche Standpunkt
+## eines Laufziels. Liegt das Ziel in der erreichbaren Fläche, ist das der Zielpunkt selbst.
+## Sonst ist es die erreichbare leere Zelle mit dem kleinsten Manhattan-Abstand. Eine
+## Multi-Source-BFS über leere Zellen liefert für jede erreichbare Zelle die Distanz zur nächsten
+## Quelle und die Richtung des nächsten Schritts. Das Ergebnis gilt für alle Arbeiter der Gruppe.
 ##
 ## Die Berechnung ist in Phasen (Quellen suchen, Ausbreiten, lokale Korrektur) mit festem
 ## Budget pro Aufruf zerlegt und schreibt in einen Hintergrundpuffer. Erst nach Abschluss
@@ -58,11 +59,15 @@ var _improve: bool = false
 ## Vollständige Aufbauten und abgeschlossene lokale Korrekturen.
 var full_rebuilds: int = 0
 var patches: int = 0
-## Leere Zielzelle der Gruppe. -1 heißt: kein Laufziel, nur Abbaugebiete.
+## Gewünschter Punkt der Gruppe. Darf fest sein. -1 heißt: kein Laufziel, nur Abbaugebiete.
 var goal_cell: int = -1
+## Leere Zellen, von denen aus die Gruppe losläuft. Daraus wird der nächstmögliche Standpunkt.
+var anchors := PackedInt32Array()
 ## 1 verbietet die Zelle für Arbeiter. Leer heißt: nichts gesperrt.
 var blocked := PackedByteArray()
 var _built_goal: int = -2
+## Erreichbare Zelle, auf die das veröffentlichte Feld zuläuft. -2 solange noch keines gebaut wurde.
+var _stand_cell: int = -2
 
 
 func _init(world: WorldState, areas: DigAreas, group_id: int) -> void:
@@ -98,6 +103,9 @@ func step(budget: int) -> void:
 	var goal_changed := goal_cell != _built_goal
 	var area_changed := _areas.revision != _built_area_revision
 	var world_changed := _world.revision != _built_world_revision or _world.change_epoch != _applied_epoch
+	var stand_changed := false
+	if _phase == Phase.IDLE and goal_cell >= 0 and (goal_changed or world_changed):
+		stand_changed = _nearest_stand() != _stand_cell
 	if _phase != Phase.IDLE and (area_changed or goal_changed or world_changed):
 		if area_changed or goal_changed:
 			_begin()
@@ -105,9 +113,9 @@ func step(budget: int) -> void:
 			_restart_patch_from_published()
 		# Ein laufender Vollaufbau liest die Welt mit. Eine geöffnete Zelle setzt ihn nicht zurück.
 	elif _phase == Phase.IDLE:
-		if not area_changed and not goal_changed and not world_changed:
+		if not area_changed and not goal_changed and not world_changed and not stand_changed:
 			return
-		if area_changed or goal_changed or generation == 0 or not _can_patch():
+		if area_changed or goal_changed or stand_changed or generation == 0 or not _can_patch():
 			_begin()
 		else:
 			_begin_patch()
@@ -153,6 +161,7 @@ func _begin() -> void:
 	_rect_solid.resize(rects.size())
 	_rect_solid.fill(0)
 	_built_goal = goal_cell
+	_stand_cell = _nearest_stand()
 	_applied_changes = _world.change_log.size()
 	_applied_epoch = _world.change_epoch
 	_improve = false
@@ -189,10 +198,61 @@ func _scan_seeds(budget: int) -> int:
 				_seed(idx + w)
 		_rect_index += 1
 		_scan_pos = 0
-	if goal_cell >= 0 and _open(goal_cell):
-		_seed(goal_cell)
+	if _stand_cell >= 0:
+		_seed(_stand_cell)
 	_phase = Phase.SPREAD
 	return remaining
+
+
+## True, wenn der gewünschte Punkt selbst der nächstmögliche Standpunkt ist.
+func goal_is_stand() -> bool:
+	return goal_cell >= 0 and _nearest_stand() == goal_cell
+
+
+## Erreichbare leere Zelle mit dem kleinsten Manhattan-Abstand zum gewünschten Punkt.
+## Ohne Anker bleibt ein leeres Ziel der Standpunkt, ein festes Ziel hat keinen.
+func _nearest_stand() -> int:
+	if goal_cell < 0 or goal_cell >= _world.cell_count():
+		return -1
+	if anchors.is_empty():
+		return goal_cell if _open(goal_cell) else -1
+	var count := _world.cell_count()
+	var seen := PackedByteArray()
+	seen.resize(count)
+	var queue := PackedInt32Array()
+	var best := -1
+	var best_rank := 2147483647
+	for cell in anchors:
+		if cell < 0 or cell >= count or seen[cell] != 0 or not _open(cell):
+			continue
+		seen[cell] = 1
+		queue.append(cell)
+		var rank := _manhattan(cell, goal_cell)
+		if rank < best_rank:
+			best = cell
+			best_rank = rank
+	var head := 0
+	var width := _world.width
+	var neighbors := PackedInt32Array()
+	while head < queue.size():
+		var cell := queue[head]
+		head += 1
+		_collect_neighbors(cell, width, count, neighbors)
+		for next in neighbors:
+			if seen[next] != 0 or not _open(next):
+				continue
+			seen[next] = 1
+			queue.append(next)
+			var next_rank := _manhattan(next, goal_cell)
+			if next_rank < best_rank:
+				best = next
+				best_rank = next_rank
+	return best
+
+
+func _manhattan(a: int, b: int) -> int:
+	var width := _world.width
+	return absi(a % width - b % width) + absi(a / width - b / width)
 
 
 func _open(idx: int) -> bool:
@@ -349,7 +409,7 @@ func _reseed_opened(idx: int) -> void:
 func _is_source(idx: int) -> bool:
 	if not _open(idx):
 		return false
-	if idx == goal_cell:
+	if idx == _stand_cell:
 		return true
 	var mask: PackedByteArray = _areas.masks[_group]
 	var cells := _world.cells

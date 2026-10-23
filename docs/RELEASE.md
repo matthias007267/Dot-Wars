@@ -4,7 +4,7 @@ Stand: 23. Oktober 2026. Version in `project.godot`: 0.3.0, Test-Beta mit Energi
 
 ## Was hier geprüft wurde
 
-* 162 automatisierte Tests, 22 511 Prüfungen, headless, Godot 4.3. Kein Fehler.
+* 165 automatisierte Tests, 22 527 Prüfungen, headless, Godot 4.3. Kein Fehler.
 * Headless-Start schreibt `DOT WARS bereit`.
 * Startmenü und die Spielansicht wurden in dieser Linux-Umgebung geöffnet.
 * Simulation mit 1.000, 10.000 und 50.000 Arbeitern, dazu eine 1.000×1.000-Welt. Zahlen in `docs/PERFORMANCE.md`.

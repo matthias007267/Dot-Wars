@@ -127,12 +127,12 @@ func issue_march(cell: int) -> bool:
 		_notice("Der Befehl hat keinen Platz.")
 		return false
 	var route := DigGuidance.mark_route(sim, group_id, cell)
-	var standing := sim.world.cells[cell] == Materials.EMPTY and not sim._in_core(cell) and sim.set_move_goal(group_id, cell)
-	if route == DigGuidance.ROUTE_BLOCKED and not standing:
+	var exact := sim.world.cells[cell] == Materials.EMPTY and not sim._in_core(cell) and sim.set_move_goal(group_id, cell)
+	if not exact and not sim.set_approach(group_id, cell):
 		_notice("Dorthin führt kein Weg.")
 		return false
 	sim.march_cell = cell
-	_notice(_march_notice(route, standing))
+	_notice(_march_notice(route, exact and sim.reaches_move_goal(group_id)))
 	return true
 
 
@@ -949,13 +949,13 @@ func _unit_hits(id: int, rect: Rect2i) -> bool:
 	return false
 
 
-func _march_notice(route: int, standing: bool) -> String:
+func _march_notice(route: int, reaches: bool) -> String:
 	var share := selection.is_empty()
 	if route == DigGuidance.ROUTE_MINING:
 		return "Die nächsten Arbeiter graben sich den Weg frei." if share else "Die Auswahl gräbt sich den Weg frei."
-	if standing:
+	if reaches:
 		return "Etwa ein Zehntel der nächsten Arbeiter ist unterwegs." if share else "Die Auswahl ist unterwegs."
-	return "Dorthin führt kein Weg."
+	return "Der Schwarm geht zum nächstmöglichen Punkt."
 
 
 func _dig_notice(rect: Rect2i) -> String:

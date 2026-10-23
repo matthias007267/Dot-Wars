@@ -25,6 +25,31 @@ func test_nearest_tenth_breaks_ties_by_id() -> void:
 	check_eq(sim.workers.cell[five[0]], world.index(0, 1), "am Ziel selbst")
 
 
+func test_march_toward_a_sealed_cell_approaches() -> void:
+	var world := WorldState.new(9, 5, 8, Materials.INDESTRUCTIBLE)
+	world.carve_rect(Rect2i(1, 1, 7, 1))
+	world.carve_rect(Rect2i(1, 3, 7, 1))
+	var config := TestHelpers.default_config()
+	config.move_period_ticks = 1
+	var sim := Simulation.from_world(config, world, PackedInt32Array(), false)
+	sim.workers.add(world.index(1, 1), 0, 0)
+	sim.initial_mass = 1
+	sim.peak_mass = 1
+	var hud := GameHud.new()
+	hud.sim = sim
+	var layer := Control.new()
+	hud._build_stats(layer)
+	var goal := world.index(7, 3)
+	check(hud.issue_march(goal), "Marsch zur abgeschnittenen Zelle")
+	check(hud._message.text.contains("nächstmöglichen"), "Hinweis nennt den nächsten Punkt")
+	sim.run_ticks(10)
+	check_eq(TestHelpers.worker_xy(sim, 0), Vector2i(7, 1), "so nah wie möglich")
+	check_eq(sim.world.mined_count, 0, "unzerstörbare Wand bleibt")
+	check_no_errors(sim.check_invariants(), "Bilanz")
+	layer.free()
+	hud.free()
+
+
 func test_march_mines_the_rock_on_the_way() -> void:
 	var config := TestHelpers.default_config()
 	config.move_period_ticks = 1

@@ -49,6 +49,7 @@ Zustände bleiben wenige und klar, zum Beispiel Warten, Bewegen, Abbauen, Blocki
 
 * Bewegung nur orthogonal durch leere Zellen innerhalb der Welt.
 * Kein Weg durch Material. Tunnel entstehen durch Abbau.
+* Ein Marsch merkt sich den gewünschten Punkt. Die Wegsuche läuft zum nächstmöglichen erreichbaren Punkt. Ist der Punkt selbst erreichbar, ist er das Ziel. Sonst sammelt sich der Schwarm an der nächsten Zelle.
 * Abbau nur von einer orthogonal benachbarten, begehbaren Zelle.
 * Größere Dots brauchen entsprechend breite, freie Durchgänge.
 * Gekaufte Arbeiter entstehen nur auf freien Tunnelzellen in der Nähe des Energiekerns.
@@ -56,7 +57,7 @@ Zustände bleiben wenige und klar, zum Beispiel Warten, Bewegen, Abbauen, Blocki
 
 Die Wegfindung gilt für den Schwarm gemeinsam: Distanzfelder oder Flow-Fields, zwischengespeichert, bei Tunneländerungen gezielt aktualisiert, über mehrere Takte verteilt. Bis zu 32 geänderte Zellen korrigieren das bestehende Feld. Ein neues Gebiet, ein neues Laufziel oder eine größere Änderung berechnet es neu. Die Grenzen stehen in D-020.
 
-Unerreichbare Ziele lassen die Arbeiter warten. Es wird kein Weg durch Material erfunden. Ein Feld wird nur einmal abgebaut. Gleichzeitige Versuche erzeugen die Ressource nicht doppelt. Fortschritt liegt an der Zelle. Abgebaute Zellen werden begehbar.
+Ein unerreichbarer Wunschpunkt schickt den Schwarm an die nächste erreichbare Zelle. Es wird kein Weg durch Material erfunden. Ein Feld wird nur einmal abgebaut. Gleichzeitige Versuche erzeugen die Ressource nicht doppelt. Fortschritt liegt an der Zelle. Abgebaute Zellen werden begehbar.
 
 ## Energie, Transport und Wachstum
 

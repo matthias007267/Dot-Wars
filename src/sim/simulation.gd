@@ -89,6 +89,7 @@ var approach_text := ""
 func tick_once() -> void:
 	var t0 := Time.get_ticks_usec()
 	_guide_digging()
+	_refresh_flow_anchors()
 	for g in fields.size():
 		fields[g].step(config.field_budget_per_tick)
 	var t1 := Time.get_ticks_usec()
@@ -190,6 +191,7 @@ func clear_area(group_id: int) -> void:
 
 
 ## Setzt ein Laufziel auf eine leere Zelle. Die Gruppe läuft dorthin, ohne abzubauen.
+## Ist die Zelle nicht erreichbar, läuft sie zum nächstmöglichen Punkt in ihrer Fläche.
 ## Gibt false zurück, wenn Gruppe oder Zelle ungültig sind oder Material auf der Zelle liegt.
 func set_move_goal(group_id: int, cell_idx: int) -> bool:
 	if group_id < 0 or group_id >= fields.size():
@@ -199,7 +201,45 @@ func set_move_goal(group_id: int, cell_idx: int) -> bool:
 	if _in_core(cell_idx):
 		return false
 	fields[group_id].goal_cell = cell_idx
+	_refresh_flow_anchors()
 	return true
+
+
+## Merkt sich einen Wunschpunkt, auch wenn er fest oder gesperrt ist.
+## Die Wegsuche läuft dann zum nächstmöglichen erreichbaren Punkt.
+func set_approach(group_id: int, cell_idx: int) -> bool:
+	if group_id < 0 or group_id >= fields.size():
+		return false
+	if cell_idx < 0 or cell_idx >= world.cell_count():
+		return false
+	fields[group_id].goal_cell = cell_idx
+	_refresh_flow_anchors()
+	return true
+
+
+## True, wenn der Wunschpunkt der Gruppe selbst der nächstmögliche Standpunkt ist.
+func reaches_move_goal(group_id: int) -> bool:
+	if group_id < 0 or group_id >= fields.size():
+		return false
+	_refresh_flow_anchors()
+	return fields[group_id].goal_is_stand()
+
+
+func _refresh_flow_anchors() -> void:
+	var buckets: Array = []
+	buckets.resize(fields.size())
+	for g in fields.size():
+		buckets[g] = PackedInt32Array()
+	for id in workers.count:
+		var group_id := int(workers.group[id])
+		if group_id < 0 or group_id >= buckets.size():
+			continue
+		var cell := int(workers.cell[id])
+		if world.cells[cell] != Materials.EMPTY:
+			continue
+		buckets[group_id].append(cell)
+	for g in fields.size():
+		fields[g].anchors = buckets[g]
 
 
 func clear_move_goal(group_id: int) -> void:

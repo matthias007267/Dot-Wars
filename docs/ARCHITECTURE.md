@@ -72,7 +72,7 @@ Haltbarkeit = Härte × `work_per_hardness`. Der Standard von `work_per_hardness
 
 ## Zielsuche
 
-Pro Gruppe gibt es ein Flow-Field. Quellen sind leere Zellen neben festem, markiertem Material und, wenn gesetzt, eine leere Laufzielzelle. Eine Multi-Source-BFS schreibt Distanz und Richtung in einen Hintergrundpuffer und wird erst nach Abschluss sichtbar. Pro Tick gilt ein festes Budget an Zellbesuchen. Ein neues Gebiet oder ein neues Laufziel startet den Aufbau neu. Eine geöffnete Zelle setzt einen laufenden Vollaufbau nicht zurück. Nach dem Veröffentlichen folgt höchstens eine Korrektur.
+Pro Gruppe gibt es ein Flow-Field. Quellen sind leere Zellen neben festem, markiertem Material und der nächstmögliche Standpunkt eines Laufziels. Liegt der gewünschte Punkt in der erreichbaren Fläche, ist das der Punkt selbst, sonst die erreichbare leere Zelle mit dem kleinsten Manhattan-Abstand. Eine Multi-Source-BFS schreibt Distanz und Richtung in einen Hintergrundpuffer und wird erst nach Abschluss sichtbar. Pro Tick gilt ein festes Budget an Zellbesuchen. Ein neues Gebiet oder ein neues Laufziel startet den Aufbau neu. Eine geöffnete Zelle setzt einen laufenden Vollaufbau nicht zurück. Nach dem Veröffentlichen folgt höchstens eine Korrektur.
 
 Das Feld ist ein Hinweis. Bewegung und Abbau prüfen den aktuellen Weltzustand. Zellen ohne Verbindung bleiben ohne Richtung, der Arbeiter wartet.
 

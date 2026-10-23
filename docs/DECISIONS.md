@@ -295,3 +295,11 @@ Datum: 23. Oktober 2026.
 Die Abbauleistung bleibt der Bruch 5/4 je Stufe aus D-016, ohne Rundungsverlust. Zähler und Nenner liefen bisher über 32 Bit. Ab Stufe 14 wurde der Zähler falsch, ab Stufe 16 war der Nenner 0, und der Abbau blieb stehen. Große Einheiten treffen das früher, weil ihre Leistung den Zähler noch multipliziert.
 
 Die Rechnung nutzt jetzt breite Ganzzahlen. Der Restbruch steht weiter in `progress_frac`, solange er in 31 Bit passt. Darüber kommen weitere Glieder dazu. Ein älterer Speicherstand ohne diese Glieder lädt wie bisher. Die Version bleibt 2. Stufe 0 dauert 20 Takte, Stufe 1 dauert 16 Takte. Die drei Prüfungen der Räumung bleiben.
+
+### D-035 Nächstmöglicher Punkt
+
+Datum: 23. Oktober 2026.
+
+Ein Laufziel, ein Marsch und später ein Kriegerbefehl merken sich den gewünschten Punkt. Die Wegsuche läuft nicht auf diesen Punkt zu, wenn die Gruppe ihn nicht betreten kann. Sie sucht in der erreichbaren leeren Fläche die Zelle mit dem kleinsten Manhattan-Abstand und läuft dorthin. Ist der Punkt selbst erreichbar, bleibt er der Standpunkt. Mehrere Arbeiter sammeln sich dort und reihen sich davor auf. Eine feste oder abgeschnittene Zelle ist trotzdem ein gültiger Wunsch: der Schwarm geht so nah heran, wie die Fläche es erlaubt, und gräbt nur, wenn auf dem Weg abbaubares Material liegt.
+
+Abbaugebiete bleiben bei der nächsten Arbeitszelle. Ein unerreichbares Gebiet wird weiter angebaggert. Die Speicherversion bleibt 2. Die drei Prüfungen der Räumung bleiben.
