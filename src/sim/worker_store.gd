@@ -27,8 +27,11 @@ var state := PackedByteArray()
 var target := PackedInt32Array()
 ## Eigener Fels der Schwarm-Intelligenz. -1 heißt: das gemeinsame Wegfeld gilt.
 var aim := PackedInt32Array()
-## Nächster Schritt zum eigenen Fels. Wird jeden Takt neu gesetzt und nicht gespeichert.
+## Nächster Schritt zum eigenen Fels. Bleibt, solange Ziel, Standplatz und Nachbarn gleich sind.
+## Wird nicht gespeichert.
 var aim_step := PackedInt32Array()
+## Signatur der letzten Schrittsuche. Nicht im Hash und nicht im Speicherstand.
+var aim_watch := PackedInt32Array()
 ## Takte auf derselben Zelle ohne Abbau.
 var idle_ticks := PackedInt32Array()
 var idle_cell := PackedInt32Array()
@@ -203,6 +206,7 @@ func _append(anchor: int, group_id: int, faction_id: int, unit_size: int, unit_m
 	target.append(NO_TARGET)
 	aim.append(NO_TARGET)
 	aim_step.append(NO_TARGET)
+	aim_watch.append(0)
 	idle_ticks.append(0)
 	idle_cell.append(NO_TARGET)
 	last_move_tick.append(-1)
@@ -233,6 +237,7 @@ func _copy_slot(src: int, dst: int) -> void:
 	target[dst] = target[src]
 	aim[dst] = aim[src]
 	aim_step[dst] = aim_step[src]
+	aim_watch[dst] = aim_watch[src]
 	idle_ticks[dst] = idle_ticks[src]
 	idle_cell[dst] = idle_cell[src]
 	last_move_tick[dst] = last_move_tick[src]
@@ -249,6 +254,7 @@ func _shrink() -> void:
 	target.resize(count)
 	aim.resize(count)
 	aim_step.resize(count)
+	aim_watch.resize(count)
 	idle_ticks.resize(count)
 	idle_cell.resize(count)
 	last_move_tick.resize(count)

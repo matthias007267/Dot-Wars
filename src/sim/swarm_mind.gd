@@ -8,6 +8,8 @@ extends RefCounted
 
 const PATIENCE := [0, 80, 40, 20, 10]
 const BUDGET := [0, 64, 192, 768, 3072]
+## Wie oft ein eigener Weg neu gesucht wurde. Tests lesen das, die Simulation nicht.
+static var path_builds: int = 0
 
 
 static func step(sim: Simulation) -> void:
@@ -25,6 +27,7 @@ static func step(sim: Simulation) -> void:
 			if workers.aim[id] != WorkerStore.NO_TARGET:
 				workers.aim[id] = WorkerStore.NO_TARGET
 				workers.aim_step[id] = WorkerStore.NO_TARGET
+				workers.aim_watch[id] = 0
 		return
 	var claimed := {}
 	for id in workers.count:
@@ -40,6 +43,7 @@ static func step(sim: Simulation) -> void:
 		if level <= 0 or int(workers.size[id]) > 1 or sim.move_goal(int(workers.group[id])) >= 0:
 			workers.aim[id] = WorkerStore.NO_TARGET
 			workers.aim_step[id] = WorkerStore.NO_TARGET
+			workers.aim_watch[id] = 0
 			continue
 		if int(workers.state[id]) == WorkerStore.STATE_MINING and _marked(sim, id, int(workers.target[id])):
 			workers.aim[id] = int(workers.target[id])
@@ -72,7 +76,12 @@ static func step(sim: Simulation) -> void:
 			workers.aim[id] = found
 			if found >= 0:
 				claimed[_key(faction, found)] = id
-		workers.aim_step[id] = _first_step(sim, id, int(workers.aim[id]), level)
+		var aim_now := int(workers.aim[id])
+		var sig := _watch(sim, id, aim_now)
+		if sig == int(workers.aim_watch[id]) and aim_now == previous:
+			continue
+		workers.aim_watch[id] = sig
+		workers.aim_step[id] = _first_step(sim, id, aim_now, level)
 
 
 static func _levels(sim: Simulation) -> PackedInt32Array:
@@ -121,6 +130,25 @@ static func _boxed(sim: Simulation, id: int) -> bool:
 	return true
 
 
+static func _watch(sim: Simulation, id: int, aim: int) -> int:
+	var workers := sim.workers
+	var cell := int(workers.cell[id])
+	var width := sim.world.width
+	var count := sim.world.cell_count()
+	var sig := aim * 3 + cell + 1
+	var occ := workers.occupant
+	var cells := sim.world.cells
+	if cell >= width:
+		sig = sig * 11 + int(occ[cell - width]) + int(cells[cell - width]) * 17
+	if cell % width < width - 1:
+		sig = sig * 11 + int(occ[cell + 1]) + int(cells[cell + 1]) * 17
+	if cell + width < count:
+		sig = sig * 11 + int(occ[cell + width]) + int(cells[cell + width]) * 17
+	if cell % width > 0:
+		sig = sig * 11 + int(occ[cell - 1]) + int(cells[cell - 1]) * 17
+	return sig
+
+
 static func _seek(sim: Simulation, id: int, level: int, claimed: Dictionary, ban: int) -> int:
 	var workers := sim.workers
 	var faction := int(workers.faction[id])
@@ -152,6 +180,7 @@ static func _seek(sim: Simulation, id: int, level: int, claimed: Dictionary, ban
 
 
 static func _first_step(sim: Simulation, id: int, rock: int, level: int) -> int:
+	path_builds += 1
 	if rock < 0:
 		return WorkerStore.NO_TARGET
 	var workers := sim.workers

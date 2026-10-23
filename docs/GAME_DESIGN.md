@@ -55,7 +55,7 @@ Zustände bleiben wenige und klar, zum Beispiel Warten, Bewegen, Abbauen, Blocki
 * Gekaufte Arbeiter entstehen nur auf freien Tunnelzellen in der Nähe des Energiekerns.
 * Der Spieler setzt Auftrag und Zielgebiet nur für die aktuelle Auswahl. Ohne Auswahl bleibt der automatische Abbau.
 
-Die Wegfindung gilt für den Schwarm gemeinsam: Distanzfelder oder Flow-Fields, zwischengespeichert, bei Tunneländerungen gezielt aktualisiert, über mehrere Takte verteilt. Bis zu 32 geänderte Zellen korrigieren das bestehende Feld. Ein neues Gebiet, ein neues Laufziel oder eine größere Änderung berechnet es neu. Die Grenzen stehen in D-020.
+Die Wegfindung gilt für den Schwarm gemeinsam: Distanzfelder oder Flow-Fields, zwischengespeichert, bei Tunneländerungen gezielt aktualisiert, über mehrere Takte verteilt. Bis zu 32 geänderte Zellen korrigieren das bestehende Feld. Ein neues Gebiet, ein neues Laufziel oder eine größere Änderung berechnet es neu. Die automatische Arbeit sucht Fels zuerst im Umkreis von 16 Zellen und weitet die Suche nur, wenn dort nichts liegt. Die Grenzen stehen in D-020 und D-038.
 
 Ein unerreichbarer Wunschpunkt schickt den Schwarm an die nächste erreichbare Zelle. Es wird kein Weg durch Material erfunden. Ein Feld wird nur einmal abgebaut. Gleichzeitige Versuche erzeugen die Ressource nicht doppelt. Fortschritt liegt an der Zelle. Abgebaute Zellen werden begehbar.
 

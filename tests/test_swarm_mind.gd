@@ -27,6 +27,26 @@ func test_level_zero_shares_the_near_rock() -> void:
 	check_no_errors(sim.check_invariants(), "Bilanz")
 
 
+func test_a_stable_aim_keeps_its_step() -> void:
+	var sim := _lane()
+	sim.config.move_period_ticks = 100
+	sim.upgrades.swarm_level = 1
+	sim.tick_once()
+	sim.tick_once()
+	check(sim.workers.aim[0] >= 0, "der erste hat ein Ziel")
+	check(sim.workers.aim[1] >= 0, "der zweite hat ein Ziel")
+	var builds := SwarmMind.path_builds
+	var step0 := sim.workers.aim_step[0]
+	var step1 := sim.workers.aim_step[1]
+	var home := sim.workers.cell[0]
+	sim.run_ticks(3)
+	check_eq(SwarmMind.path_builds, builds, "unveränderte Nachbarn suchen den Schritt nicht neu")
+	check_eq(sim.workers.aim_step[0], step0, "der erste Schritt bleibt")
+	check_eq(sim.workers.aim_step[1], step1, "der zweite Schritt bleibt")
+	check_eq(sim.workers.cell[0], home, "er steht noch")
+	check_no_errors(sim.check_invariants(), "Bilanz")
+
+
 func test_level_one_sends_the_second_dot_to_a_free_rock() -> void:
 	var sim := _lane()
 	sim.upgrades.swarm_level = 1

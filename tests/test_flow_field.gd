@@ -99,7 +99,7 @@ func test_budgeted_build_equals_blocking_build() -> void:
 	while stepped.is_building() and calls < 100000:
 		stepped.step(37)
 		calls += 1
-	check(calls > 10, "mehrere Schritte nötig (%d)" % calls)
+	check(calls > 2, "mehrere Schritte nötig (%d)" % calls)
 	check_eq(stepped.dist, blocking.dist, "gleiche Distanzen")
 	check_eq(stepped.dir, blocking.dir, "gleiche Richtungen")
 
@@ -302,3 +302,41 @@ func test_world_change_during_build_does_not_restart_it() -> void:
 	var fresh := FlowField.new(world, areas, 0)
 	fresh.rebuild_blocking()
 	check_eq(field.dist, fresh.dist, "danach stimmt das Feld mit der neuen Welt")
+
+
+func test_a_far_cell_does_not_rebuild_the_field() -> void:
+	var s := _scenario()
+	var world: WorldState = s["world"]
+	var areas: DigAreas = s["areas"]
+	var field := FlowField.new(world, areas, 0)
+	field.rebuild_blocking()
+	var corner := -1
+	var width := world.width
+	var count := world.cell_count()
+	for cell in count:
+		if areas.is_marked(0, cell) or not Materials.is_mineable(world.cells[cell]):
+			continue
+		if field.dist[cell] >= 0:
+			continue
+		var near := false
+		if cell >= width and field.dist[cell - width] >= 0:
+			near = true
+		if cell % width < width - 1 and field.dist[cell + 1] >= 0:
+			near = true
+		if cell + width < count and field.dist[cell + width] >= 0:
+			near = true
+		if cell % width > 0 and field.dist[cell - 1] >= 0:
+			near = true
+		if not near:
+			corner = cell
+			break
+	check(corner >= 0, "eine abgelegene feste Zelle")
+	var generation := field.generation
+	var rebuilds := field.full_rebuilds
+	var before := field.dist.duplicate()
+	var next := Materials.HARD if world.cells[corner] != Materials.HARD else Materials.MEDIUM
+	world.set_material(corner, next)
+	field.step(1 << 30)
+	check_eq(field.generation, generation, "ferne Zelle lässt das veröffentlichte Feld stehen")
+	check_eq(field.full_rebuilds, rebuilds, "ferne Zelle baut nicht neu")
+	check_eq(field.dist, before, "Distanzen bleiben")

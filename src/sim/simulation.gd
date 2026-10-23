@@ -17,6 +17,7 @@ var rules := MatchRules.new()
 var purchased_workers: int = 0
 const WORKER_COST := 10
 var fields: Array[FlowField] = []
+var work_front := WorkFront.new()
 var quotas: PackedInt32Array
 var tick_count: int = 0
 ## Arbeiter zu Beginn (Basis der Massenbilanz).

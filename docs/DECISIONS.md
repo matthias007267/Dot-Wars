@@ -327,3 +327,17 @@ Stufe 0 ist der Start. Die Gruppe teilt sich ein Wegfeld. Die Dots laufen zum se
 Jede gekaufte Stufe gibt jedem Dot ein eigenes Ziel: den nächsten markierten Fels, den noch kein Arbeiter derselben Fraktion hat. Der Weg dorthin ist sein eigener. Stufe 1 sucht 64 Zellen weit und wechselt nach 80 Takten auf derselben Zelle ohne Abbau. Stufe 2 sucht 192 Zellen und wartet 40 Takte, Stufe 3 sucht 768 und wartet 20, Stufe 4 sucht 3072 und wartet 10. Die Kosten sind vorläufig 40, 80, 120 und 160 Energie. Danach ist die Stufe voll.
 
 Stehen auf allen Nachbarzellen eigene Arbeiter, beginnt diese neue Suche nicht. Sie wartet, bis eine Nachbarzelle frei ist. Ein Laufziel, ein Marsch und die Ziele der KI bleiben beim gemeinsamen Wegfeld. Große Einheiten ebenfalls. Speicherstände bleiben Version 2. Fehlt `swarm_level`, gilt Stufe 0. Die drei Prüfungen der Räumung bleiben.
+
+### D-038 Reichweite der Zielsuche
+
+Datum: 23. Oktober 2026.
+
+Die Flächenliste einer Welt enthält nur abbaubare Zellen mit einer leeren Nachbarzelle. Sie ändert sich, wenn eine Zelle das Material wechselt, nicht bei jedem Abbaufortschritt.
+
+Die automatische Front markiert höchstens 32 dieser Flächen, und zuerst nur solche, die höchstens 16 orthogonale Schritte von einem Arbeiter der Gruppe entfernt sind. Ist der Umkreis leer, bleibt das Ergebnis liegen. Der nächste Versuch sucht 32, dann 64, dann die ganze erreichbare Höhle, jeweils einmal. Bewegt sich ein Arbeiter um mindestens 8 Zellen oder öffnet sich in dem durchsuchten Bereich eine Zelle, beginnt die Suche wieder bei 16. Ein gesetztes Gebiet, das noch nicht erreichbar ist, wird weiter angebaggert.
+
+Die Samen des Wegfelds sind diese Flächen, nicht jede Zelle des Rechtecks. Eine Materialänderung außerhalb von 16 Zellen um die Arbeiter, ohne Markierung der Gruppe und ohne Anschluss an das veröffentlichte Feld, lässt die Richtungen dieser Gruppe stehen. Ein neues Gebiet, ein neues Laufziel und der Kernausbau rechnen das Feld der betroffenen Gruppe weiter neu.
+
+Ab Intelligenz-Stufe 1 merkt sich ein Dot den nächsten Schritt, solange dasselbe Ziel gilt, er stehen bleibt und sich auf den Nachbarzellen weder Material noch Belegung ändert. Eine neue Suche gibt es, wenn die Geduld abläuft, das Ziel wegfällt oder der Schritt blockiert ist. Eingekreist wartet er wie bisher.
+
+Speicherstände bleiben Version 2. Die drei Prüfungen der Räumung bleiben. Abbaugeschwindigkeit, Auswahlbefehle und der nächstmögliche Standpunkt eines Marsches bleiben.
