@@ -195,6 +195,8 @@ func _upload() -> void:
 ## Der Lichtakzent wird nur beim Zeichnen berechnet; kein Pixel/Node je Zelle.
 ## Bei kleinen Zoomstufen bleibt das Energiekern ein einzelner farbiger Dot.
 func _draw_pit_glow() -> void:
+	if not marker_cores.is_empty():
+		return
 	if camera == null or camera.zoom.x < PIT_GLOW_MIN_ZOOM:
 		return
 	var point := WorldGenerator.sacrifice_cell(world)
@@ -251,6 +253,8 @@ func _visible_world() -> Rect2:
 
 
 func _pit_index() -> int:
+	if not marker_cores.is_empty():
+		return -1
 	var pit := WorldGenerator.sacrifice_cell(world)
 	return world.index(pit.x, pit.y)
 

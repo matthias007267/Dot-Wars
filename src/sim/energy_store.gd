@@ -28,6 +28,15 @@ var _exit_stamp := 0
 var _last_rebuild_tick := -1000
 
 
+func pending_owned(faction: int) -> int:
+	ensure_tracks()
+	var total := 0
+	for index in cells.size():
+		if int(owner[index]) == faction:
+			total += 1
+	return total
+
+
 func pending() -> int:
 	return cells.size()
 

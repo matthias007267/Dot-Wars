@@ -257,3 +257,20 @@ Das Startmenü fragt zuerst Einzelspieler oder Mehrspieler. Danach stehen nur di
 Die Schwierigkeit ändert den Plan. Leicht gräbt ein Feld von 9×9 um die eigene Basis, setzt kein Laufziel und kauft einen Arbeiter nur unter drei, ab 30 Energie und nur alle 40 Takte. Mittel bleibt der Plan aus D-030: die ganze Karte, unter vier Arbeitern ein Kauf, sonst Forschung, sonst Arbeiter bis acht. Schwer gräbt einen Korridor von der Basis zum Ziel, um zwei Zellen erweitert. Das Ziel ist der nächste lebende gegnerische Kern, sonst die nächste fremde Reliquie, sonst der Hügel, sonst die ganze Karte. Schwer kauft ab vier Arbeitern Forschung, sonst Arbeiter bis sechs, sonst zweimal Abbau, sonst einmal Tempo, sonst Arbeiter bis zehn. Ein Laufziel setzt sie nur auf eine freie Angriffszelle, den Hügel oder eine Reliquie. Gemischt gibt bei zwei KI Leicht und Schwer, bei drei KI Leicht, Mittel und Schwer.
 
 Der Standard ist Mittel, damit bestehende Partien gleich bleiben. Die Stufe liegt in der Konfiguration und je KI im Match. Fehlt sie in einem Stand der Version 2, gilt Mittel. Die Speicherversion bleibt 2.
+
+
+### D-032 Basis, Abbau, Wegfeld und Pausenmenü
+
+Datum: 23. Oktober 2026.
+
+Mehrspieler legt den alten Mittelkern nicht mehr an. `WorldGenerator.generate` lässt im Match das Mittelkreuz, den Starttunnel und das unzerstörbare Feld aus. Hügel und die fünf Reliquien werden einzeln geöffnet. Die Basen bleiben auf dem Ring, jede mit demselben Kreuz und einem unzerstörbaren Kern. Einzelspieler erzeugt die Welt unverändert, gleiche Seeds bleiben gleich. Der magenta Kern wird im Match nicht gezeichnet.
+
+Die eigene Basis bekommt einen gelben Rahmen. Jede Fraktion trägt „Du“ oder „KI“ auf einer dunklen Platte über dem Kern, in ihrer Farbe und in fester Bildschirmgröße. Die Kamera startet auf dem eigenen Kern. Ein Abbaugebiet über die ganze Karte wird nicht eingerahmt, damit Mittel die Ansicht nicht zudeckt.
+
+Ein Abbauauftrag prüft, ob markiertes Material an die freie Fläche der Gruppe grenzt. Fehlt die Verbindung, steht der Hinweis „Das Gebiet ist nicht erreichbar. Der Schwarm gräbt sich dorthin.“ und die Gruppe markiert den kürzesten Weg aus leeren und abbaubaren Zellen. Ist kein Auftrag da, oder ist im Auftrag nichts mehr abbaubar, markiert sie die nächste Ressource. Ein Laufziel unterdrückt das. So bleiben Hügel, Reliquie und eine gehaltene Nische stehen, solange der Sammelpunkt dort liegt.
+
+Eine laufende vollständige Wegsuche setzt eine geöffnete Zelle nicht zurück. Sie liest die aktuelle Welt. Ein neues Gebiet oder ein neues Laufziel startet sie weiter neu. Nach dem Veröffentlichen folgt höchstens eine Korrektur, wenn die Welt sich während des Aufbaus geändert hat.
+
+Im Mehrspieler zeigt die Statuskarte die eigene Masse und die eigenen Energie-Dots unterwegs. Die gegnerische Masse steht in einer eigenen Zeile. Der weltweite Abbauanteil bleibt, weil die Räumung ihn braucht. Abbaurahmen und Sammelpunkte tragen die Farbe der Fraktion.
+
+Escape öffnet das Pausenmenü: Weiter, Speichern, Laden, Neu starten, Lautstärke und Beenden. Die untere Leiste behält Abbau, Bewegen, Arbeiter, Größe, Fähigkeiten und die Spielgeschwindigkeit. Neu starten verwendet dieselbe Konfiguration. Beenden kehrt ins Startmenü zurück. Die Speicherversion bleibt 2. Die drei Prüfungen der Räumung bleiben.

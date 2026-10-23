@@ -23,8 +23,10 @@ static func generate(config: SimConfig) -> WorldState:
 		elif value < thresholds[1]:
 			material = Materials.MEDIUM
 		world.cells[idx] = material
-	carve_start_tunnel(world, config.tunnel_arm_length)
-	_place_unbreakable(world, config.tunnel_arm_length)
+	# Mehrspieler hat Basen auf dem Ring. Der alte Mittelkreuz-Tunnel und das Opferloch bleiben Einzelspieler.
+	if config.mode != SimConfig.MODE_MATCH:
+		carve_start_tunnel(world, config.tunnel_arm_length)
+		_place_unbreakable(world, config.tunnel_arm_length)
 	return world
 
 

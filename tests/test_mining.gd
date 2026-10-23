@@ -78,10 +78,15 @@ func test_workers_cooperate_on_one_cell() -> void:
 func test_only_marked_cells_are_mined() -> void:
 	var sim := TestHelpers.sim_from_ascii(["#w#", "###"], _config())
 	sim.assign_area(0, Rect2i(2, 0, 1, 1))
-	sim.run_ticks(200)
-	check_eq(sim.world.cells[sim.world.index(0, 0)], Materials.SOFT, "unmarkierte Zelle bleibt")
+	var ticks := 0
+	while sim.world.mined_count == 0 and ticks < 80:
+		sim.tick_once()
+		ticks += 1
+	check_eq(sim.world.cells[sim.world.index(0, 0)], Materials.SOFT, "unmarkierte Zelle bleibt, solange der Auftrag steht")
 	check_eq(sim.world.cells[sim.world.index(2, 0)], Materials.EMPTY, "markierte Zelle abgebaut")
 	check_eq(sim.world.cells[sim.world.index(1, 1)], Materials.SOFT, "Zelle unter dem Arbeiter bleibt")
+	sim.run_ticks(80)
+	check(sim.world.mined_count > 1, "danach kommt die nächste Ressource dran")
 
 
 func test_no_diagonal_mining() -> void:
@@ -100,6 +105,6 @@ func test_indestructible_cell_is_never_mined() -> void:
 	sim.assign_area(0, Rect2i(1, 1, 1, 1))
 	sim.run_ticks(40)
 	check_eq(sim.world.cells[idx], Materials.INDESTRUCTIBLE, "bleibt stehen")
-	check_eq(sim.world.mined_count, 0, "kein Abbau")
+	check_eq(sim.world.cells[sim.world.index(1, 0)], Materials.EMPTY, "die nächste Ressource wird trotzdem abgebaut")
 	check_eq(sim.workers.count, 1, "kein neuer Arbeiter")
 	check(not sim.world.mine_cell(idx), "direkter Abbau scheitert")

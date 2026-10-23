@@ -81,8 +81,8 @@ func install(sim: Simulation) -> bool:
 		if core < 0:
 			return false
 		cores[faction] = core
-	hill_cell = sim.world.index(sim.world.width / 2, sim.world.height / 2)
-	if not _place_relics(sim.world):
+	hill_cell = _open_objective(sim.world, sim.world.width / 2, sim.world.height / 2)
+	if hill_cell < 0 or not _place_relics(sim.world):
 		return false
 	group_faction.resize(sim.quotas.size())
 	group_faction.fill(0)
@@ -586,11 +586,24 @@ func _place_relics(world: WorldState) -> bool:
 		var spot := spots[index]
 		if not world.in_bounds(spot.x, spot.y):
 			return false
-		var idx := world.index(spot.x, spot.y)
-		if world.cells[idx] != Materials.EMPTY or idx == hill_cell:
+		var idx := _open_objective(world, spot.x, spot.y)
+		if idx < 0 or idx == hill_cell:
 			return false
 		relic_cell[index] = idx
 	return true
+
+
+func _open_objective(world: WorldState, x: int, y: int) -> int:
+	if not world.in_bounds(x, y):
+		return -1
+	var idx := world.index(x, y)
+	if world.cells[idx] == Materials.INDESTRUCTIBLE:
+		return -1
+	if world.cells[idx] != Materials.EMPTY:
+		world.open_without_mining(idx)
+	if world.cells[idx] != Materials.EMPTY:
+		return -1
+	return idx
 
 
 func _carve_base(world: WorldState, origin: Vector2i, arm: int) -> int:

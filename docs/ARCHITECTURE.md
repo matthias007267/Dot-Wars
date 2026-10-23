@@ -62,7 +62,7 @@ Ein Basis-Arbeiter hat Zelle, Gruppe, Fraktion, Zustand, Ziel und den Tick der l
 
 ## Takt
 
-`Simulation.tick_once` macht in dieser Reihenfolge: Zielsuche, Bewegung, Abbau, Entstehung, Verschmelzung, Nachwuchs der Quellen, Veredelung, Energietransport, im Mehrspieler danach KI, Kernschaden, Reliquien und Hügel, danach die Siegprüfung des gewählten Modus. Die KI folgt dabei ihrer Schwierigkeit: Leicht bleibt an der Basis, Mittel gräbt die Karte, Schwer gräbt einen Korridor zum Ziel. Innerhalb eines Systems gilt aufsteigende ID. Das ist die Konfliktauflösung und hält den Takt deterministisch.
+`Simulation.tick_once` macht in dieser Reihenfolge: Abbauhilfe, Zielsuche, Bewegung, Abbau, Entstehung, Verschmelzung, Nachwuchs der Quellen, Veredelung, Energietransport, im Mehrspieler danach KI, Kernschaden, Reliquien und Hügel, danach die Siegprüfung des gewählten Modus. Die Abbauhilfe ergänzt einen Pfad oder die nächste Ressource, sobald das veröffentlichte Wegfeld fertig ist und kein Arbeiter es erreicht. Die KI folgt dabei ihrer Schwierigkeit: Leicht bleibt an der Basis, Mittel gräbt die Karte, Schwer gräbt einen Korridor zum Ziel. Innerhalb eines Systems gilt aufsteigende ID. Das ist die Konfliktauflösung und hält den Takt deterministisch.
 
 `TickClock` wandelt Frame-Zeit in Takte um, 50 ms pro Takt, höchstens fünf Takte pro Frame. In der Pause vergeht keine Simulationszeit.
 
@@ -72,7 +72,7 @@ Haltbarkeit = Härte × `work_per_hardness`. Der Standard von `work_per_hardness
 
 ## Zielsuche
 
-Pro Gruppe gibt es ein Flow-Field. Quellen sind leere Zellen neben festem, markiertem Material und, wenn gesetzt, eine leere Laufzielzelle. Eine Multi-Source-BFS schreibt Distanz und Richtung in einen Hintergrundpuffer und wird erst nach Abschluss sichtbar. Pro Tick gilt ein festes Budget an Zellbesuchen. Ein neues Laufziel startet den Aufbau neu.
+Pro Gruppe gibt es ein Flow-Field. Quellen sind leere Zellen neben festem, markiertem Material und, wenn gesetzt, eine leere Laufzielzelle. Eine Multi-Source-BFS schreibt Distanz und Richtung in einen Hintergrundpuffer und wird erst nach Abschluss sichtbar. Pro Tick gilt ein festes Budget an Zellbesuchen. Ein neues Gebiet oder ein neues Laufziel startet den Aufbau neu. Eine geöffnete Zelle setzt einen laufenden Vollaufbau nicht zurück. Nach dem Veröffentlichen folgt höchstens eine Korrektur.
 
 Das Feld ist ein Hinweis. Bewegung und Abbau prüfen den aktuellen Weltzustand. Zellen ohne Verbindung bleiben ohne Richtung, der Arbeiter wartet.
 

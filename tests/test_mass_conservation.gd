@@ -57,4 +57,4 @@ func test_stats_report_waiting_and_fraction() -> void:
 	check_eq(stats["workers"], 1, "ein Arbeiter")
 	check_eq(stats["mined_fraction"], 0.0, "nichts abgebaut")
 	sim.run_ticks(5)
-	check_eq(sim.stats()["group_waiting"][0], 1, "wartet ohne Gebiet")
+	check(sim.areas.rects[0].size() > 0, "ohne Auftrag wird die nächste Ressource markiert")

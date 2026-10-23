@@ -59,7 +59,7 @@ func test_many_workers_on_a_shared_wall_conserve_mass() -> void:
 	for tick in 400:
 		sim.tick_once()
 		check_eq(sim.total_mass(), sim.expected_mass(), "Massenbilanz in Tick %d" % tick)
-	check_eq(sim.world.mined_count, 18, "alle 18 Randzellen genau einmal abgebaut")
+	check_eq(sim.world.mined_count, 24, "markierte Zellen und danach die restliche Wand, jede genau einmal")
 	check_eq(sim.workers.count, 9, "Abbau vermehrt Arbeiter nicht")
-	check_eq(sim.energy_dots.generated, 18, "18 Energie-Dots erzeugt")
+	check_eq(sim.energy_dots.generated, 24, "24 Energie-Dots erzeugt")
 	check_no_errors(sim.check_invariants(), "Invarianten")

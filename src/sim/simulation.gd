@@ -77,8 +77,12 @@ static func from_world(
 	return sim
 
 
+var approach_text := ""
+
+
 func tick_once() -> void:
 	var t0 := Time.get_ticks_usec()
+	_guide_digging()
 	for g in fields.size():
 		fields[g].step(config.field_budget_per_tick)
 	var t1 := Time.get_ticks_usec()
@@ -149,6 +153,20 @@ func run_ticks(count: int) -> void:
 		tick_once()
 
 
+func _guide_digging() -> void:
+	var note := ""
+	for group_id in fields.size():
+		if not _group_is_open(group_id):
+			continue
+		var kind := DigGuidance.consider(self, group_id)
+		if kind != DigGuidance.TOWARD:
+			continue
+		var human := rules.group_faction.is_empty() or group_id >= rules.group_faction.size() or rules.group_faction[group_id] == 0
+		if human:
+			note = "Das Gebiet ist nicht erreichbar. Der Schwarm gräbt sich dorthin."
+	approach_text = note
+
+
 ## Weist einer Gruppe ein Abbaugebiet zu (Weltzellkoordinaten). Gibt false zurück, wenn nichts zugewiesen wurde.
 func assign_area(group_id: int, rect: Rect2i) -> bool:
 	return areas.assign_rect(group_id, rect)
@@ -194,6 +212,25 @@ func set_quotas(new_quotas: PackedInt32Array) -> bool:
 ## Gesamtmasse: lebende Arbeiter plus noch nicht platzierte Entstehungen.
 func total_mass() -> int:
 	return workers.mass_sum() + spawner.pending()
+
+
+## Masse einer Fraktion. Wartende Käufe des Spielers zählen zu Fraktion 0.
+func faction_mass(faction: int) -> int:
+	var total := 0
+	for id in workers.count:
+		if int(workers.faction[id]) == faction:
+			total += int(workers.mass[id])
+	if faction == 0:
+		total += spawner.pending()
+	return total
+
+
+func opponent_mass() -> int:
+	var total := 0
+	for id in workers.count:
+		if int(workers.faction[id]) != 0:
+			total += int(workers.mass[id])
+	return total
 
 
 func expected_mass() -> int:

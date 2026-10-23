@@ -55,6 +55,25 @@ func _boot(config: SimConfig) -> void:
 	_attach(created)
 
 
+func _restart() -> void:
+	if sim == null:
+		return
+	var config := sim.config
+	clock.paused = false
+	_boot(config)
+
+
+func _leave() -> void:
+	clock.paused = false
+	_clear_playfield()
+	sim = null
+	world = null
+	_menu = MainMenu.new()
+	_menu.start_requested.connect(_boot)
+	_menu.load_requested.connect(_boot_from_save)
+	add_child(_menu)
+
+
 func _boot_from_save(path: String) -> void:
 	var loaded := SaveGame.read_file(path)
 	if loaded == null:
@@ -108,7 +127,12 @@ func _attach(next: Simulation) -> void:
 	hud.camera = camera
 	hud.renderer = renderer
 	hud.load_requested.connect(_boot_from_save)
+	hud.restart_requested.connect(_restart)
+	hud.leave_requested.connect(_leave)
 	add_child(hud)
+	if sim.rules.cores.size() > 0:
+		var core := sim.rules.cores[0]
+		camera.position = Vector2(core % world.width, core / world.width)
 	workers_view.show_tick(sim.tick_count)
 	_prepare_tone()
 
@@ -145,8 +169,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.keycode == KEY_C and renderer != null:
 		renderer.show_chunks = not renderer.show_chunks
 		renderer.queue_redraw()
+	elif event.keycode == KEY_ESCAPE and hud != null:
+		hud.toggle_pause_menu()
 	elif event.keycode == KEY_SPACE:
-		clock.paused = not clock.paused
+		if hud != null and hud.menu_open():
+			hud.toggle_pause_menu()
+		else:
+			clock.paused = not clock.paused
 	elif event.keycode == KEY_F11:
 		_toggle_fullscreen()
 	elif event.keycode == KEY_F5:

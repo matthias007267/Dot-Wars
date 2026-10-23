@@ -12,24 +12,64 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	if sim == null:
 		return
-	var areas := {}
-	var goals := {}
+	var width := sim.world.width
+	var height := sim.world.height
 	for group_id in sim.group_open.size():
 		if sim.group_open[group_id] == 0:
 			continue
-		var sacrificing := sim.sacrifice_on[group_id] == 1
-		if not sacrificing:
+		var faction := _faction_of(group_id)
+		var color := _faction_color(faction)
+		if sim.sacrifice_on[group_id] == 0:
 			var rects: Array[Rect2i] = sim.areas.rects[group_id]
 			for rect in rects:
-				areas[rect] = true
+				if rect.size.x >= width and rect.size.y >= height:
+					continue
+				var outline := color
+				outline.a = 0.95 if faction == 0 else 0.8
+				draw_rect(Rect2(rect.position, rect.size), outline, false, 0.16 if faction == 0 else 0.1)
 		var goal := sim.move_goal(group_id)
 		if goal >= 0:
-			goals[goal] = sim.group_colors[group_id] if sacrificing else UiTheme.ACCENT
-	var outline := Color(UiTheme.ACCENT.r, UiTheme.ACCENT.g, UiTheme.ACCENT.b, 0.95)
-	for rect in areas:
-		draw_rect(Rect2(rect.position, rect.size), outline, false, 2.0)
-	var width := sim.world.width
-	for cell in goals:
-		var tint: Color = goals[cell]
-		tint.a = 0.72
-		draw_rect(Rect2(cell % width, cell / width, 1, 1), tint, true)
+			var tint := color
+			tint.a = 0.72
+			draw_rect(Rect2(goal % width, goal / width, 1, 1), tint, true)
+	_draw_bases(width)
+
+
+func _faction_of(group_id: int) -> int:
+	if sim.rules.group_faction.size() <= group_id:
+		return 0
+	return int(sim.rules.group_faction[group_id])
+
+
+func _faction_color(faction: int) -> Color:
+	if faction > 0 and faction < MatchRules.FACTION_COLORS.size():
+		return MatchRules.FACTION_COLORS[faction]
+	return UiTheme.ACCENT
+
+
+func _draw_bases(width: int) -> void:
+	if sim.config.mode != SimConfig.MODE_MATCH or sim.rules.cores.is_empty():
+		return
+	var font := ThemeDB.fallback_font
+	if font == null:
+		return
+	var zoom := get_canvas_transform().get_scale().x
+	if zoom < 0.05:
+		zoom = 1.0
+	var screen_size := 18
+	for faction in sim.rules.faction_count:
+		var core := sim.rules.cores[faction]
+		var x := float(core % width)
+		var y := float(core / width)
+		var color := _faction_color(faction)
+		if faction == 0:
+			draw_rect(Rect2(x - 2, y - 2, 5, 5), Color(color.r, color.g, color.b, 0.95), false, 0.22)
+		var name := "Du" if faction == 0 else "KI %d" % faction
+		var text_px := font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, screen_size)
+		var plate := Rect2(x - (text_px.x + 16.0) / zoom * 0.5, y - 2.5 - (screen_size + 10.0) / zoom, (text_px.x + 16.0) / zoom, (screen_size + 10.0) / zoom)
+		draw_rect(plate, Color(0.05, 0.06, 0.08, 0.92), true)
+		draw_rect(Rect2(plate.position.x, plate.position.y, 4.0 / zoom, plate.size.y), color, true)
+		var baseline := Vector2(plate.position.x + 8.0 / zoom, plate.position.y + (screen_size + 1.0) / zoom)
+		draw_set_transform(baseline, 0.0, Vector2.ONE / zoom)
+		draw_string(font, Vector2.ZERO, name, HORIZONTAL_ALIGNMENT_LEFT, -1, screen_size, color)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

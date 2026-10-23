@@ -82,16 +82,28 @@ func is_building() -> bool:
 	return _phase != Phase.IDLE
 
 
+## Das veröffentlichte Feld gehört zur aktuellen Welt und zum aktuellen Gebiet.
+func settled() -> bool:
+	return (
+		_phase == Phase.IDLE
+		and generation > 0
+		and _built_area_revision == _areas.revision
+		and _built_world_revision == _world.revision
+		and _applied_epoch == _world.change_epoch
+	)
+
+
 ## Führt höchstens `budget` Zellbesuche aus und startet bei veralteten Daten einen neuen Aufbau.
 func step(budget: int) -> void:
 	var goal_changed := goal_cell != _built_goal
 	var area_changed := _areas.revision != _built_area_revision
 	var world_changed := _world.revision != _built_world_revision or _world.change_epoch != _applied_epoch
 	if _phase != Phase.IDLE and (area_changed or goal_changed or world_changed):
-		if _phase == Phase.PATCH and world_changed and not area_changed and not goal_changed:
-			_restart_patch_from_published()
-		else:
+		if area_changed or goal_changed:
 			_begin()
+		elif _phase == Phase.PATCH:
+			_restart_patch_from_published()
+		# Ein laufender Vollaufbau liest die Welt mit. Eine geöffnete Zelle setzt ihn nicht zurück.
 	elif _phase == Phase.IDLE:
 		if not area_changed and not goal_changed and not world_changed:
 			return

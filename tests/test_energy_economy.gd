@@ -65,6 +65,8 @@ func test_narrow_tunnel_delivers_every_dot_after_the_worker_steps_aside() -> voi
 	check_eq(sim.workers.cell[0], worker_cell, "Energie verschiebt den Arbeiter nicht")
 	check_eq(sim.energy_dots.pending(), count, "die Dots warten vollständig")
 	sim.workers.move_to(0, pocket, sim.tick_count)
+	sim.clear_area(0)
+	check(sim.set_move_goal(0, pocket), "Laufziel hält die Nische")
 	sim.run_ticks(96)
 	check_eq(sim.energy_dots.delivered, count, "danach kommt jede Einheit an")
 	check_eq(sim.energy_dots.pending(), 0, "nichts bleibt im Gang")
@@ -138,6 +140,13 @@ func test_core_upgrade_clears_the_gate_and_grows() -> void:
 		if spare.is_empty():
 			return
 		sim.workers.move_to(spare.pop_back(), gate, 0)
+	for gate_index in gates.size():
+		var gate_cell: int = gates[gate_index]
+		var group_id := mini(gate_index, sim.quotas.size() - 1)
+		for id in sim.workers.count:
+			if sim.workers.cell[id] == gate_cell and group_id > 0:
+				sim.workers.reassign_group(id, group_id)
+		sim.set_move_goal(group_id, gate_cell)
 	var source := sim.world.index(pit.x - 3, pit.y - 1)
 	var count := 6
 	sim.energy_dots.enqueue(source, count)

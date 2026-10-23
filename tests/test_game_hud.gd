@@ -78,3 +78,57 @@ func test_status_card_shows_the_core_stage() -> void:
 	check_eq(hud._kern_bar.value, 1.0, "Balken zeigt die Stufe")
 	layer.free()
 	hud.free()
+
+
+func test_escape_menu_holds_save_and_the_dock_does_not() -> void:
+	var hud := _new_hud()
+	var layer := Control.new()
+	hud._build_stats(layer)
+	hud._build_dock(layer)
+	hud._build_pause_menu(layer)
+	var dock := _texts(hud._mine_button.get_parent())
+	check(dock.has("ABBAU"), "Abbau bleibt in der Leiste")
+	check(not dock.has("SPEICHERN"), "Speichern ist nicht in der Leiste")
+	check(not dock.has("PAUSE"), "Pause ist nicht in der Leiste")
+	check(not hud.menu_open(), "das Menü ist zu")
+	hud.toggle_pause_menu()
+	check(hud.menu_open(), "Escape öffnet das Menü")
+	check(hud.clock.paused, "das Spiel steht")
+	var menu := _texts(hud._pause_layer)
+	check(menu.has("SPEICHERN"), "Speichern")
+	check(menu.has("LADEN"), "Laden")
+	check(menu.has("NEU STARTEN"), "Neustart")
+	check(menu.has("BEENDEN"), "Beenden")
+	hud.toggle_pause_menu()
+	check(not hud.menu_open(), "Weiter schließt das Menü")
+	check(not hud.clock.paused, "das Spiel läuft")
+	layer.free()
+	hud.free()
+
+
+func test_unreachable_dig_order_is_announced() -> void:
+	var config := TestHelpers.default_config()
+	config.move_period_ticks = 1
+	var sim := TestHelpers.sim_from_ascii([
+		"..#########",
+		"w.#########",
+		"..#########",
+		"..#########",
+	], config)
+	var hud := GameHud.new()
+	hud.sim = sim
+	var layer := Control.new()
+	hud._build_stats(layer)
+	check(hud.issue_dig_area(Rect2i(5, 1, 3, 2)), "Auftrag")
+	check(hud._message.text.contains("nicht erreichbar"), "Hinweis auf den Weg")
+	layer.free()
+	hud.free()
+
+
+func _texts(node: Node) -> PackedStringArray:
+	var found := PackedStringArray()
+	if node is Button:
+		found.append((node as Button).text)
+	for child in node.get_children():
+		found.append_array(_texts(child))
+	return found

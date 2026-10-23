@@ -4,6 +4,8 @@ extends CanvasLayer
 ## Der Spieler steuert den Schwarm über gemeinsame Befehle und eine Aktionsleiste.
 
 signal load_requested(path: String)
+signal restart_requested
+signal leave_requested
 
 enum Command { MINE, MOVE, BUILD }
 
@@ -40,6 +42,10 @@ var _report: PanelContainer
 var _report_labels: Array[Label] = []
 
 var _message: Label
+var _approach: Label
+var _opponent_value: Label
+var _pause_layer: Control
+var _volume: HSlider
 var _mine_button: Button
 var _move_button: Button
 var _buy_worker_button: Button
@@ -75,6 +81,7 @@ func _ready() -> void:
 	_build_goals(layer)
 	_build_dock(layer)
 	_build_upgrade_panel(layer)
+	_build_pause_menu(layer)
 	_build_minimap(layer)
 	refresh()
 
@@ -96,7 +103,7 @@ func issue_dig_area(rect: Rect2i) -> bool:
 		issued = sim.assign_area(group_id, clipped) or issued
 	if issued:
 		_last_mine_area = clipped
-		_notice("Abbaugebiet gesetzt.")
+		_notice(_dig_notice(clipped))
 	else:
 		_notice("Kein aktiver Schwarm für den Abbau.")
 	return issued
@@ -159,13 +166,20 @@ func set_size_all(unit_size: int) -> bool:
 func refresh() -> void:
 	if sim == null or _mass_value == null:
 		return
-	var mass := sim.total_mass()
+	var mass := sim.faction_mass(0) if _match_live() else sim.total_mass()
 	var energy := sim.upgrades.energy
 	var mined := sim.world.mined_fraction()
 	var percent := clampi(int(round(mined * 100.0)), 0, 100)
+	var transit := sim.energy_dots.pending_owned(0) if _match_live() else sim.energy_dots.pending()
 
 	_mass_value.text = str(mass)
-	_energy_value.text = "%d (+%d)" % [energy, sim.energy_dots.pending()]
+	_energy_value.text = "%d (+%d)" % [energy, transit]
+	if _opponent_value != null:
+		_opponent_value.visible = _match_live()
+		_opponent_value.text = "Gegner  %d" % sim.opponent_mass()
+	if _approach != null:
+		_approach.text = sim.approach_text
+		_approach.visible = not sim.approach_text.is_empty()
 	_mined_value.text = "%d %%" % percent
 	_kern_value.text = "Stufe %d" % sim.upgrades.core_level
 	_mass_bar.value = minf(100.0, float(mass))
@@ -181,7 +195,8 @@ func refresh() -> void:
 			var lines := sim.victory_lines()
 			for index in mini(lines.size(), _report_labels.size()):
 				_report_labels[index].text = lines[index]
-	_pause_button.text = "WEITER" if clock.paused else "PAUSE"
+	if _pause_button != null:
+		_pause_button.text = "WEITER" if clock.paused else "PAUSE"
 	_speed_button.text = "%d×" % clock.speed
 	_buy_worker_button.disabled = sim.upgrades.energy < Simulation.WORKER_COST
 
@@ -215,6 +230,11 @@ func _build_stats(layer: Control) -> void:
 
 	_message = _label(content, _opening_hint(), 12, UiTheme.MUTED)
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_approach = _label(content, "", 12, UiTheme.ACCENT)
+	_approach.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_approach.visible = false
+	_opponent_value = _label(content, "", 12, Color8(0xFF, 0x7A, 0x59))
+	_opponent_value.visible = false
 
 
 func _build_goals(layer: Control) -> void:
@@ -289,14 +309,8 @@ func _build_dock(layer: Control) -> void:
 	_divider(buttons)
 	var upgrades := _button(buttons, "FÄHIGKEITEN", _toggle_upgrades)
 	upgrades.tooltip_text = "Fähigkeiten kaufen. Weitere Zweige bleiben in diesem Fenster."
-	_pause_button = _button(buttons, "PAUSE", _pause_game)
-	_pause_button.tooltip_text = "Leertaste pausiert ebenfalls."
 	_speed_button = _button(buttons, "1×", _cycle_speed)
-	_speed_button.tooltip_text = "Wechselt zwischen 1×, 2× und 4×."
-	var save := _button(buttons, "SPEICHERN", _save_game)
-	save.tooltip_text = "Alternativ F5."
-	var load := _button(buttons, "LADEN", _load_game)
-	load.tooltip_text = "Lädt user://slot.dw. Alternativ F9."
+	_speed_button.tooltip_text = "Wechselt zwischen 1×, 2× und 4×. Escape öffnet das Menü."
 
 
 func _build_upgrade_panel(layer: Control) -> void:
@@ -859,6 +873,99 @@ func _refresh_swarm() -> void:
 		var group_id := _swarm_ids[index]
 		var mass := sim.workers.group_mass[group_id]
 		_swarm_labels[index].text = str(mass)
+
+
+func menu_open() -> bool:
+	return _pause_layer != null and _pause_layer.visible
+
+
+func toggle_pause_menu() -> void:
+	if menu_open():
+		_close_pause_menu()
+	else:
+		_open_pause_menu()
+
+
+func _match_live() -> bool:
+	return sim != null and sim.config.mode == SimConfig.MODE_MATCH and sim.rules.faction_count > 1
+
+
+func _dig_notice(rect: Rect2i) -> String:
+	var empty := false
+	for group_id in sim.group_open.size():
+		if not _available_for_work(group_id):
+			continue
+		var kind := DigGuidance.preview(sim, group_id, rect)
+		if kind == DigGuidance.TOWARD:
+			return "Das Gebiet ist nicht erreichbar. Der Schwarm gräbt sich dorthin."
+		if kind == DigGuidance.EMPTY:
+			empty = true
+	if empty:
+		return "Dort ist nichts abzubauen. Der Schwarm nimmt die nächste Ressource."
+	return "Abbaugebiet gesetzt."
+
+
+func _build_pause_menu(layer: Control) -> void:
+	_pause_layer = Control.new()
+	_pause_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pause_layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause_layer.visible = false
+	layer.add_child(_pause_layer)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.62)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause_layer.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pause_layer.add_child(center)
+	var card := _panel(center)
+	card.custom_minimum_size = Vector2(320, 0)
+	var column := _column(card, 8)
+	_label(column, "PAUSE", 22, UiTheme.ACCENT)
+	_menu_button(column, "WEITER", _close_pause_menu)
+	_menu_button(column, "SPEICHERN", _save_game)
+	_menu_button(column, "LADEN", _load_game)
+	_menu_button(column, "NEU STARTEN", func() -> void: restart_requested.emit())
+	_label(column, "LAUTSTÄRKE", 12, UiTheme.MUTED)
+	_volume = HSlider.new()
+	_volume.min_value = 0
+	_volume.max_value = 100
+	_volume.value = 80
+	_volume.custom_minimum_size = Vector2(280, 22)
+	_volume.value_changed.connect(_set_volume)
+	column.add_child(_volume)
+	_set_volume(80)
+	_menu_button(column, "BEENDEN", func() -> void: leave_requested.emit())
+
+
+func _menu_button(parent: Node, title: String, action: Callable) -> void:
+	var button := _button(parent, title, action)
+	button.custom_minimum_size = Vector2(280, 36)
+
+
+func _open_pause_menu() -> void:
+	if _pause_layer == null:
+		return
+	if _upgrade_panel != null:
+		_upgrade_panel.visible = false
+	_pause_layer.visible = true
+	if clock != null:
+		clock.paused = true
+
+
+func _close_pause_menu() -> void:
+	if _pause_layer != null:
+		_pause_layer.visible = false
+	if clock != null:
+		clock.paused = false
+
+
+func _set_volume(value: float) -> void:
+	var linear := clampf(value / 100.0, 0.0, 1.0)
+	var db := -80.0 if linear <= 0.001 else linear_to_db(linear)
+	AudioServer.set_bus_volume_db(0, db)
 
 
 func _notice(message: String) -> void:

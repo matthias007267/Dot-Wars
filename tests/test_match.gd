@@ -56,7 +56,9 @@ func test_relics_need_three_and_a_channel() -> void:
 	_park(sim)
 	sim.rules.relic_owner[0] = 0
 	sim.rules.relic_owner[1] = 0
-	sim.workers.move_to(_worker(sim, 0), sim.rules.relic_cell[2], 0)
+	var relic := sim.rules.relic_cell[2]
+	sim.workers.move_to(_worker(sim, 0), relic, 0)
+	check(sim.set_move_goal(sim.rules.group_of[0], relic), "Laufziel hält die Reliquie")
 	sim.run_ticks(99)
 	check(not sim.won, "99 Takte reichen nicht")
 	check(sim.rules.relic_owner[2] < 0, "die dritte Reliquie ist noch neutral")
@@ -71,6 +73,7 @@ func test_hill_needs_thirty_seconds_uncontested() -> void:
 	var sim := _match(MatchRules.VICTORY_HILL)
 	_park(sim)
 	sim.workers.move_to(_worker(sim, 0), sim.rules.hill_cell, 0)
+	check(sim.set_move_goal(sim.rules.group_of[0], sim.rules.hill_cell), "Laufziel hält den Hügel")
 	sim.run_ticks(599)
 	check(not sim.won, "unter 30 Sekunden kein Sieg")
 	sim.tick_once()
@@ -165,6 +168,30 @@ func test_match_save_roundtrip_keeps_owner_and_research() -> void:
 	check_eq(loaded.rules.faction_count, 2, "Fraktionen")
 	check_eq(loaded.energy_dots.owner.size(), loaded.energy_dots.cells.size(), "Besitzer")
 	check_no_errors(loaded.check_invariants(), "geladene Bilanzen")
+
+
+func test_match_world_drops_the_old_center_and_splits_mass() -> void:
+	var config := TestHelpers.default_config()
+	config.world_size = 32
+	config.initial_workers = 1
+	config.mode = SimConfig.MODE_MATCH
+	config.ai_count = 1
+	config.victory_mask = MatchRules.VICTORY_ELIMINATION
+	var sim := Simulation.create(config)
+	check(sim != null, "Mehrspielerwelt")
+	if sim == null:
+		return
+	var pit := WorldGenerator.sacrifice_cell(sim.world)
+	check(sim.world.cells[sim.world.index(pit.x, pit.y)] != Materials.INDESTRUCTIBLE, "kein zentrales Opferloch")
+	check(sim.world.cells[sim.world.index(15, 16)] != Materials.EMPTY, "der alte Starttunnel ist zu")
+	check_eq(sim.world.cells[sim.rules.hill_cell], Materials.EMPTY, "der Hügel ist offen")
+	check_eq(sim.rules.relic_cell.size(), 5, "fünf Reliquien")
+	for cell in sim.rules.relic_cell:
+		check_eq(sim.world.cells[cell], Materials.EMPTY, "Reliquie %d ist frei" % cell)
+	check_eq(sim.world.indestructible_count, 2, "nur die beiden Basiskerne")
+	check_eq(sim.faction_mass(0), 1, "eigene Masse")
+	check_eq(sim.opponent_mass(), 1, "Masse der KI")
+	check_no_errors(sim.check_invariants(), "Bilanzen")
 
 
 func test_single_player_stays_one_faction() -> void:

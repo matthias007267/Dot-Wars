@@ -278,3 +278,27 @@ func test_groups_have_independent_fields() -> void:
 	a.rebuild_blocking()
 	b.rebuild_blocking()
 	check(a.dist != b.dist, "unterschiedliche Ziele → unterschiedliche Felder")
+
+
+func test_world_change_during_build_does_not_restart_it() -> void:
+	var s := _scenario()
+	var world: WorldState = s["world"]
+	var areas: DigAreas = s["areas"]
+	var field := FlowField.new(world, areas, 0)
+	field.step(80)
+	check(field.is_building(), "Aufbau läuft")
+	var rebuilds := field.full_rebuilds
+	var solid := -1
+	for cell in world.cell_count():
+		if Materials.is_mineable(world.cells[cell]):
+			solid = cell
+			break
+	check(world.mine_cell(solid), "eine Zelle öffnet sich währenddessen")
+	field.step(40)
+	check_eq(field.full_rebuilds, rebuilds, "die Weltänderung setzt den Aufbau nicht zurück")
+	check(field.is_building(), "der Aufbau läuft weiter")
+	field.step(1 << 30)
+	field.step(1 << 30)
+	var fresh := FlowField.new(world, areas, 0)
+	fresh.rebuild_blocking()
+	check_eq(field.dist, fresh.dist, "danach stimmt das Feld mit der neuen Welt")
