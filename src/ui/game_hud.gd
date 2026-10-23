@@ -397,6 +397,7 @@ func _build_upgrade_panel(layer: Control) -> void:
 	_add_upgrade_button(content, Upgrades.KIND_ENERGY_SPEED, 0)
 	_label(content, "SCHWARM", 12, UiTheme.MUTED)
 	_add_upgrade_button(content, Upgrades.KIND_DIG, 0)
+	_add_upgrade_button(content, Upgrades.KIND_SWARM, 0)
 	_add_upgrade_button(content, Upgrades.KIND_FUSION2, 0)
 	_add_upgrade_button(content, Upgrades.KIND_FUSION3, 22)
 	_research_caption = _label(content, "FORSCHUNG", 12, UiTheme.MUTED)
@@ -596,6 +597,8 @@ func _buy(kind: int) -> void:
 			_notice("Energie bewegt sich schneller.")
 		elif kind == Upgrades.KIND_RESEARCH:
 			_notice("Forschung steigt.")
+		elif kind == Upgrades.KIND_SWARM:
+			_notice("Der Schwarm sucht sich freie Ziele.")
 		else:
 			_notice("Fähigkeit gekauft.")
 	else:
@@ -635,6 +638,13 @@ func _refresh_upgrades() -> void:
 			Upgrades.KIND_DIG:
 				cost = u.dig_cost()
 				button.text = "ABBAU   Stufe %d    •    %d Energie" % [u.dig_level + 1, cost]
+			Upgrades.KIND_SWARM:
+				cost = u.swarm_cost()
+				locked = cost < 0
+				if locked:
+					button.text = "INTELLIGENZ   Stufe %d    VOLL" % u.swarm_level
+				else:
+					button.text = "INTELLIGENZ   Stufe %d    •    %d Energie" % [u.swarm_level + 1, cost]
 			Upgrades.KIND_FUSION2:
 				cost = u.fusion2_cost()
 				locked = u.fusion2

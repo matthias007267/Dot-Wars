@@ -92,6 +92,7 @@ func tick_once() -> void:
 	_refresh_flow_anchors()
 	for g in fields.size():
 		fields[g].step(config.field_budget_per_tick)
+	SwarmMind.step(self)
 	var t1 := Time.get_ticks_usec()
 	var move_forbidden := core_mask
 	var move_periods := PackedByteArray()

@@ -31,6 +31,26 @@ static func acquire_target(workers: WorkerStore, world: WorldState, areas: DigAr
 	return true
 
 
+## Baut genau diese Nachbarzelle ab, wenn sie markiert und fest ist.
+static func claim_cell(workers: WorkerStore, world: WorldState, areas: DigAreas, id: int, cell: int) -> bool:
+	if workers.size[id] > 1 or cell < 0 or cell >= world.cell_count():
+		return false
+	var here := workers.cell[id]
+	var width := world.width
+	var east := here % width < width - 1 and cell == here + 1
+	var west := here % width > 0 and cell == here - 1
+	var north := cell == here - width
+	var south := cell == here + width
+	if not east and not west and not north and not south:
+		return false
+	var mask: PackedByteArray = areas.masks[workers.group[id]]
+	if not _can_mine(world.cells, mask, cell):
+		return false
+	workers.target[id] = cell
+	workers.state[id] = WorkerStore.STATE_MINING
+	return true
+
+
 ## Verarbeitet alle abbauenden Arbeiter in ID-Reihenfolge. Gibt die Zahl abgeschlossener Zellen zurück
 ## und trägt deren Positionen in `spawner` ein.
 static func step(

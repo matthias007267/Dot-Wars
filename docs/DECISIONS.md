@@ -315,3 +315,15 @@ Die anderen Gruppen graben weiter. Ein neues Gebiet rechnet nur das Wegfeld dies
 Ist in der Befehlsgruppe nichts Markiertes mehr übrig und läuft niemand mehr auf das Ziel zu, fallen Laufziel, Marschzelle und Gebiet weg. Dieselben Arbeiter suchen sich danach wieder selbst die nächste Arbeitsfront, höchstens 32 angrenzende Felszellen auf einmal. Steht jemand noch auf dem Weg, bleibt der Befehl. Laufziele von Hügel, Reliquie und KI bleiben davon unberührt.
 
 Gedrückt gehaltene rechte Taste verschiebt die Karte. Zusammen mit Strg markiert derselbe Zug ein Gebiet. Ein kurzer Rechtsklick schickt die Auswahl, Strg und ein kurzer Rechtsklick bleibt der spätere Kriegerbefehl. Mittlere Taste, WASD und Pfeiltasten verschieben wie bisher. Die Speicherversion bleibt 2. Die drei Prüfungen der Räumung bleiben.
+
+### D-037 Schwarm-Intelligenz
+
+Datum: 23. Oktober 2026.
+
+Die Fähigkeit Intelligenz liegt im Fähigkeiten-Fenster unter Schwarm, neben Abbau. Sie ändert nicht die Abbaugeschwindigkeit. Sie ändert, wie die Dots ihre Felsen wählen.
+
+Stufe 0 ist der Start. Die Gruppe teilt sich ein Wegfeld. Die Dots laufen zum selben nahen Fels und stellen sich dahinter an, wenn die Zelle belegt ist.
+
+Jede gekaufte Stufe gibt jedem Dot ein eigenes Ziel: den nächsten markierten Fels, den noch kein Arbeiter derselben Fraktion hat. Der Weg dorthin ist sein eigener. Stufe 1 sucht 64 Zellen weit und wechselt nach 80 Takten auf derselben Zelle ohne Abbau. Stufe 2 sucht 192 Zellen und wartet 40 Takte, Stufe 3 sucht 768 und wartet 20, Stufe 4 sucht 3072 und wartet 10. Die Kosten sind vorläufig 40, 80, 120 und 160 Energie. Danach ist die Stufe voll.
+
+Stehen auf allen Nachbarzellen eigene Arbeiter, beginnt diese neue Suche nicht. Sie wartet, bis eine Nachbarzelle frei ist. Ein Laufziel, ein Marsch und die Ziele der KI bleiben beim gemeinsamen Wegfeld. Große Einheiten ebenfalls. Speicherstände bleiben Version 2. Fehlt `swarm_level`, gilt Stufe 0. Die drei Prüfungen der Räumung bleiben.

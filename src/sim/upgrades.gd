@@ -13,6 +13,8 @@ const CORE_BASE := 40
 const CORE_MAX := 4
 const RESEARCH_BASE := 50
 const RESEARCH_MAX := 5
+const SWARM_BASE := 40
+const SWARM_MAX := 4
 ## Takte zwischen zwei Schritten. Index ist die gekaufte Stufe. 8 ist der langsame Start.
 const PACE_LADDER := [8, 6, 4, 3, 2, 1]
 
@@ -23,6 +25,7 @@ const KIND_FUSION3 := 3
 const KIND_CORE := 4
 const KIND_ENERGY_SPEED := 5
 const KIND_RESEARCH := 6
+const KIND_SWARM := 7
 
 var energy: int = 0
 var speed_level: int = 0
@@ -33,6 +36,8 @@ var fusion2: bool = false
 var fusion3: bool = false
 var core_level: int = 0
 var research_level: int = 0
+## Eigene Ziele je Dot. Stufe 0 teilt sich ein Wegfeld und blockiert sich gegenseitig.
+var swarm_level: int = 0
 var purchased: int = 0
 
 
@@ -70,6 +75,12 @@ func research_cost() -> int:
 	if research_level >= RESEARCH_MAX:
 		return -1
 	return RESEARCH_BASE * (research_level + 1)
+
+
+func swarm_cost() -> int:
+	if swarm_level >= SWARM_MAX:
+		return -1
+	return SWARM_BASE * (swarm_level + 1)
 
 
 func max_size() -> int:
@@ -133,12 +144,14 @@ func try_buy(kind: int) -> bool:
 			core_level += 1
 		KIND_RESEARCH:
 			research_level += 1
+		KIND_SWARM:
+			swarm_level += 1
 	return true
 
 
 func state_hash() -> int:
 	return hash([
-		energy, speed_level, energy_speed_level, dig_level, fusion2, fusion3, core_level, research_level, purchased,
+		energy, speed_level, energy_speed_level, dig_level, fusion2, fusion3, core_level, research_level, swarm_level, purchased,
 	])
 
 
@@ -158,4 +171,6 @@ func _cost(kind: int) -> int:
 			return core_cost()
 		KIND_RESEARCH:
 			return research_cost()
+		KIND_SWARM:
+			return swarm_cost()
 	return -1
