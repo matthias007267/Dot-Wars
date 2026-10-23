@@ -57,6 +57,8 @@ func clear_group(group_id: int) -> void:
 	if group_id < 0 or group_id >= group_count:
 		return
 	var group_rects: Array[Rect2i] = rects[group_id]
+	if group_rects.is_empty():
+		return
 	group_rects.clear()
 	var mask: PackedByteArray = masks[group_id]
 	mask.fill(0)

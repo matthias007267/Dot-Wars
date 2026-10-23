@@ -18,8 +18,9 @@ var _measured := 0
 var _measured_time := 0.0
 var _screenshot := ""
 var _screenshot_in := -1
-var _drag_from := Vector2.ZERO
-var _dragging := false
+var _press_at := Vector2.ZERO
+var _press_button := -1
+var _pressing := false
 var _last_mined := 0
 var _tone: AudioStreamPlayer
 var _autosave_tick := 0
@@ -153,13 +154,20 @@ func _clear_playfield() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if sim == null:
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+	if event is InputEventMouseMotion and _pressing:
+		_preview_drag(event.position)
+		return
+	if event is InputEventMouseButton and (event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
+		if hud != null and hud.menu_open():
+			return
 		if event.pressed:
-			_drag_from = event.position
-			_dragging = true
-		elif _dragging:
-			_dragging = false
-			_finish_drag(event.position)
+			_press_button = event.button_index
+			_press_at = event.position
+			_pressing = true
+			_preview_drag(event.position)
+		elif _pressing and event.button_index == _press_button:
+			_pressing = false
+			_finish_pointer(event)
 		return
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
@@ -207,25 +215,61 @@ func _process(delta: float) -> void:
 	_measure_frames(delta)
 
 
-func _finish_drag(screen: Vector2) -> void:
-	if hud == null:
+func _preview_drag(screen: Vector2) -> void:
+	if orders == null:
 		return
-	var start := _cell_at(_drag_from)
+	var dragged := _press_at.distance_to(screen) >= 8.0
+	orders.drag_active = dragged
+	orders.drag_conquer = _press_button == MOUSE_BUTTON_RIGHT
+	if not dragged:
+		return
+	var start := _cell_at(_press_at)
 	var end := _cell_at(screen)
 	if start.x < 0 or end.x < 0:
-		return
-	if hud.command_mode == GameHud.Command.BUILD:
-		if _drag_from.distance_to(screen) < 8.0:
-			hud.issue_build(world.index(end.x, end.y))
-		return
-	if hud.command_mode == GameHud.Command.MOVE:
-		# Ein einzelner Klick setzt einen Sammelpunkt. Ziehen bleibt dem Abbau vorbehalten.
-		if _drag_from.distance_to(screen) < 8.0:
-			hud.issue_move_goal(world.index(end.x, end.y))
+		orders.drag_active = false
 		return
 	var rect := Rect2i(start, Vector2i.ZERO).expand(end)
 	rect.size += Vector2i.ONE
-	hud.issue_dig_area(rect)
+	orders.drag_rect = rect
+
+
+func _finish_pointer(event: InputEventMouseButton) -> void:
+	if orders != null:
+		orders.drag_active = false
+	if hud == null:
+		return
+	var screen := event.position
+	var dragged := _press_at.distance_to(screen) >= 8.0
+	var end := _cell_at(screen)
+	if end.x < 0:
+		return
+	if _press_button == MOUSE_BUTTON_LEFT:
+		if hud.command_mode == GameHud.Command.BUILD and not dragged:
+			hud.issue_build(world.index(end.x, end.y))
+			return
+		if not dragged:
+			hud.select_at(world.index(end.x, end.y))
+			return
+		var start := _cell_at(_press_at)
+		if start.x < 0:
+			return
+		var rect := Rect2i(start, Vector2i.ZERO).expand(end)
+		rect.size += Vector2i.ONE
+		hud.select_in_rect(rect)
+		return
+	var target := world.index(end.x, end.y)
+	if event.ctrl_pressed and not dragged:
+		hud.issue_war(target)
+		return
+	if not dragged:
+		hud.issue_march(target)
+		return
+	var origin := _cell_at(_press_at)
+	if origin.x < 0:
+		return
+	var area := Rect2i(origin, Vector2i.ZERO).expand(end)
+	area.size += Vector2i.ONE
+	hud.issue_conquer(area)
 
 
 func _cell_at(screen: Vector2) -> Vector2i:

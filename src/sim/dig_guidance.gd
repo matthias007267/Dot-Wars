@@ -37,9 +37,67 @@ static func consider(sim: Simulation, group_id: int) -> int:
 		if _mark_path(sim, group_id):
 			return TOWARD
 		return REACHABLE
+	if sim.command_group == group_id and sim.march_cell >= 0:
+		return REACHABLE
 	if _mark_nearest(sim, group_id):
 		return NEAREST
 	return REACHABLE
+
+
+const ROUTE_BLOCKED := -1
+const ROUTE_CLEAR := 0
+const ROUTE_MINING := 1
+
+
+## Markiert abbaubare Zellen auf dem kürzesten Weg der Gruppe zur Zielzelle.
+static func mark_route(sim: Simulation, group_id: int, goal: int) -> int:
+	var world := sim.world
+	var width := world.width
+	var count := world.cell_count()
+	if goal < 0 or goal >= count:
+		return ROUTE_BLOCKED
+	var parent := PackedInt32Array()
+	parent.resize(count)
+	parent.fill(-2)
+	var queue := PackedInt32Array()
+	for id in sim.workers.count:
+		if sim.workers.group[id] != group_id:
+			continue
+		var cell := sim.workers.cell[id]
+		if world.cells[cell] != Materials.EMPTY or parent[cell] != -2:
+			continue
+		parent[cell] = -1
+		queue.append(cell)
+	if queue.is_empty():
+		return ROUTE_BLOCKED
+	var found := -1
+	var head := 0
+	while head < queue.size() and found < 0:
+		var cell := queue[head]
+		head += 1
+		if cell == goal:
+			found = cell
+			break
+		for next in _neighbors(cell, width, count):
+			if parent[next] != -2:
+				continue
+			if next == goal or world.cells[next] == Materials.EMPTY or Materials.is_mineable(world.cells[next]):
+				parent[next] = cell
+				if next == goal:
+					found = next
+					break
+				queue.append(next)
+	if found < 0:
+		return ROUTE_BLOCKED
+	var added := false
+	var step := found
+	while step >= 0:
+		if Materials.is_mineable(world.cells[step]):
+			var mask: PackedByteArray = sim.areas.masks[group_id]
+			if mask[step] == 0:
+				added = sim.assign_area(group_id, Rect2i(step % width, step / width, 1, 1)) or added
+		step = parent[step]
+	return ROUTE_MINING if added else ROUTE_CLEAR
 
 
 static func _worker_reaches_field(sim: Simulation, group_id: int) -> bool:

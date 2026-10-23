@@ -273,4 +273,17 @@ Eine laufende vollständige Wegsuche setzt eine geöffnete Zelle nicht zurück. 
 
 Im Mehrspieler zeigt die Statuskarte die eigene Masse und die eigenen Energie-Dots unterwegs. Die gegnerische Masse steht in einer eigenen Zeile. Der weltweite Abbauanteil bleibt, weil die Räumung ihn braucht. Abbaurahmen und Sammelpunkte tragen die Farbe der Fraktion.
 
-Escape öffnet das Pausenmenü: Weiter, Speichern, Laden, Neu starten, Lautstärke und Beenden. Die untere Leiste behält Abbau, Bewegen, Arbeiter, Größe, Fähigkeiten und die Spielgeschwindigkeit. Neu starten verwendet dieselbe Konfiguration. Beenden kehrt ins Startmenü zurück. Die Speicherversion bleibt 2. Die drei Prüfungen der Räumung bleiben.
+Escape öffnet das Pausenmenü: Weiter, Speichern, Laden, Neu starten, Lautstärke und Beenden. Neu starten verwendet dieselbe Konfiguration. Beenden kehrt ins Startmenü zurück. Die Speicherversion bleibt 2. Die drei Prüfungen der Räumung bleiben.
+
+
+### D-033 Gemeinsamer Marsch
+
+Datum: 23. Oktober 2026.
+
+Abbau und Bewegen sind ein Befehl. Die linke Taste wählt Arbeiter. Ein Zug markiert ein Rechteck, ein Klick einen Arbeiter, ein Klick ins Leere hebt die Auswahl auf. Liegen mehrere Dot-Fraktionen im Rechteck, bleibt nur die mit der höchsten Priorität. Krieger stehen über Arbeitern. Energie-Dots sind nicht wählbar. Krieger gibt es noch nicht, die Priorität ist schon festgelegt.
+
+Die rechte Taste setzt das Ziel. Die Auswahl geht dorthin und baut die Ressourcen auf dem kürzesten Weg ab. Ein Rechtszug markiert ein Gebiet. Dieselbe Auswahl erobert es und baut alles darin ab. Kämpfen in diesem Gebiet kommt mit den Kriegern. Strg und Rechtsklick schickt dann alle Krieger. Solange keine da sind, bleibt der Schwarm stehen und ein Hinweis sagt das.
+
+Ohne Auswahl gehen etwa zehn Prozent der eigenen Arbeiter, mindestens einer. Es sind die, die dem Ziel am nächsten stehen. Bei gleichem Abstand gewinnt die kleinere ID. Die Abordnung liegt in einer eigenen Gruppe mit Quote 0. Die übrigen Gruppen behalten ihren Auftrag. Ein Laufziel unterdrückt den Abbau der nächsten beliebigen Ressource. Felsen auf dem Weg zum Marschziel werden markiert. Ist das Ziel noch fest, wird es zum Laufziel, sobald es leer ist.
+
+Gruppen über Strg und die Tasten 0 bis 9 kommen später. Zehn Kontrollgruppen sind vorgesehen und noch nicht belegt. Die Kamera verschiebt sich mit der mittleren Taste, WASD und den Pfeiltasten. Die Speicherversion bleibt 2. Fehlt die Befehlsgruppe in einem älteren Stand, gibt es keinen offenen Marsch. Die drei Prüfungen der Räumung bleiben.

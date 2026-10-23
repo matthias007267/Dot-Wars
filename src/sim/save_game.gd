@@ -58,6 +58,8 @@ static func snapshot(sim: Simulation) -> Dictionary:
 		"won": sim.won,
 		"win_tick": sim.win_tick,
 		"selected": sim.selected_group,
+		"command_group": sim.command_group,
+		"march_cell": sim.march_cell,
 		"cells": sim.world.cells.duplicate(),
 		"progress": sim.world.progress.duplicate(),
 		"progress_frac": sim.world.progress_frac.duplicate(),
@@ -171,6 +173,10 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 		if goal >= 0:
 			sim.set_move_goal(g, goal)
 	sim.selected_group = clampi(int(data.get("selected", 0)), 0, sim.quotas.size() - 1)
+	sim.command_group = int(data.get("command_group", -1))
+	if sim.command_group < 0 or sim.command_group >= sim.quotas.size():
+		sim.command_group = -1
+	sim.march_cell = int(data.get("march_cell", -1))
 	var units: Array = data.get("units", [])
 	for unit in units:
 		var unit_size := int(unit.get("size", 1))

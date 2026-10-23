@@ -35,6 +35,12 @@ var group_open := PackedByteArray()
 var desired_size := PackedByteArray()
 var sacrifice_on := PackedByteArray()
 var selected_group: int = 0
+## Gruppe, die den aktuellen Marsch oder die Eroberung ausführt. -1, solange kein Befehl lief.
+var command_group := -1
+## Zielzelle eines Marsches. -1, wenn die Gruppe ein Gebiet erobert oder keinen Marsch hat.
+var march_cell := -1
+## Vom Spieler markierte Arbeiter. Zählt nicht in den Zustandshash.
+var picked := PackedInt32Array()
 
 ## Alle internen Gruppen verwenden dieselbe Arbeiterfarbe. Rot bleibt für spätere Krieger reserviert.
 const GROUP_PALETTE: Array[Color] = [
@@ -164,7 +170,18 @@ func _guide_digging() -> void:
 		var human := rules.group_faction.is_empty() or group_id >= rules.group_faction.size() or rules.group_faction[group_id] == 0
 		if human:
 			note = "Das Gebiet ist nicht erreichbar. Der Schwarm gräbt sich dorthin."
+	_settle_march()
 	approach_text = note
+
+
+func _settle_march() -> void:
+	if command_group < 0 or march_cell < 0 or move_goal(command_group) >= 0:
+		return
+	if march_cell >= world.cell_count():
+		return
+	if world.cells[march_cell] != Materials.EMPTY or _in_core(march_cell):
+		return
+	set_move_goal(command_group, march_cell)
 
 
 ## Weist einer Gruppe ein Abbaugebiet zu (Weltzellkoordinaten). Gibt false zurück, wenn nichts zugewiesen wurde.
@@ -199,6 +216,45 @@ func move_goal(group_id: int) -> int:
 	if group_id < 0 or group_id >= fields.size():
 		return -1
 	return fields[group_id].goal_cell
+
+
+## Legt bei Bedarf die Befehlsgruppe an und setzt genau diese Arbeiter hinein.
+func take_party(ids: PackedInt32Array) -> int:
+	var group_id := ensure_command_group()
+	if group_id < 0:
+		return -1
+	var keep := {}
+	for id in ids:
+		if id < 0 or id >= workers.count:
+			continue
+		if int(workers.faction[id]) != 0:
+			continue
+		keep[id] = true
+	var member := 0
+	while member < workers.count:
+		if workers.group[member] == group_id and not keep.has(member):
+			var home := GroupQuotas.pick_group(workers.group_mass, quotas)
+			if home >= 0:
+				workers.reassign_group(member, home)
+		member += 1
+	for id in keep:
+		workers.reassign_group(int(id), group_id)
+	clear_area(group_id)
+	clear_move_goal(group_id)
+	march_cell = -1
+	return group_id
+
+
+func ensure_command_group() -> int:
+	if command_group >= 0 and _group_is_open(command_group):
+		return command_group
+	var id := add_group("Befehl")
+	if id < 0:
+		return -1
+	command_group = id
+	if rules.group_faction.size() > 0:
+		rules.group_faction.append(0)
+	return id
 
 
 ## Ändert die Zielquoten. Gibt false zurück, wenn sie ungültig sind (Zustand bleibt unverändert).
@@ -345,6 +401,8 @@ func state_hash() -> int:
 		buildings.state_hash(),
 		hash(desired_size),
 		hash(sacrifice_on),
+		command_group,
+		march_cell,
 		won,
 	])
 

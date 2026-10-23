@@ -1,6 +1,6 @@
 class_name CameraController
 extends Camera2D
-## Verschieben mit rechter oder mittlerer Maustaste, WASD und den Pfeiltasten.
+## Verschieben mit mittlerer Maustaste, WASD und den Pfeiltasten. Die rechte Taste schickt Arbeiter.
 ## Das Mausrad zoomt zum Cursor. Der Zoombereich liegt zwischen der ganzen Welt und 40 Pixeln je Zelle.
 
 const MAX_ZOOM := 40.0
@@ -68,7 +68,7 @@ func _on_mouse_button(event: InputEventMouseButton) -> void:
 		var factor := WHEEL_FACTOR if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / WHEEL_FACTOR
 		_zoom_at(event.position, factor)
 		return
-	if event.button_index != MOUSE_BUTTON_RIGHT and event.button_index != MOUSE_BUTTON_MIDDLE:
+	if event.button_index != MOUSE_BUTTON_MIDDLE:
 		return
 	_dragging = event.pressed
 	if _dragging:

@@ -4,7 +4,7 @@ Stand: 23. Oktober 2026. Version in `project.godot`: 0.3.0, Test-Beta mit Energi
 
 ## Was hier geprüft wurde
 
-* 151 automatisierte Tests, 22 465 Prüfungen, headless, Godot 4.3. Kein Fehler.
+* 157 automatisierte Tests, 22 490 Prüfungen, headless, Godot 4.3. Kein Fehler.
 * Headless-Start schreibt `DOT WARS bereit`.
 * Startmenü und die Spielansicht wurden in dieser Linux-Umgebung geöffnet.
 * Simulation mit 1.000, 10.000 und 50.000 Arbeitern, dazu eine 1.000×1.000-Welt. Zahlen in `docs/PERFORMANCE.md`.
@@ -33,7 +33,8 @@ Die Vorgabe liegt in `export_presets.cfg`. Der Export bettet das PCK ein und zie
 * Bei 10.000 Arbeitern liegt ein Takt auf der Messmaschine über 10 ms. 50.000 Arbeiter liegen bei etwa 87 ms.
 * Kleine Tunneländerungen korrigieren die Zielsuche lokal. Große Änderungen und neue Ziele rechnen die erreichbare Fläche neu, verteilt über mehrere Takte. Eine geöffnete Zelle setzt eine laufende vollständige Berechnung nicht zurück.
 * Mehrspieler läuft lokal gegen eine bis drei KI, ohne den alten Mittelkern. Auslöschen, Forschung, Reliquien und König des Hügels sind schaltbar. Leicht, Mittel, Schwer und Gemischt ändern den Plan der KI. Andere Spieler sind noch nicht verbunden. Rote Krieger fehlen.
-* Escape öffnet Speichern, Laden, Neu starten, Lautstärke und Beenden. Die untere Leiste behält die Spielbefehle.
+* Escape öffnet Speichern, Laden, Neu starten, Lautstärke und Beenden. Die untere Leiste behält Arbeiter, Größe, Fähigkeiten und das Tempo.
+* Die linke Taste wählt Arbeiter. Die rechte schickt sie oder erobert ein Gebiet. Ohne Auswahl gehen etwa zehn Prozent der nächsten Arbeiter. Gruppen über die Zifferntasten und Krieger sind noch nicht im Spiel.
 * 3×3 kostet 250 Energie. Ein Arbeiter kostet vorläufig 10 Energie. Beides sind vorläufige Werte.
 * Energie-Dots warten, wenn ein Arbeiter auf der nächsten Zelle zum Kern steht. Untereinander teilen sie die Zelle.
 * Ohne die Fähigkeit Kern können Arbeiter die beiden Zugänge blockieren. Danach bleibt die Fläche frei und wächst bis Radius 4. Die Kosten 40 je angefangene Stufe sind vorläufig.
