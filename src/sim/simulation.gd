@@ -17,6 +17,7 @@ var rules := MatchRules.new()
 var purchased_workers: int = 0
 const WORKER_COST := 10
 var fields: Array[FlowField] = []
+var work_front := WorkFront.new()
 var quotas: PackedInt32Array
 var tick_count: int = 0
 ## Arbeiter zu Beginn (Basis der Massenbilanz).
@@ -35,6 +36,12 @@ var group_open := PackedByteArray()
 var desired_size := PackedByteArray()
 var sacrifice_on := PackedByteArray()
 var selected_group: int = 0
+## Gruppe, die den aktuellen Marsch oder die Eroberung ausführt. -1, solange kein Befehl lief.
+var command_group := -1
+## Zielzelle eines Marsches. -1, wenn die Gruppe ein Gebiet erobert oder keinen Marsch hat.
+var march_cell := -1
+## Vom Spieler markierte Arbeiter. Zählt nicht in den Zustandshash.
+var picked := PackedInt32Array()
 
 ## Alle internen Gruppen verwenden dieselbe Arbeiterfarbe. Rot bleibt für spätere Krieger reserviert.
 const GROUP_PALETTE: Array[Color] = [
@@ -83,8 +90,10 @@ var approach_text := ""
 func tick_once() -> void:
 	var t0 := Time.get_ticks_usec()
 	_guide_digging()
+	_refresh_flow_anchors()
 	for g in fields.size():
 		fields[g].step(config.field_budget_per_tick)
+	SwarmMind.step(self)
 	var t1 := Time.get_ticks_usec()
 	var move_forbidden := core_mask
 	var move_periods := PackedByteArray()
@@ -97,21 +106,17 @@ func tick_once() -> void:
 	)
 	var t2 := Time.get_ticks_usec()
 	if _match_live():
-		var nums := PackedInt32Array()
-		var dens := PackedInt32Array()
+		var levels := PackedInt32Array()
 		for faction in rules.faction_count:
-			var fraction := rules.wallet(self, faction).dig_fraction()
-			nums.append(fraction.x)
-			dens.append(fraction.y)
+			levels.append(rules.wallet(self, faction).dig_level)
 		MiningSystem.step_scaled(
-			workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power, 1, 1, nums, dens
+			workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power, 0, levels
 		)
 	elif upgrades.dig_level == 0 and workers.max_size == 1:
 		MiningSystem.step(workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power)
 	else:
-		var fraction := upgrades.dig_fraction()
 		MiningSystem.step_scaled(
-			workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power, fraction.x, fraction.y
+			workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power, upgrades.dig_level
 		)
 	var t3 := Time.get_ticks_usec()
 	spawner.process(world, workers, quotas, core_mask)
@@ -154,6 +159,7 @@ func run_ticks(count: int) -> void:
 
 
 func _guide_digging() -> void:
+	_release_finished_command()
 	var note := ""
 	for group_id in fields.size():
 		if not _group_is_open(group_id):
@@ -164,7 +170,68 @@ func _guide_digging() -> void:
 		var human := rules.group_faction.is_empty() or group_id >= rules.group_faction.size() or rules.group_faction[group_id] == 0
 		if human:
 			note = "Das Gebiet ist nicht erreichbar. Der Schwarm gräbt sich dorthin."
+	_settle_march()
 	approach_text = note
+
+
+## Ein erledigter Handbefehl gibt die Befehlsgruppe wieder für die eigene Arbeitssuche frei.
+## Laufziele der KI bleiben. Solange jemand noch auf das Marschziel zuläuft, bleibt der Befehl.
+func _release_finished_command() -> void:
+	var group_id := command_group
+	if group_id < 0 or not _group_is_open(group_id):
+		return
+	var goal := move_goal(group_id)
+	var group_rects: Array = areas.rects[group_id]
+	if march_cell < 0 and goal < 0 and group_rects.is_empty():
+		return
+	var field := fields[group_id]
+	if not field.settled():
+		return
+	if DigGuidance.mineable_left(self, group_id):
+		return
+	if not _party_is_holding(group_id):
+		return
+	clear_area(group_id)
+	clear_move_goal(group_id)
+	march_cell = -1
+
+
+func _party_is_holding(group_id: int) -> bool:
+	var field := fields[group_id]
+	var width := world.width
+	var count := world.cell_count()
+	for id in workers.count:
+		if int(workers.group[id]) != group_id:
+			continue
+		var cell := int(workers.cell[id])
+		if cell < 0 or cell >= count or field.dist[cell] <= 0:
+			continue
+		var next := _step_cell(cell, int(field.dir[cell]), width, count)
+		if next >= 0 and world.cells[next] == Materials.EMPTY and workers.occupant[next] == WorkerStore.NO_WORKER:
+			return false
+	return true
+
+
+func _step_cell(cell: int, direction: int, width: int, count: int) -> int:
+	if direction == FlowField.DIR_UP and cell >= width:
+		return cell - width
+	if direction == FlowField.DIR_DOWN and cell + width < count:
+		return cell + width
+	if direction == FlowField.DIR_RIGHT and cell % width < width - 1:
+		return cell + 1
+	if direction == FlowField.DIR_LEFT and cell % width > 0:
+		return cell - 1
+	return -1
+
+
+func _settle_march() -> void:
+	if command_group < 0 or march_cell < 0 or move_goal(command_group) >= 0:
+		return
+	if march_cell >= world.cell_count():
+		return
+	if world.cells[march_cell] != Materials.EMPTY or _in_core(march_cell):
+		return
+	set_move_goal(command_group, march_cell)
 
 
 ## Weist einer Gruppe ein Abbaugebiet zu (Weltzellkoordinaten). Gibt false zurück, wenn nichts zugewiesen wurde.
@@ -172,11 +239,16 @@ func assign_area(group_id: int, rect: Rect2i) -> bool:
 	return areas.assign_rect(group_id, rect)
 
 
+func assign_cells(group_id: int, cells: PackedInt32Array) -> bool:
+	return areas.assign_cells(group_id, cells)
+
+
 func clear_area(group_id: int) -> void:
 	areas.clear_group(group_id)
 
 
 ## Setzt ein Laufziel auf eine leere Zelle. Die Gruppe läuft dorthin, ohne abzubauen.
+## Ist die Zelle nicht erreichbar, läuft sie zum nächstmöglichen Punkt in ihrer Fläche.
 ## Gibt false zurück, wenn Gruppe oder Zelle ungültig sind oder Material auf der Zelle liegt.
 func set_move_goal(group_id: int, cell_idx: int) -> bool:
 	if group_id < 0 or group_id >= fields.size():
@@ -186,7 +258,45 @@ func set_move_goal(group_id: int, cell_idx: int) -> bool:
 	if _in_core(cell_idx):
 		return false
 	fields[group_id].goal_cell = cell_idx
+	_refresh_flow_anchors()
 	return true
+
+
+## Merkt sich einen Wunschpunkt, auch wenn er fest oder gesperrt ist.
+## Die Wegsuche läuft dann zum nächstmöglichen erreichbaren Punkt.
+func set_approach(group_id: int, cell_idx: int) -> bool:
+	if group_id < 0 or group_id >= fields.size():
+		return false
+	if cell_idx < 0 or cell_idx >= world.cell_count():
+		return false
+	fields[group_id].goal_cell = cell_idx
+	_refresh_flow_anchors()
+	return true
+
+
+## True, wenn der Wunschpunkt der Gruppe selbst der nächstmögliche Standpunkt ist.
+func reaches_move_goal(group_id: int) -> bool:
+	if group_id < 0 or group_id >= fields.size():
+		return false
+	_refresh_flow_anchors()
+	return fields[group_id].goal_is_stand()
+
+
+func _refresh_flow_anchors() -> void:
+	var buckets: Array = []
+	buckets.resize(fields.size())
+	for g in fields.size():
+		buckets[g] = PackedInt32Array()
+	for id in workers.count:
+		var group_id := int(workers.group[id])
+		if group_id < 0 or group_id >= buckets.size():
+			continue
+		var cell := int(workers.cell[id])
+		if world.cells[cell] != Materials.EMPTY:
+			continue
+		buckets[group_id].append(cell)
+	for g in fields.size():
+		fields[g].anchors = buckets[g]
 
 
 func clear_move_goal(group_id: int) -> void:
@@ -199,6 +309,45 @@ func move_goal(group_id: int) -> int:
 	if group_id < 0 or group_id >= fields.size():
 		return -1
 	return fields[group_id].goal_cell
+
+
+## Legt bei Bedarf die Befehlsgruppe an und setzt genau diese Arbeiter hinein.
+func take_party(ids: PackedInt32Array) -> int:
+	var group_id := ensure_command_group()
+	if group_id < 0:
+		return -1
+	var keep := {}
+	for id in ids:
+		if id < 0 or id >= workers.count:
+			continue
+		if int(workers.faction[id]) != 0:
+			continue
+		keep[id] = true
+	var member := 0
+	while member < workers.count:
+		if workers.group[member] == group_id and not keep.has(member):
+			var home := GroupQuotas.pick_group(workers.group_mass, quotas)
+			if home >= 0:
+				workers.reassign_group(member, home)
+		member += 1
+	for id in keep:
+		workers.reassign_group(int(id), group_id)
+	clear_area(group_id)
+	clear_move_goal(group_id)
+	march_cell = -1
+	return group_id
+
+
+func ensure_command_group() -> int:
+	if command_group >= 0 and _group_is_open(command_group):
+		return command_group
+	var id := add_group("Befehl")
+	if id < 0:
+		return -1
+	command_group = id
+	if rules.group_faction.size() > 0:
+		rules.group_faction.append(0)
+	return id
 
 
 ## Ändert die Zielquoten. Gibt false zurück, wenn sie ungültig sind (Zustand bleibt unverändert).
@@ -345,6 +494,8 @@ func state_hash() -> int:
 		buildings.state_hash(),
 		hash(desired_size),
 		hash(sacrifice_on),
+		command_group,
+		march_cell,
 		won,
 	])
 

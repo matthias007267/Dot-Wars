@@ -162,6 +162,7 @@ func export_state() -> Dictionary:
 			"core_level": upgrades.core_level,
 			"purchased": upgrades.purchased,
 			"research_level": upgrades.research_level,
+			"swarm_level": upgrades.swarm_level,
 		})
 	return {
 		"factions": faction_count,
@@ -220,6 +221,7 @@ func restore(blob: Dictionary) -> bool:
 		upgrades.core_level = int(row.get("core_level", 0))
 		upgrades.purchased = int(row.get("purchased", 0))
 		upgrades.research_level = int(row.get("research_level", 0))
+		upgrades.swarm_level = int(row.get("swarm_level", 0))
 		ai_upgrades.append(upgrades)
 	return (
 		control.size() == faction_count

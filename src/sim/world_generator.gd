@@ -27,6 +27,8 @@ static func generate(config: SimConfig) -> WorldState:
 	if config.mode != SimConfig.MODE_MATCH:
 		carve_start_tunnel(world, config.tunnel_arm_length)
 		_place_unbreakable(world, config.tunnel_arm_length)
+	# Der Rausch schreibt das Array direkt. Die Flächenliste liest danach den fertigen Stand.
+	world.rebuild_faces()
 	return world
 
 

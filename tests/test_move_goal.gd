@@ -31,7 +31,7 @@ func test_worker_walks_to_goal_and_does_not_mine() -> void:
 	check_no_errors(sim.check_invariants(), "Invarianten")
 
 
-func test_unreachable_goal_keeps_the_worker_waiting() -> void:
+func test_unreachable_goal_stops_at_the_nearest_cell() -> void:
 	var sim := TestHelpers.sim_from_ascii([
 		"#####",
 		"#w#.#",
@@ -40,10 +40,44 @@ func test_unreachable_goal_keeps_the_worker_waiting() -> void:
 	var start := sim.workers.cell[0]
 	check(sim.set_move_goal(0, sim.world.index(3, 1)), "Ziel jenseits der Wand")
 	sim.run_ticks(40)
-	check_eq(sim.workers.cell[0], start, "bleibt stehen")
-	check_eq(sim.fields[0].dir[start], FlowField.DIR_NONE, "kein Weg")
+	check_eq(sim.workers.cell[0], start, "steht schon am nächstmöglichen Punkt")
+	check_eq(sim.fields[0].dir[start], FlowField.DIR_ARRIVED, "der Standpunkt ist hier")
 	check_eq(sim.workers.state[0], WorkerStore.STATE_WAITING, "wartet")
 	check_eq(sim.world.mined_count, 0, "kein Abbau")
+	check_no_errors(sim.check_invariants(), "Invarianten")
+
+
+func test_swarm_walks_to_the_nearest_reachable_cell() -> void:
+	var sim := TestHelpers.sim_from_ascii([
+		"#########",
+		"#w......#",
+		"#########",
+		"#.......#",
+		"#########",
+	], _config())
+	var goal := sim.world.index(7, 3)
+	check(sim.set_move_goal(0, goal), "Ziel im anderen Gang")
+	check(not sim.reaches_move_goal(0), "der Punkt selbst ist nicht erreichbar")
+	sim.run_ticks(10)
+	check_eq(TestHelpers.worker_xy(sim, 0), Vector2i(7, 1), "am nächstmöglichen Punkt")
+	check_eq(sim.workers.state[0], WorkerStore.STATE_WAITING, "dort angekommen")
+	check_eq(sim.world.mined_count, 0, "die Wand bleibt stehen")
+	check_no_errors(sim.check_invariants(), "Invarianten")
+
+
+func test_swarm_gathers_at_the_nearest_cell() -> void:
+	var sim := TestHelpers.sim_from_ascii([
+		"#########",
+		"#ww.....#",
+		"#########",
+		"#.......#",
+		"#########",
+	], _config())
+	check(sim.set_move_goal(0, sim.world.index(7, 3)), "gemeinsames Ziel hinter der Wand")
+	sim.run_ticks(12)
+	check_eq(TestHelpers.worker_xy(sim, 1), Vector2i(7, 1), "vorderer Arbeiter am nächstmöglichen Punkt")
+	check_eq(TestHelpers.worker_xy(sim, 0), Vector2i(6, 1), "der zweite reiht sich davor ein")
+	check_eq(sim.world.mined_count, 0, "kein Durchbruch")
 	check_no_errors(sim.check_invariants(), "Invarianten")
 
 

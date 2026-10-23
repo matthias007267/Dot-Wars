@@ -18,8 +18,11 @@ var _measured := 0
 var _measured_time := 0.0
 var _screenshot := ""
 var _screenshot_in := -1
-var _drag_from := Vector2.ZERO
-var _dragging := false
+var _press_at := Vector2.ZERO
+var _press_button := -1
+var _press_ctrl := false
+var _pressing := false
+var _panning := false
 var _last_mined := 0
 var _tone: AudioStreamPlayer
 var _autosave_tick := 0
@@ -153,13 +156,22 @@ func _clear_playfield() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if sim == null:
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+	if event is InputEventMouseMotion and _pressing:
+		_preview_drag(event.position)
+		return
+	if event is InputEventMouseButton and (event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
+		if hud != null and hud.menu_open():
+			return
 		if event.pressed:
-			_drag_from = event.position
-			_dragging = true
-		elif _dragging:
-			_dragging = false
-			_finish_drag(event.position)
+			_press_button = event.button_index
+			_press_at = event.position
+			_press_ctrl = event.ctrl_pressed
+			_pressing = true
+			_panning = false
+			_preview_drag(event.position)
+		elif _pressing and event.button_index == _press_button:
+			_pressing = false
+			_finish_pointer(event)
 		return
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
@@ -207,25 +219,79 @@ func _process(delta: float) -> void:
 	_measure_frames(delta)
 
 
-func _finish_drag(screen: Vector2) -> void:
-	if hud == null:
+func _preview_drag(screen: Vector2) -> void:
+	var dragged := _press_at.distance_to(screen) >= 8.0
+	if _press_button == MOUSE_BUTTON_RIGHT and not _press_ctrl:
+		if dragged and camera != null:
+			if not _panning:
+				camera.begin_pan(screen)
+				_panning = true
+			else:
+				camera.drag_pan(screen)
+		if orders != null:
+			orders.drag_active = false
 		return
-	var start := _cell_at(_drag_from)
+	if orders == null:
+		return
+	orders.drag_active = dragged
+	orders.drag_conquer = _press_button == MOUSE_BUTTON_RIGHT and _press_ctrl
+	if not dragged:
+		return
+	var start := _cell_at(_press_at)
 	var end := _cell_at(screen)
 	if start.x < 0 or end.x < 0:
-		return
-	if hud.command_mode == GameHud.Command.BUILD:
-		if _drag_from.distance_to(screen) < 8.0:
-			hud.issue_build(world.index(end.x, end.y))
-		return
-	if hud.command_mode == GameHud.Command.MOVE:
-		# Ein einzelner Klick setzt einen Sammelpunkt. Ziehen bleibt dem Abbau vorbehalten.
-		if _drag_from.distance_to(screen) < 8.0:
-			hud.issue_move_goal(world.index(end.x, end.y))
+		orders.drag_active = false
 		return
 	var rect := Rect2i(start, Vector2i.ZERO).expand(end)
 	rect.size += Vector2i.ONE
-	hud.issue_dig_area(rect)
+	orders.drag_rect = rect
+
+
+func _finish_pointer(event: InputEventMouseButton) -> void:
+	if orders != null:
+		orders.drag_active = false
+	var screen := event.position
+	var dragged := _press_at.distance_to(screen) >= 8.0
+	if _press_button == MOUSE_BUTTON_RIGHT and not _press_ctrl and dragged:
+		if camera != null:
+			camera.end_pan()
+		_panning = false
+		return
+	if hud == null:
+		return
+	var end := _cell_at(screen)
+	if end.x < 0:
+		return
+	var gesture := GameHud.pointer_gesture(_press_button, _press_ctrl, dragged)
+	if gesture == GameHud.Pointer.SELECT_ONE or gesture == GameHud.Pointer.SELECT_RECT:
+		if gesture == GameHud.Pointer.SELECT_ONE and hud.command_mode == GameHud.Command.BUILD:
+			hud.issue_build(world.index(end.x, end.y))
+			return
+		if gesture == GameHud.Pointer.SELECT_ONE:
+			hud.select_at(world.index(end.x, end.y))
+			return
+		var start := _cell_at(_press_at)
+		if start.x < 0:
+			return
+		var rect := Rect2i(start, Vector2i.ZERO).expand(end)
+		rect.size += Vector2i.ONE
+		hud.select_in_rect(rect)
+		return
+	var target := world.index(end.x, end.y)
+	if gesture == GameHud.Pointer.WAR:
+		hud.issue_war(target)
+		return
+	if gesture == GameHud.Pointer.MARCH:
+		hud.issue_march(target)
+		return
+	if gesture != GameHud.Pointer.CONQUER:
+		return
+	var origin := _cell_at(_press_at)
+	if origin.x < 0:
+		return
+	var area := Rect2i(origin, Vector2i.ZERO).expand(end)
+	area.size += Vector2i.ONE
+	hud.issue_conquer(area)
 
 
 func _cell_at(screen: Vector2) -> Vector2i:

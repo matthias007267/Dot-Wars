@@ -31,6 +31,26 @@ static func acquire_target(workers: WorkerStore, world: WorldState, areas: DigAr
 	return true
 
 
+## Baut genau diese Nachbarzelle ab, wenn sie markiert und fest ist.
+static func claim_cell(workers: WorkerStore, world: WorldState, areas: DigAreas, id: int, cell: int) -> bool:
+	if workers.size[id] > 1 or cell < 0 or cell >= world.cell_count():
+		return false
+	var here := workers.cell[id]
+	var width := world.width
+	var east := here % width < width - 1 and cell == here + 1
+	var west := here % width > 0 and cell == here - 1
+	var north := cell == here - width
+	var south := cell == here + width
+	if not east and not west and not north and not south:
+		return false
+	var mask: PackedByteArray = areas.masks[workers.group[id]]
+	if not _can_mine(world.cells, mask, cell):
+		return false
+	workers.target[id] = cell
+	workers.state[id] = WorkerStore.STATE_MINING
+	return true
+
+
 ## Verarbeitet alle abbauenden Arbeiter in ID-Reihenfolge. Gibt die Zahl abgeschlossener Zellen zurück
 ## und trägt deren Positionen in `spawner` ein.
 static func step(
@@ -67,7 +87,8 @@ static func step(
 	return completed
 
 
-## Wie `step`, aber mit Bruch-Abbauleistung und verteilter Leistung großer Einheiten.
+## Wie `step`, aber mit der Abbaustufe 5/4 und verteilter Leistung großer Einheiten.
+## `faction_level` ersetzt `dig_level` je Fraktion, sobald das Array gefüllt ist.
 static func step_scaled(
 	workers: WorkerStore,
 	world: WorldState,
@@ -75,10 +96,8 @@ static func step_scaled(
 	energy: EnergyStore,
 	work_per_hardness: int,
 	dig_power: int,
-	dig_num: int,
-	dig_den: int,
-	faction_num: PackedInt32Array = PackedInt32Array(),
-	faction_den: PackedInt32Array = PackedInt32Array(),
+	dig_level: int,
+	faction_level: PackedInt32Array = PackedInt32Array(),
 ) -> int:
 	var completed := 0
 	for id in workers.count:
@@ -92,18 +111,16 @@ static func step_scaled(
 		var power := WorkerStore.SIZE_POWER[workers.size[id]] * dig_power
 		var base := power / targets.size()
 		var extra := power % targets.size()
-		var num := dig_num
-		var den := dig_den
-		if not faction_num.is_empty():
+		var level := dig_level
+		if not faction_level.is_empty():
 			var faction_id := int(workers.faction[id])
-			if faction_id < faction_num.size():
-				num = faction_num[faction_id]
-				den = faction_den[faction_id]
+			if faction_id < faction_level.size():
+				level = faction_level[faction_id]
 		for index in targets.size():
 			var share := base + (1 if index < extra else 0)
 			if share <= 0:
 				continue
-			if _apply_power(workers, world, areas, energy, id, targets[index], share, work_per_hardness, num, den):
+			if _apply_power(workers, world, areas, energy, id, targets[index], share, work_per_hardness, level):
 				completed += 1
 	return completed
 
@@ -163,24 +180,213 @@ static func _apply_power(
 	cell: int,
 	share: int,
 	work_per_hardness: int,
-	dig_num: int,
-	dig_den: int,
+	dig_level: int,
 ) -> bool:
 	var mask: PackedByteArray = areas.masks[workers.group[id]]
 	if not _can_mine(world.cells, mask, cell):
 		return false
 	var points := share
-	if dig_num != dig_den:
-		world.progress_frac[cell] += share * dig_num
-		points = world.progress_frac[cell] / dig_den
-		world.progress_frac[cell] -= points * dig_den
-	var total: int = world.progress[cell] + points
-	if total >= Materials.durability(world.cells[cell], work_per_hardness):
+	if dig_level > 0:
+		var scaled: Array = _scale(_read_rem(world, cell), share, dig_level)
+		points = int(scaled[0])
+		_write_rem(world, cell, scaled[1])
+	var current := int(world.progress[cell])
+	var durability := Materials.durability(world.cells[cell], work_per_hardness)
+	if current >= durability or points >= durability - current:
 		var hardness := Materials.hardness(world.cells[cell])
 		if world.mine_cell(cell):
 			energy.enqueue(cell, hardness, int(workers.faction[id]))
 			return true
 		return false
-	world.progress[cell] = total
+	world.progress[cell] = current + points
 	world.note_progress(cell)
 	return false
+
+
+## Basis 2^31. Jedes Glied bleibt eine positive 32-Bit-Zahl. Das niedere Glied liegt in `progress_frac`.
+const _LIMB := 2147483648
+const _I64 := 9223372036854775807
+
+
+## Addiert `share * (5/4)^level` zum Rest. Liefert [Punkte, neue Glieder].
+static func _scale(rem: Array, share: int, level: int) -> Array:
+	var rem_i := _limbs_as_int(rem)
+	if rem_i >= 0:
+		var num := 1
+		var den := 1
+		var fit := true
+		for _step in level:
+			if num > _I64 / 5 or den > _I64 / 4:
+				fit = false
+				break
+			num *= 5
+			den *= 4
+		if fit and (share <= 0 or num <= _I64 / maxi(share, 1)):
+			var product := share * num
+			if rem_i <= _I64 - product:
+				var acc := rem_i + product
+				return [int(acc / den), _limbs_from_int(int(acc % den))]
+	var wide := _mul_limbs(_pow_small(5, level), _limbs_from_int(share))
+	wide = _add_limbs(wide, rem if not rem.is_empty() else [0])
+	return _divmod_pow4(wide, level)
+
+
+static func _read_rem(world: WorldState, cell: int) -> Array:
+	var low := int(world.progress_frac[cell])
+	if low < 0:
+		low = 0
+	var limbs: Array = [low]
+	if world.progress_frac_high.has(cell):
+		for limb in world.progress_frac_high[cell]:
+			limbs.append(int(limb))
+	return limbs
+
+
+static func _write_rem(world: WorldState, cell: int, limbs: Array) -> void:
+	var cleaned: Array = []
+	for limb in limbs:
+		cleaned.append(int(limb))
+	while cleaned.size() > 1 and int(cleaned[cleaned.size() - 1]) == 0:
+		cleaned.remove_at(cleaned.size() - 1)
+	var low := 0
+	if not cleaned.is_empty():
+		low = int(cleaned[0])
+	world.progress_frac[cell] = low
+	if cleaned.size() <= 1:
+		if world.progress_frac_high.has(cell):
+			world.progress_frac_high.erase(cell)
+		return
+	var high: Array = []
+	for index in range(1, cleaned.size()):
+		high.append(int(cleaned[index]))
+	world.progress_frac_high[cell] = high
+
+
+static func _limbs_from_int(value: int) -> Array:
+	if value <= 0:
+		return [0]
+	var limbs: Array = []
+	var rest := value
+	while rest > 0:
+		limbs.append(rest % _LIMB)
+		rest /= _LIMB
+	return limbs
+
+
+static func _limbs_as_int(limbs: Array) -> int:
+	var value := 0
+	var scale := 1
+	for index in limbs.size():
+		var limb := int(limbs[index])
+		if limb < 0 or limb >= _LIMB:
+			return -1
+		if limb != 0:
+			if scale > _I64 / limb:
+				return -1
+			var add := limb * scale
+			if value > _I64 - add:
+				return -1
+			value += add
+		if index + 1 < limbs.size():
+			if scale > _I64 / _LIMB:
+				return -1
+			scale *= _LIMB
+	return value
+
+
+static func _limbs_to_int(limbs: Array) -> int:
+	var value := _limbs_as_int(limbs)
+	return _I64 if value < 0 else value
+
+
+static func _pow_small(base: int, exp: int) -> Array:
+	var out: Array = [1]
+	for _step in exp:
+		out = _mul_small(out, base)
+	return out
+
+
+static func _mul_small(limbs: Array, factor: int) -> Array:
+	if factor <= 0:
+		return [0]
+	if factor >= _LIMB:
+		return _mul_limbs(limbs, _limbs_from_int(factor))
+	var out: Array = []
+	var carry := 0
+	for limb in limbs:
+		var product: int = int(limb) * factor + carry
+		out.append(product % _LIMB)
+		carry = product / _LIMB
+	while carry > 0:
+		out.append(carry % _LIMB)
+		carry /= _LIMB
+	return _trim(out)
+
+
+static func _mul_limbs(a: Array, b: Array) -> Array:
+	if a.is_empty() or b.is_empty() or (a.size() == 1 and int(a[0]) == 0) or (b.size() == 1 and int(b[0]) == 0):
+		return [0]
+	var out: Array = []
+	out.resize(a.size() + b.size())
+	for index in out.size():
+		out[index] = 0
+	for i in a.size():
+		var carry := 0
+		for j in b.size():
+			var product: int = int(out[i + j]) + int(a[i]) * int(b[j]) + carry
+			out[i + j] = product % _LIMB
+			carry = product / _LIMB
+		var k := i + b.size()
+		while carry > 0:
+			if k == out.size():
+				out.append(0)
+			var cur: int = int(out[k]) + carry
+			out[k] = cur % _LIMB
+			carry = cur / _LIMB
+			k += 1
+	return _trim(out)
+
+
+static func _add_limbs(a: Array, b: Array) -> Array:
+	var count := maxi(a.size(), b.size())
+	var out: Array = []
+	var carry := 0
+	for index in count:
+		var total := carry
+		if index < a.size():
+			total += int(a[index])
+		if index < b.size():
+			total += int(b[index])
+		out.append(total % _LIMB)
+		carry = total / _LIMB
+	if carry > 0:
+		out.append(carry)
+	return out
+
+
+static func _div_small_inplace(limbs: Array, divisor: int) -> int:
+	var rem := 0
+	for index in range(limbs.size() - 1, -1, -1):
+		var cur: int = rem * _LIMB + int(limbs[index])
+		limbs[index] = cur / divisor
+		rem = cur % divisor
+	return rem
+
+
+static func _divmod_pow4(acc: Array, level: int) -> Array:
+	var rem: Array = [0]
+	var place: Array = [1]
+	for _step in level:
+		var digit := _div_small_inplace(acc, 4)
+		if digit != 0:
+			rem = _add_limbs(rem, _mul_small(place, digit))
+		place = _mul_small(place, 4)
+	return [_limbs_to_int(_trim(acc)), _trim(rem)]
+
+
+static func _trim(limbs: Array) -> Array:
+	while limbs.size() > 1 and int(limbs[limbs.size() - 1]) == 0:
+		limbs.remove_at(limbs.size() - 1)
+	if limbs.is_empty():
+		return [0]
+	return limbs

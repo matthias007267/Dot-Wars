@@ -1,6 +1,7 @@
 class_name CameraController
 extends Camera2D
-## Verschieben mit rechter oder mittlerer Maustaste, WASD und den Pfeiltasten.
+## Verschieben mit rechter Taste, mittlerer Taste, WASD und den Pfeiltasten.
+## Ein Gebietsauftrag braucht zusätzlich Strg.
 ## Das Mausrad zoomt zum Cursor. Der Zoombereich liegt zwischen der ganzen Welt und 40 Pixeln je Zelle.
 
 const MAX_ZOOM := 40.0
@@ -68,7 +69,7 @@ func _on_mouse_button(event: InputEventMouseButton) -> void:
 		var factor := WHEEL_FACTOR if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / WHEEL_FACTOR
 		_zoom_at(event.position, factor)
 		return
-	if event.button_index != MOUSE_BUTTON_RIGHT and event.button_index != MOUSE_BUTTON_MIDDLE:
+	if event.button_index != MOUSE_BUTTON_MIDDLE:
 		return
 	_dragging = event.pressed
 	if _dragging:
@@ -85,6 +86,25 @@ func _zoom_at(screen: Vector2, factor: float) -> void:
 	var after := WorldCoordinates.screen_to_world(screen, position, zoom.x, viewport)
 	position += before - after
 	_clamp_position()
+
+
+## Beginnt eine Verschiebung, als würde die Karte an `screen` gepackt.
+func begin_pan(screen: Vector2) -> void:
+	_dragging = true
+	_drag_screen = screen
+	_drag_camera = position
+
+
+func drag_pan(screen: Vector2) -> void:
+	if not _dragging:
+		begin_pan(screen)
+	var delta := screen - _drag_screen
+	position = _drag_camera - delta / zoom.x
+	_clamp_position()
+
+
+func end_pan() -> void:
+	_dragging = false
 
 
 ## Verschiebt die Kamera durch die Minimap, mit denselben Weltgrenzen wie bei WASD.
