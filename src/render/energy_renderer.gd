@@ -3,6 +3,10 @@ extends Node2D
 ## Zeichnet transportierte Energie als eigene Pixeltextur.
 ## Arbeiter werden darüber gezeichnet und bleiben bei Konflikten sichtbar.
 
+const DOT_GLOW_SHADER := preload("res://src/render/shaders/dot_glow.gdshader")
+@export var glow_enabled := true
+@export_range(0.0, 1.0, 0.05) var glow_strength := 0.95
+
 var world: WorldState
 var energy: EnergyStore
 var _texture: ImageTexture
@@ -12,6 +16,12 @@ var _previous := PackedInt32Array()
 
 func _ready() -> void:
 	texture_filter = TEXTURE_FILTER_NEAREST
+	if glow_enabled:
+		var shader_material := ShaderMaterial.new()
+		shader_material.shader = DOT_GLOW_SHADER
+		shader_material.set_shader_parameter("glow_strength", glow_strength)
+		shader_material.set_shader_parameter("dot_brightness", 1.20)
+		material = shader_material
 	_bytes.resize(world.cell_count() * 4)
 	show_energy()
 
