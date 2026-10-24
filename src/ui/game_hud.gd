@@ -52,6 +52,7 @@ var _test_toggle: Button
 var _test_labels: Array[Label] = []
 var _test_keys: Array[int] = []
 var _test_stats: Label
+var _perf_overlay: Label
 var _volume: HSlider
 var _dock_row: HBoxContainer
 var selection := PackedInt32Array()
@@ -84,6 +85,7 @@ func _ready() -> void:
 	add_child(layer)
 
 	_build_stats(layer)
+	_build_perf_overlay(layer)
 	_build_goals(layer)
 	_build_dock(layer)
 	_build_upgrade_panel(layer)
@@ -270,6 +272,29 @@ func refresh() -> void:
 	_refresh_selection()
 	_refresh_upgrades()
 	_refresh_test_lab()
+	if _perf_overlay != null:
+		_perf_overlay.visible = sim.debug_mode
+		if sim.debug_mode:
+			_perf_overlay.text = "TESTLABOR  |  %d Dots  |  %.1f FPS\nTick: %.2f ms  |  Ziel: %.2f ms  |  Bewegung: %.2f ms\nAbbau: %.2f ms  |  Suche: %d  |  Pfade: %d" % [
+				sim.workers.count, Engine.get_frames_per_second(),
+				float(sim.last_tick_usec) / 1000.0,
+				float(sim.stage_usec[Simulation.Stage.TARGET_SEARCH]) / maxi(1, sim.tick_count) / 1000.0,
+				float(sim.stage_usec[Simulation.Stage.MOVEMENT]) / maxi(1, sim.tick_count) / 1000.0,
+				float(sim.stage_usec[Simulation.Stage.MINING]) / maxi(1, sim.tick_count) / 1000.0,
+				SwarmMind.seeks_last_tick, SwarmMind.paths_last_tick,
+			]
+
+
+func _build_perf_overlay(layer: Control) -> void:
+	_perf_overlay = _label(layer, "", 12, UiTheme.ACCENT)
+	_perf_overlay.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_perf_overlay.offset_left = -470
+	_perf_overlay.offset_right = -16
+	_perf_overlay.offset_top = 16
+	_perf_overlay.offset_bottom = 78
+	_perf_overlay.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_perf_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_perf_overlay.visible = false
 
 
 func _build_stats(layer: Control) -> void:
