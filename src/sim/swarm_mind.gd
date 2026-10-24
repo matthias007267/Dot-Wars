@@ -10,6 +10,38 @@ const PATIENCE := [0, 80, 40, 20, 10]
 const BUDGET := [0, 64, 192, 768, 3072]
 ## Wie oft ein eigener Weg neu gesucht wurde. Tests lesen das, die Simulation nicht.
 static var path_builds: int = 0
+## Temporäre, gemeinsam wiederverwendete Suchpuffer. Keine Zuordnung zu festen Dot-Gruppen:
+## Jeder Dot behält sein Ziel, die BFS allokiert aber nicht mehr die ganze Welt pro Suche.
+static var _visit_stamp := PackedInt32Array()
+static var _parent := PackedInt32Array()
+static var _queue := PackedInt32Array()
+static var _stamp: int = 0
+
+
+static func _prepare_search(cell_count: int) -> void:
+	if _visit_stamp.size() != cell_count:
+		_visit_stamp.resize(cell_count)
+		_visit_stamp.fill(0)
+		_parent.resize(cell_count)
+		_queue.resize(cell_count)
+		_stamp = 0
+	_stamp += 1
+	if _stamp >= 2000000000:
+		_visit_stamp.fill(0)
+		_stamp = 1
+
+
+static func _neighbor(cell: int, direction: int, width: int, count: int) -> int:
+	match direction:
+		0:
+			return cell - width if cell >= width else -1
+		1:
+			return cell + 1 if cell % width < width - 1 else -1
+		2:
+			return cell + width if cell + width < count else -1
+		3:
+			return cell - 1 if cell % width > 0 else -1
+	return -1
 
 
 static func step(sim: Simulation) -> void:
@@ -154,26 +186,30 @@ static func _seek(sim: Simulation, id: int, level: int, claimed: Dictionary, ban
 	var faction := int(workers.faction[id])
 	var width := sim.world.width
 	var count := sim.world.cell_count()
-	var seen := PackedByteArray()
-	seen.resize(count)
-	var queue := PackedInt32Array()
 	var origin := int(workers.cell[id])
 	if not _standable(sim, origin):
 		return WorkerStore.NO_TARGET
-	seen[origin] = 1
-	queue.append(origin)
-	var budget: int = int(BUDGET[level])
+	_prepare_search(count)
+	var stamp := _stamp
+	_visit_stamp[origin] = stamp
+	_queue[0] = origin
+	var tail := 1
 	var head := 0
-	while head < queue.size() and budget > 0:
-		var cell := queue[head]
+	var budget: int = int(BUDGET[level])
+	while head < tail and budget > 0:
+		var cell := _queue[head]
 		head += 1
-		for next in _neighbors(cell, width, count):
+		for direction in 4:
+			var next := _neighbor(cell, direction, width, count)
+			if next < 0:
+				continue
 			budget -= 1
 			if _marked(sim, id, next) and next != ban and not claimed.has(_key(faction, next)):
 				return next
-			if seen[next] == 0 and _standable(sim, next) and int(workers.occupant[next]) == WorkerStore.NO_WORKER:
-				seen[next] = 1
-				queue.append(next)
+			if _visit_stamp[next] != stamp and _standable(sim, next) and int(workers.occupant[next]) == WorkerStore.NO_WORKER:
+				_visit_stamp[next] = stamp
+				_queue[tail] = next
+				tail += 1
 			if budget <= 0:
 				break
 	return WorkerStore.NO_TARGET
@@ -187,38 +223,43 @@ static func _first_step(sim: Simulation, id: int, rock: int, level: int) -> int:
 	var origin := int(workers.cell[id])
 	var width := sim.world.width
 	var count := sim.world.cell_count()
-	for next in _neighbors(origin, width, count):
-		if next == rock:
+	for direction in 4:
+		if _neighbor(origin, direction, width, count) == rock:
 			return origin
-	var parent := PackedInt32Array()
-	parent.resize(count)
-	parent.fill(-2)
-	var queue := PackedInt32Array()
-	parent[origin] = -1
-	queue.append(origin)
+	_prepare_search(count)
+	var stamp := _stamp
+	_visit_stamp[origin] = stamp
+	_parent[origin] = -1
+	_queue[0] = origin
+	var tail := 1
 	var budget: int = int(BUDGET[level])
 	var head := 0
 	var stand := -1
-	while head < queue.size() and stand < 0 and budget > 0:
-		var cell := queue[head]
+	while head < tail and stand < 0 and budget > 0:
+		var cell := _queue[head]
 		head += 1
-		for next in _neighbors(cell, width, count):
+		for direction in 4:
+			var next := _neighbor(cell, direction, width, count)
+			if next < 0:
+				continue
 			budget -= 1
 			if next == rock:
 				stand = cell
 				break
-			if parent[next] != -2:
+			if _visit_stamp[next] == stamp:
 				continue
 			if _standable(sim, next) and int(workers.occupant[next]) == WorkerStore.NO_WORKER:
-				parent[next] = cell
-				queue.append(next)
+				_visit_stamp[next] = stamp
+				_parent[next] = cell
+				_queue[tail] = next
+				tail += 1
 			if budget <= 0:
 				break
 	if stand < 0 or stand == origin:
 		return origin if stand == origin else WorkerStore.NO_TARGET
 	var step := stand
-	while parent[step] != origin and parent[step] >= 0:
-		step = parent[step]
+	while _parent[step] != origin and _parent[step] >= 0:
+		step = _parent[step]
 	return step
 
 
