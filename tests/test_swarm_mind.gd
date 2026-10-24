@@ -155,3 +155,24 @@ func test_swarm_upgrade_is_bought_and_saved() -> void:
 	check(label.contains("VOLL"), "volle Stufe")
 	layer.free()
 	hud.free()
+
+
+func test_neighbor_cache_matches_original_edges_after_shape_changes() -> void:
+	# Auch gleiche Zellzahl mit anderer Breite darf keinen alten Cache verwenden.
+	for shape in [Vector2i(3, 8), Vector2i(8, 3), Vector2i(9, 7), Vector2i(32, 16)]:
+		var count: int = shape.x * shape.y
+		SwarmMind._prepare_search(count, shape.x)
+		check_eq(SwarmMind._neighbor_table.size(), count * 4, "vier Kanten pro Zelle")
+		for cell in count:
+			for direction in 4:
+				check_eq(SwarmMind._neighbor_table[cell * 4 + direction], SwarmMind._neighbor(cell, direction, shape.x, count), "Rand und Nachbarreihenfolge")
+
+
+func test_neighbor_cache_has_a_fixed_memory_limit_and_recovers_for_small_worlds() -> void:
+	SwarmMind._prepare_search(16 * 16, 16)
+	check(not SwarmMind._neighbor_table.is_empty(), "kleine Welt hat einen Cache")
+	SwarmMind._prepare_search(513 * 513, 513)
+	check(SwarmMind._neighbor_table.is_empty(), "große Welt reserviert keinen unbeschränkten Nachbarcache")
+	SwarmMind._prepare_search(16 * 16, 16)
+	check_eq(SwarmMind._neighbor_table[0], -1, "obere Kante nach Wiederaufbau")
+	check_eq(SwarmMind._neighbor_table[1], 1, "rechter Nachbar nach Wiederaufbau")

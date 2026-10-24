@@ -5,3 +5,5 @@ export/
 build/
 bench/results/
 *.tmp
+
+native/bin/

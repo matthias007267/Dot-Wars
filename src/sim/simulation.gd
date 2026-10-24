@@ -5,6 +5,7 @@ extends RefCounted
 ## Takt: Zielsuche → Bewegung → Abbau → Entstehung → Verschmelzung → Nachwuchs → Veredelung → Energietransport → Mehrspieler.
 
 enum Stage { TARGET_SEARCH, MOVEMENT, MINING, SPAWN }
+enum SearchStage { GUIDANCE, ANCHORS, FIELDS, SWARM }
 
 var config: SimConfig
 var world: WorldState
@@ -61,7 +62,10 @@ const GROUP_PALETTE: Array[Color] = [
 
 ## Kumulierte Laufzeit je Stufe in Mikrosekunden (Profiling, Benchmark, HUD).
 var stage_usec := PackedInt64Array([0, 0, 0, 0])
+var search_usec := PackedInt64Array([0, 0, 0, 0])
 var last_tick_usec: int = 0
+## Messungen seit Erzeugung/Laden, unabhängig vom gespeicherten Spieltakt.
+var profiled_ticks: int = 0
 
 
 ## Erzeugt Welt aus der Konfiguration. Gibt bei ungültiger Konfiguration oder fehlenden
@@ -94,11 +98,18 @@ var approach_text := ""
 func tick_once() -> void:
 	var t0 := Time.get_ticks_usec()
 	_guide_digging()
+	var search_guidance := Time.get_ticks_usec()
 	_refresh_flow_anchors()
+	var search_anchors := Time.get_ticks_usec()
 	for g in fields.size():
 		fields[g].step(config.field_budget_per_tick)
+	var search_fields := Time.get_ticks_usec()
 	SwarmMind.step(self)
 	var t1 := Time.get_ticks_usec()
+	search_usec[SearchStage.GUIDANCE] += search_guidance - t0
+	search_usec[SearchStage.ANCHORS] += search_anchors - search_guidance
+	search_usec[SearchStage.FIELDS] += search_fields - search_anchors
+	search_usec[SearchStage.SWARM] += t1 - search_fields
 	var move_forbidden := core_mask
 	var move_periods := PackedByteArray()
 	if _match_live():
@@ -148,13 +159,15 @@ func tick_once() -> void:
 	stage_usec[Stage.MOVEMENT] += t2 - t1
 	stage_usec[Stage.MINING] += t3 - t2
 	stage_usec[Stage.SPAWN] += t4 - t3
-	last_tick_usec = t4 - t0
 	tick_count += 1
 	if _match_live():
 		rules.pulse(self)
 	elif not won and _goals_met():
 		won = true
 		win_tick = tick_count
+	# Auch KI, Kampf und Siegprüfung gehören zur vollständigen Taktzeit.
+	last_tick_usec = Time.get_ticks_usec() - t0
+	profiled_ticks += 1
 
 
 func run_ticks(count: int) -> void:

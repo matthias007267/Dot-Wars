@@ -8,8 +8,10 @@ const TEST_DIR := "res://tests"
 func _init() -> void:
 	var filter := ""
 	var user_args := OS.get_cmdline_user_args()
-	if not user_args.is_empty():
-		filter = user_args[0]
+	for arg in user_args:
+		if not arg.begins_with("--"):
+			filter = arg
+			break
 
 	var total_assertions := 0
 	var total_tests := 0

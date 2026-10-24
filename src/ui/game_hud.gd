@@ -275,24 +275,24 @@ func refresh() -> void:
 	if _perf_overlay != null:
 		_perf_overlay.visible = sim.debug_mode
 		if sim.debug_mode:
-			_perf_overlay.text = "TESTLABOR  |  %d Dots  |  %.1f FPS\nTick: %.2f ms  |  Ziel: %.2f ms  |  Bewegung: %.2f ms\nAbbau: %.2f ms  |  Suche: %d  |  Pfade: %d" % [
+			_perf_overlay.text = "TESTLABOR  |  %d Arbeiter  |  %.1f FPS\nLetzter Tick: %.2f ms  |  Ziel Ø: %.2f ms\nBewegung Ø: %.2f ms  |  Abbau Ø: %.2f ms\nSuchaufträge: %d  |  Pfadaufträge: %d" % [
 				sim.workers.count, Engine.get_frames_per_second(),
 				float(sim.last_tick_usec) / 1000.0,
-				float(sim.stage_usec[Simulation.Stage.TARGET_SEARCH]) / maxi(1, sim.tick_count) / 1000.0,
-				float(sim.stage_usec[Simulation.Stage.MOVEMENT]) / maxi(1, sim.tick_count) / 1000.0,
-				float(sim.stage_usec[Simulation.Stage.MINING]) / maxi(1, sim.tick_count) / 1000.0,
+				float(sim.stage_usec[Simulation.Stage.TARGET_SEARCH]) / maxi(1, sim.profiled_ticks) / 1000.0,
+				float(sim.stage_usec[Simulation.Stage.MOVEMENT]) / maxi(1, sim.profiled_ticks) / 1000.0,
+				float(sim.stage_usec[Simulation.Stage.MINING]) / maxi(1, sim.profiled_ticks) / 1000.0,
 				SwarmMind.seeks_last_tick, SwarmMind.paths_last_tick,
 			]
 
 
 func _build_perf_overlay(layer: Control) -> void:
 	_perf_overlay = _label(layer, "", 12, UiTheme.ACCENT)
-	_perf_overlay.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_perf_overlay.offset_left = -470
-	_perf_overlay.offset_right = -16
+	_perf_overlay.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_perf_overlay.offset_left = -310
+	_perf_overlay.offset_right = 310
 	_perf_overlay.offset_top = 16
-	_perf_overlay.offset_bottom = 78
-	_perf_overlay.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_perf_overlay.offset_bottom = 100
+	_perf_overlay.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_perf_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_perf_overlay.visible = false
 
@@ -1172,12 +1172,12 @@ func _refresh_test_lab() -> void:
 				level = sim.buildings.refinery_level
 		_test_labels[i].text = str(level)
 	if _test_stats != null:
-		_test_stats.text = "Dots: %d | Tick: %.2f ms | Ziel: %.2f | Bewegung: %.2f | Abbau: %.2f | BFS: %d/%d" % [
+		_test_stats.text = "Arbeiter: %d | Letzter Tick: %.2f ms | Ziel Ø: %.2f | Bewegung Ø: %.2f | Abbau Ø: %.2f | Such-/Pfadaufträge: %d/%d" % [
 			sim.workers.count,
 			float(sim.last_tick_usec) / 1000.0,
-			float(sim.stage_usec[Simulation.Stage.TARGET_SEARCH]) / maxi(1, sim.tick_count) / 1000.0,
-			float(sim.stage_usec[Simulation.Stage.MOVEMENT]) / maxi(1, sim.tick_count) / 1000.0,
-			float(sim.stage_usec[Simulation.Stage.MINING]) / maxi(1, sim.tick_count) / 1000.0,
+			float(sim.stage_usec[Simulation.Stage.TARGET_SEARCH]) / maxi(1, sim.profiled_ticks) / 1000.0,
+			float(sim.stage_usec[Simulation.Stage.MOVEMENT]) / maxi(1, sim.profiled_ticks) / 1000.0,
+			float(sim.stage_usec[Simulation.Stage.MINING]) / maxi(1, sim.profiled_ticks) / 1000.0,
 			SwarmMind.seeks_last_tick, SwarmMind.paths_last_tick,
 		]
 

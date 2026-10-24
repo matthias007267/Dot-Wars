@@ -272,6 +272,9 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 
 
 static func write_file(path: String, sim: Simulation) -> bool:
+	# Vor dem Öffnen prüfen: WRITE würde einen vorhandenen Stand abschneiden.
+	if sim.debug_mode or sim.debug_modified:
+		return false
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		return false

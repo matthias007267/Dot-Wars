@@ -1,5 +1,7 @@
 class_name EnergyStore
 extends RefCounted
+
+const NATIVE_SEARCH = preload("res://src/sim/native_search.gd")
 ## Bewegliche Energie-Dots. Mehrere Dots teilen eine Zelle. Ein Arbeiter auf der
 ## nächsten Zelle zum Kern hält sie auf. Für den Weg wird ein gemeinsames Distanzfeld
 ## verwendet. Jeder Punkt ist genau eine Energieeinheit. Keine Nodes je Punkt.
@@ -93,6 +95,12 @@ func step(
 		_rebuild(world, gate)
 		_exit_stamp = stamp
 		_last_rebuild_tick = tick
+	var moved := PackedInt32Array()
+	var native := NATIVE_SEARCH.backend()
+	if native != null:
+		var result: Variant = native.energy_next(cells, world.cells, workers.occupant, _dist, world.width)
+		if result is PackedInt32Array:
+			moved = result
 	var exits := {}
 	for c in gate:
 		exits[c] = true
@@ -107,7 +115,7 @@ func step(
 			if refined[i] != 0:
 				refined_delivered += 1
 			continue
-		next.append(_next_cell(c, world, workers))
+		next.append(moved[i] if moved.size() == cells.size() else _next_cell(c, world, workers))
 		next_birth.append(birth[i])
 		next_refined.append(refined[i])
 	cells = next
@@ -148,6 +156,15 @@ func _rebuild(world: WorldState, gate: PackedInt32Array) -> void:
 		if c >= 0 and c < world.cell_count() and world.cells[c] == Materials.EMPTY:
 			_dist[c] = 0
 			frontier.append(c)
+	var native := NATIVE_SEARCH.backend()
+	if native != null:
+		var directions := PackedByteArray()
+		directions.resize(world.cell_count())
+		# Nur die Distanzen werden benutzt; beide BFS-Reihenfolgen ergeben dasselbe Feld.
+		var result: Variant = native.flow_spread(world.cells, PackedByteArray(), _dist, directions, frontier, 0, 1 << 40, false, world.width)
+		if result is Array and result.size() == 5:
+			_dist = result[0]
+			return
 	var head := 0
 	while head < frontier.size():
 		var c := frontier[head]

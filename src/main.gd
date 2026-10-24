@@ -16,6 +16,7 @@ var _frames_left := -1
 var _warmup := 30
 var _measured := 0
 var _measured_time := 0.0
+var _frame_measure_started_usec: int = 0
 var _screenshot := ""
 var _screenshot_in := -1
 var _press_at := Vector2.ZERO
@@ -95,6 +96,7 @@ func _attach(next: Simulation) -> void:
 		_menu = null
 	_clear_playfield()
 	sim = next
+	clock.reset()
 	world = sim.world
 	_last_mined = world.mined_count
 	_autosave_tick = sim.tick_count
@@ -190,8 +192,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			clock.paused = not clock.paused
 	elif event.keycode == KEY_F11:
 		_toggle_fullscreen()
+	elif event.keycode == KEY_F7 and sim.debug_mode:
+		_export_diagnostic_snapshot()
 	elif event.keycode == KEY_F5:
-		if not sim.debug_modified and not sim.debug_modified and not sim.debug_mode:
+		if not sim.debug_modified and not sim.debug_mode:
 			SaveGame.write_file("user://slot.dw", sim)
 	elif event.keycode == KEY_F9:
 		_boot_from_save("user://slot.dw")
@@ -202,7 +206,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if sim == null:
 		return
-	var ticks := clock.advance(delta)
+	var ticks := clock.advance_wall_time(Time.get_ticks_usec())
 	if ticks > 0:
 		sim.run_ticks(ticks)
 		workers_view.show_tick(sim.tick_count)
@@ -210,7 +214,7 @@ func _process(delta: float) -> void:
 		if world.mined_count != _last_mined:
 			_last_mined = world.mined_count
 			_play_tone()
-		if sim.tick_count - _autosave_tick >= 600 and not _headless() and not sim.debug_mode:
+		if sim.tick_count - _autosave_tick >= 600 and not _headless() and not sim.debug_mode and not sim.debug_modified:
 			_autosave_tick = sim.tick_count
 			SaveGame.write_file("user://autosave.dw", sim)
 		if hud != null:
@@ -374,15 +378,16 @@ func _capture_screenshot() -> void:
 		get_tree().quit(0)
 
 
-func _measure_frames(delta: float) -> void:
+func _measure_frames(_delta: float) -> void:
 	if _frames_left < 0:
 		return
 	_frames_left -= 1
 	if _warmup > 0:
 		_warmup -= 1
+		_frame_measure_started_usec = Time.get_ticks_usec()
 	else:
 		_measured += 1
-		_measured_time += delta
+		_measured_time = (Time.get_ticks_usec() - _frame_measure_started_usec) / 1000000.0
 	if _frames_left > 0:
 		return
 	var viewport := get_viewport().get_visible_rect().size
@@ -402,3 +407,23 @@ func _user_arg(prefix: String) -> String:
 
 func _has_flag(flag: String) -> bool:
 	return flag in OS.get_cmdline_user_args()
+
+
+## Explizite Diagnosekopie: niemals ein regulärer Slot oder Autosave.
+func _export_diagnostic_snapshot() -> void:
+	if sim == null or not sim.debug_mode:
+		return
+	var dir := "user://diagnostics"
+	if DirAccess.make_dir_recursive_absolute(dir) != OK:
+		push_error("Diagnoseordner nicht schreibbar")
+		return
+	var path := "%s/live-%d-%d.dw" % [dir, OS.get_process_id(), Time.get_ticks_usec()]
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		push_error("Diagnosekopie nicht schreibbar")
+		return
+	file.store_buffer(SaveGame.to_bytes(sim))
+	file.close()
+	print("DIAGNOSTIC_SNAPSHOT ", ProjectSettings.globalize_path(path))
+	if hud != null:
+		hud.report("Diagnosekopie gesichert. Reguläre Spielstände bleiben unverändert.")

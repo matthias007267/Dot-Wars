@@ -1,5 +1,7 @@
 class_name FlowField
 extends RefCounted
+
+const NATIVE_SEARCH = preload("res://src/sim/native_search.gd")
 ## Gemeinsame Zielsuche einer Gruppe.
 ##
 ## Quellen sind leere Zellen neben festem, markiertem Material und der nächstmögliche Standpunkt
@@ -323,6 +325,9 @@ func goal_is_stand() -> bool:
 ## Erreichbare leere Zelle mit dem kleinsten Manhattan-Abstand zum gewünschten Punkt.
 ## Ohne Anker bleibt ein leeres Ziel der Standpunkt, ein festes Ziel hat keinen.
 func _nearest_stand() -> int:
+	var native := NATIVE_SEARCH.backend()
+	if native != null:
+		return int(native.nearest_stand(_world.cells, blocked, anchors, _world.width, goal_cell))
 	if goal_cell < 0 or goal_cell >= _world.cell_count():
 		return -1
 	if anchors.is_empty():
@@ -387,26 +392,78 @@ func _seed(idx: int) -> void:
 
 
 func _spread(budget: int) -> int:
+	var native := NATIVE_SEARCH.backend()
+	if native != null:
+		var result: Variant = native.flow_spread(_world.cells, blocked, _next_dist, _next_dir, _queue, _head, budget, _improve, _world.width)
+		if not result is Array or result.size() != 5:
+			push_error("Native Wegfeld-Berechnung fehlgeschlagen")
+			return 0
+		_next_dist = result[0]
+		_next_dir = result[1]
+		_queue = result[2]
+		_head = int(result[3])
+		if _head >= _queue.size():
+			_publish()
+		return int(result[4])
 	var w := _world.width
 	var size := _world.cell_count()
+	# Dieselbe BFS und dieselben Richtungs-Tiebreaks, aber ohne Hilfsaufruf je Kante.
+	var distances := _next_dist
+	var directions := _next_dir
+	var queue := _queue
+	var cells := _world.cells
+	var blocked_cells := blocked
+	var blocked_count := blocked_cells.size()
+	var improve := _improve
+	var head := _head
+	var tail := queue.size()
 	var remaining := budget
-	while _head < _queue.size():
+	while head < tail:
 		if remaining <= 0:
+			_head = head
 			return 0
 		remaining -= 1
-		var idx := _queue[_head]
-		_head += 1
-		var next_distance := _next_dist[idx] + 1
+		var idx := queue[head]
+		head += 1
+		var next_distance := distances[idx] + 1
 		var x := idx % w
-		# Ein Nachbar erreicht `idx`, indem er sich in Richtung `idx` bewegt.
-		if x > 0:
-			_relax(idx - 1, next_distance, DIR_RIGHT)
-		if x < w - 1:
-			_relax(idx + 1, next_distance, DIR_LEFT)
-		if idx >= w:
-			_relax(idx - w, next_distance, DIR_DOWN)
-		if idx < size - w:
-			_relax(idx + w, next_distance, DIR_UP)
+		for edge in 4:
+			var next: int
+			var direction: int
+			match edge:
+				0:
+					if x <= 0:
+						continue
+					next = idx - 1
+					direction = DIR_RIGHT
+				1:
+					if x >= w - 1:
+						continue
+					next = idx + 1
+					direction = DIR_LEFT
+				2:
+					if idx < w:
+						continue
+					next = idx - w
+					direction = DIR_DOWN
+				_:
+					if idx >= size - w:
+						continue
+					next = idx + w
+					direction = DIR_UP
+			if int(cells[next]) != Materials.EMPTY or (next < blocked_count and blocked_cells[next] != 0):
+				continue
+			var previous := distances[next]
+			if improve:
+				if previous != UNREACHABLE and previous <= next_distance:
+					continue
+			elif previous != UNREACHABLE:
+				continue
+			distances[next] = next_distance
+			directions[next] = direction
+			queue.append(next)
+			tail += 1
+	_head = head
 	_publish()
 	return remaining
 

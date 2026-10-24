@@ -1,5 +1,7 @@
 class_name MovementSystem
 extends RefCounted
+
+const NATIVE_SEARCH = preload("res://src/sim/native_search.gd")
 ## Orthogonale Bewegung entlang des Flow-Fields. Datenorientiert und zustandslos (GDExtension-tauglich).
 ##
 ## Regeln: ein Schritt pro Arbeiter, nur orthogonal, nur auf leere und freie Zellen innerhalb der
@@ -31,6 +33,26 @@ static func step(
 	forbidden: PackedByteArray = PackedByteArray(),
 	faction_period: PackedByteArray = PackedByteArray(),
 ) -> void:
+	var native := NATIVE_SEARCH.backend()
+	if native != null and workers.max_size <= 1:
+		var field_arrays: Array = []
+		for field in fields:
+			field_arrays.append(field.dir)
+			field_arrays.append(field.dist)
+		var result: Variant = native.move_workers([
+			workers.cell, workers.group, workers.faction, workers.state, workers.target,
+			workers.aim, workers.aim_step, workers.last_move_tick, workers.move_credit,
+			workers.size, workers.occupant,
+		], field_arrays, world.cells, forbidden, areas.masks, faction_period,
+			world.width, tick, move_period, speed_points)
+		if result is Array and result.size() == 6:
+			workers.cell = result[0]
+			workers.state = result[1]
+			workers.target = result[2]
+			workers.last_move_tick = result[3]
+			workers.move_credit = result[4]
+			workers.occupant = result[5]
+			return
 	var terrain := world.cells
 	var width := world.width
 	var cell_count := world.cell_count()

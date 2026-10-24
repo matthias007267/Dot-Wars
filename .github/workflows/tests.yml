@@ -24,11 +24,17 @@ jobs:
           sudo mv /tmp/godot/Godot_v4.3-stable_linux.x86_64 /usr/local/bin/godot
           godot --version
 
+      - name: Nativen Rechenkern bauen
+        run: bash native/build.sh
+
       - name: Projekt importieren
         run: timeout 60s godot --headless --path . --import
 
       - name: Tests
-        run: timeout 180s godot --headless --path . -s tests/run_tests.gd
+        run: timeout 180s godot --headless --path . -s tests/run_tests.gd -- --require-native
+
+      - name: GDScript-Fallback testen
+        run: timeout 180s godot --headless --path . -s tests/run_tests.gd -- --no-native
 
       - name: Hauptszene startet
         run: |

@@ -398,15 +398,22 @@ func _combat(sim: Simulation) -> void:
 	var damage := PackedInt32Array()
 	damage.resize(faction_count)
 	var width := sim.world.width
-	for id in sim.workers.count:
-		var faction := int(sim.workers.faction[id])
-		if faction >= faction_count or alive[faction] == 0:
+	# Nur orthogonale Kernnachbarn können angreifen. Große Einheiten zählen einmal.
+	for other in faction_count:
+		if alive[other] == 0:
 			continue
-		for other in faction_count:
-			if other == faction or alive[other] == 0:
+		var attackers := {}
+		for direction in range(1, 5):
+			var cell := MovementSystem.neighbor(cores[other], direction, width, sim.world.cell_count())
+			if cell < 0:
 				continue
-			if _touches_core(sim, id, cores[other], width):
-				damage[other] += 1
+			var id := sim.workers.occupant[cell]
+			if id < 0:
+				continue
+			var faction := int(sim.workers.faction[id])
+			if faction < faction_count and faction != other and alive[faction] != 0:
+				attackers[id] = true
+		damage[other] = attackers.size()
 	for faction in faction_count:
 		if damage[faction] <= 0 or alive[faction] == 0:
 			continue
@@ -417,18 +424,15 @@ func _combat(sim: Simulation) -> void:
 
 func _eliminate(sim: Simulation, faction: int) -> void:
 	alive[faction] = 0
-	var guard := 0
-	while guard < 100000:
-		guard += 1
-		var found := -1
-		for id in sim.workers.count:
-			if int(sim.workers.faction[id]) == faction:
-				found = id
-				break
-		if found < 0:
-			break
-		removed_mass += sim.workers.mass[found]
-		sim.workers.remove_swap(found)
+	# Nachrückende Slots sofort prüfen: gleiche Swap-Reihenfolge, ein Durchlauf.
+	var id := 0
+	while id < sim.workers.count:
+		if int(sim.workers.faction[id]) == faction:
+			removed_mass += sim.workers.mass[id]
+			sim.workers.remove_swap(id, false)
+		else:
+			id += 1
+	sim.workers._refresh_max_size()
 	if faction == 0:
 		removed_mass += sim.spawner.pending()
 		sim.spawner.import_queue(PackedInt32Array())
@@ -509,18 +513,12 @@ func _win(sim: Simulation, faction: int, kind: int) -> void:
 
 func _factions_on(sim: Simulation, cell: int) -> PackedInt32Array:
 	var seen := PackedInt32Array()
-	for id in sim.workers.count:
-		if not _covers(sim, id, cell):
-			continue
+	if cell < 0 or cell >= sim.workers.occupant.size():
+		return seen
+	var id := sim.workers.occupant[cell]
+	if id >= 0:
 		var faction := int(sim.workers.faction[id])
-		if faction >= faction_count or alive[faction] == 0:
-			continue
-		var known := false
-		for entry in seen:
-			if entry == faction:
-				known = true
-				break
-		if not known:
+		if faction < faction_count and alive[faction] != 0:
 			seen.append(faction)
 	return seen
 

@@ -125,7 +125,7 @@ func swap_cells(a: int, b: int, tick: int) -> void:
 
 
 ## Entfernt eine Einheit und tauscht die letzte ID nach. Gibt die ID zurück, die nachgerückt ist, oder -1.
-func remove_swap(id: int) -> int:
+func remove_swap(id: int, refresh_max: bool = true) -> int:
 	var unit_size := int(size[id])
 	_fill_footprint(id, cell[id], unit_size, NO_WORKER)
 	var group_id := int(group[id])
@@ -135,12 +135,14 @@ func remove_swap(id: int) -> int:
 	count = last
 	if id == last:
 		_shrink()
-		_refresh_max_size()
+		if refresh_max:
+			_refresh_max_size()
 		return -1
 	_copy_slot(last, id)
 	_fill_footprint(id, cell[id], int(size[id]), id)
 	_shrink()
-	_refresh_max_size()
+	if refresh_max:
+		_refresh_max_size()
 	return id
 
 

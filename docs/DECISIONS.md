@@ -350,3 +350,54 @@ Datum: 24. Oktober 2026.
 Die kreuzförmigen Starttunnel werden im Einzelspieler und im Mehrspieler durch eine kompakte, abgerundete 5×5-Lichtung ersetzt (Reihenbreiten 3/5/5/5/3). Der jeweilige unzerstörbare Energiekern liegt in ihrer Mitte. Pro Basis bleiben 20 zusammenhängende, begehbare Zellen. Der Aushub ist keine Abbauleistung und erzeugt keine Energie. Die bisherige `tunnel_arm_length`-Einstellung bleibt für alte Konfigurationen lesbar, steuert aber nicht mehr die Startlichtung.
 
 Im Mehrspieler liegen die Kernzentren symmetrisch auf den vier Himmelsrichtungen. Ihr Abstand zum jeweiligen Kartenrand beträgt mindestens `max(9, floor(Weltgröße / 5))` Zellen; dadurch bleiben die Basen auch auf kleinen Karten von den Rändern und den mittigen Spielzielen getrennt. Anzahl und Zuordnung der Fraktionen bleiben unverändert. Dies ersetzt nur die Startgeometrie und Positionierung aus D-032, nicht KI, Wirtschaft, Siegbedingungen, HUD oder Minimap. Die Einzelspieler-Kartengeometrie ändert sich absichtlich auch bei gleichen Seeds; bestehende Speicherstände behalten ihre gespeicherte Welt.
+
+### D-039 Sichere lokale Performance-Diagnostik
+
+Datum: 24. Oktober 2026.
+
+Dateibasiertes Speichern weist aktive oder zuvor veränderte Testlabor-Simulationen zentral vor dem Öffnen der Datei ab. Dies gilt auch nach Deaktivierung des Testlabors; bestehende reguläre Speicherstände bleiben erhalten. Technische In-Memory-Snapshots für Tests bleiben möglich.
+
+Die vollständige Taktzeit enthält auch die abschließende Mehrspieler- und Sieglogik. Die vier bisherigen Stufenmessungen bleiben Teilmessungen: insbesondere enthält Entstehung auch Fusion, Gebäude und Energietransport, aber nicht die abschließende Match-Logik. Das Overlay kennzeichnet den letzten Tick und Stufenmittelwerte getrennt. Die Mittelwerte verwenden nur seit Erzeugung beziehungsweise Laden gemessene Takte, nicht die gespeicherte Spielzeit. Arbeiterobjekte werden als Arbeiter bezeichnet; sie sind weder Gesamtmasse noch Energie-Dots. Such- und Pfadaufträge sind Aufrufzähler, keine Zahl besuchter Zellen.
+
+Der feste Solltakt bleibt 20 Hz mit höchstens fünf Aufholtakt-Schritten je Frame. Überschüssige Zeit wird weiterhin verworfen. Spielregeln und Speicherformat ändern sich nicht.
+
+Der grafische Spielbetrieb speist die Taktuhr aus monotonen Mikrosekunden (`Time.get_ticks_usec`) statt aus Godots Frame-delta. Gemessen wurden bei einem 10-Sekunden-Lauf nur 8,8 Sekunden aufsummiertes Engine-delta, ohne dass die eigene Aufholgrenze erreicht wurde. Pause aktualisiert die Zeitbasis ohne Takte; Erzeugung und Laden setzen sie zurück. Nur die eigene Fünf-Takte-Grenze darf Zeit verwerfen. Diagnosezähler erfassen solche Ereignisse und den verworfenen Überhang. Der ältere `--frames`-FPS-Lauf verwendet ebenfalls reale Zeit statt Engine-delta.
+
+`bench/live_benchmark.gd` erzeugt einen separaten Testlaborlauf mit denselben Höhlen- und Auftragsparametern wie der Headless-Benchmark. Er zeichnet FPS, reale Takte/s, reale Frame-Zeiten, Engine-delta-Summe, Aufholverluste, Stufenmittelwerte, Arbeiterzustände, Energie-Dots und Zustandsregeln auf. Eingaben sind für den Lauf gesperrt, VSync ist nur in diesem separaten Prozess deaktiviert. Reguläre Speicherstände werden nicht geschrieben.
+
+### D-040 Diagnosekopien und semantisch identische Suchoptimierung
+
+Datum: 24. Oktober 2026.
+
+Eine reale Testlaborpartie mit 595 Arbeitern, Welt 256 und Intelligenz 4 reproduzierte etwa 1 FPS. Auch nach Umschalten von 4× auf 1× blieb sie langsam. Die bisherige künstliche Benchmark-Höhle ist kein ausreichender Nachweis für diese Spielsituation.
+
+F7 exportiert nur im aktiven Testlabor eine neue, eindeutig benannte Diagnosekopie unter `user://diagnostics/`. Reguläre Slots und Autosave werden nicht verwendet. Dies ist ein expliziter Diagnoseexport, keine Freigabe regulärer Testlabor-Saves. `bench/snapshot_probe.gd` vergleicht alle Intelligenzstufen über je 60 Takte am identischen gespeicherten Ausgangszustand; `bench/snapshot_benchmark.gd` misst diesen Zustand mit normaler Darstellung und gesperrten Eingaben.
+
+Die inneren BFS-Schleifen der individuellen Suche und gemeinsamen Wegfelder verwenden lokale Arrayreferenzen und direkte Kantenprüfungen statt vieler Hilfsaufrufe. Für Welten bis 262.144 Zellen wird die unveränderliche Nachbarschaft in höchstens 4 MiB gespeichert; größere Welten bleiben bei direkten Randprüfungen. Suchbudgets, Nachbarreihenfolge, Zielwahl und Kollisionsregeln bleiben gleich. Der reale Diagnosefall ergibt für jede Intelligenzstufe nach der Optimierung exakt dieselbe Zustandsprüfsumme wie davor.
+
+Die Optimierung verbessert den konkreten Fall, erreicht aber keine flüssigen 60 FPS. Mit Editor-Debugger sind in einem separaten Snapshot-Grafiklauf weiterhin nur etwa 3 FPS gemessen. Änderungen an Simulationsrate, Aufholgrenze oder Spielregeln wurden nicht vorgenommen.
+
+### D-041 Nativer Rechenkern und räumliche Kampfprüfung für große Populationen
+
+Datum: 24. Oktober 2026. Vom Nutzer ausdrücklich als Performance-Arbeit mit Ziel 10.000 Dots freigegeben.
+
+Die gemessenen Raster-Kernschleifen erhalten einen optionalen Godot-4.3-GDExtension-C-Rechenkern. Individuelle BFS, gemeinsame Wegfeldausbreitung, Suche nach dem nächstmöglichen Marschstandpunkt und gebündelte Nachbarschaftssignaturen verwenden dieselben Budgets, Richtungsreihenfolgen und Auswahlregeln. Frühes Ende der Marschsuche ist nur bei Distanz null erlaubt, da ausschließlich die Zielzelle selbst diesen Abstand hat. Zustand, Spielregeln und feste 20-Hz-Taktung bleiben in GDScript. Die Referenz bleibt mit --no-native ausführbar; der Adapter fällt bei fehlender Bibliothek auf sie zurück. Weder Threading noch eine neue Kampfeinheitenart werden eingeführt.
+
+Kernschaden prüft die vier Belegungszellen neben jedem Kern statt sämtliche Arbeiter gegen sämtliche Kerne. Einheiten-IDs werden pro Kern dedupliziert; Schaden aller Kerne wird weiterhin vor Auslöschungen ermittelt. Reliquien und Hügel verwenden die bestehende eindeutige Zellbelegung. Das Entfernen einer Fraktion erhält die ursprüngliche Swap-Reihenfolge in einem linearen Durchlauf und berechnet die maximale Einheitengröße einmal nach dem Batch neu.
+
+Native und Referenz werden pro Takt verglichen; die reale 595-Arbeiter-Diagnosekopie behält auf Intelligenz 0 bis 4 dieselben Endhashes. Zusätzliche Regressionen vergleichen Kernschaden und Massenauslöschung bei 10.000 Einheiten mit der ursprünglichen vollständigen Suche. Ein reproduzierbarer Vier-Fraktionen-Benchmark erfasst Marsch und tatsächlichen Kernschaden mit 10.000 Dots. Da Marschaufträge individuelle Bergbauzielsuche deaktivieren, ist zusätzlich der deutlich schwerere dichte Abbaulastfall verpflichtend auszuweisen. Ein hoher FPS-Wert allein gilt nicht als Nachweis stabiler 20 Takte/s.
+
+Der Quelltext und plattformspezifische Buildskripte werden versioniert, erzeugte Bibliotheken nicht. Linux-CI baut vor dem Import und prüft native sowie Referenzausführung. Der Windows-Build wurde lokal ausgeführt; Linux-CI und Release-Export gelten erst nach tatsächlichem Lauf als geprüft. Details, Bauanleitung und Grenzen stehen in native/README.md und docs/LOCAL_DIAGNOSTICS.md.
+### D-042 Identische native Bewegung und Energietransport im dichten Schwarm
+
+Datum: 24. Oktober 2026. Gezielte Fortsetzung der vom Nutzer freigegebenen Performance-Optimierung.
+
+Die reale Folgepartie mit 8.700 Arbeitern erreicht bei 1× nur 2,62 FPS und 13,12 tatsächliche Takte/s. Je 60 Takte ohne Grafik benötigt Intelligenz 4 etwa 74,14 ms pro Takt; Bewegung/Ausweichen macht 39,37 ms aus. Dieser gewachsene Abbauzustand ist die primäre Reproduktion, der offene Marschbenchmark kein Ersatz.
+
+Für ausschließlich normale 1×1-Einheiten führt die GDExtension die vollständige Bewegungsphase aus. ID-Reihenfolge, Fraktionstempo, Beschleunigungsrest, persönlicher Schritt, Abbauzielwahl, frontaler Tausch und seitliches Ausweichen bleiben identisch. Der native Aufruf liefert veränderte Arrays ausdrücklich zurück. Eingabeformen und Indizes werden geprüft; verschmolzene Einheiten oder nicht unterstützte Eingaben verwenden die ausführbare GDScript-Referenz. Es wird keine parallele oder spekulative Reihenfolge eingeführt. Der temporäre Rechenkern speichert keine eigene laufende Kopie der Einheiten.
+
+Energie-Dots im Einzelspieler erhalten eine gebündelte native Schrittsuche. Reihenfolge N/O/S/W, Blockade durch Arbeiter und Lieferung anhand der Position vor dem Schritt bleiben erhalten. Energiebilanz, Herkunft, Veredelung und Besitzer bleiben in GDScript. Die Distanzfelder nutzen die vorhandene native Multi-Source-BFS; deren Kantenreihenfolge ist für reine kürzeste Distanzen unerheblich und wird gegen die ursprünglichen Felder geprüft. Fraktionsgebundener Energietransport bleibt bei der bisherigen Schrittauswahl, verwendet aber ebenfalls die schnelle Distanzberechnung.
+
+SwarmMind verwendet lokale Referenzen auf dieselben gepackten Arbeiterdaten und einmal pro Takt gelesene Gruppenziele. Weder Such-/Pfadbudgets noch Zustandsaktualisierungen werden ausgelassen. Alle fünf 60-Takte-Endhashes der 8.700-Arbeiter-Kopie bleiben identisch. Vollständige Tests laufen mit nativer Bibliothek und mit --no-native; zusätzliche Vergleichstests prüfen Bewegung bei Fraktionstempi und Beschleunigung, Energiebewegung, ungültige Positionen und Distanzfelder nach Weltänderungen.
+
+Zusätzliche nicht gespeicherte Profilzähler teilen die Zielsuche in Führung, Anker, Wegfelder und Schwarmverwaltung auf. Die feste 20-Hz-Taktung und die bestehende Aufholgrenze bleiben unverändert. Die Optimierung löst damit noch keine außerhalb des Spielcallbacks gemessenen langen Frame-Pausen. Einbau oder Freigabe einer anderen Takt-/Thread-Architektur ist nicht Bestandteil dieser Änderung.
