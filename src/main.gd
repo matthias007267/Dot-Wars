@@ -191,7 +191,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.keycode == KEY_F11:
 		_toggle_fullscreen()
 	elif event.keycode == KEY_F5:
-		SaveGame.write_file("user://slot.dw", sim)
+		if not sim.debug_mode:
+			SaveGame.write_file("user://slot.dw", sim)
 	elif event.keycode == KEY_F9:
 		_boot_from_save("user://slot.dw")
 	if hud != null:
@@ -209,7 +210,7 @@ func _process(delta: float) -> void:
 		if world.mined_count != _last_mined:
 			_last_mined = world.mined_count
 			_play_tone()
-		if sim.tick_count - _autosave_tick >= 600 and not _headless():
+		if sim.tick_count - _autosave_tick >= 600 and not _headless() and not sim.debug_mode:
 			_autosave_tick = sim.tick_count
 			SaveGame.write_file("user://autosave.dw", sim)
 		if hud != null:
