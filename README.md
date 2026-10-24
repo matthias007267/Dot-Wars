@@ -76,7 +76,7 @@ Zellen vorhanden sind. Nach „WEITER“ erscheint oben rechts ein Overlay mit
 FPS, Tickdauer, Zielsuche, Bewegung, Abbau und der Zahl individueller BFS-Läufe.
 
 Der Testmodus ist nur für den laufenden Spielstand aktiv. **Speichern und
-Autosave sind im Testlabor deaktiviert**, damit Testwerte nicht in normale
+Autosave sind nach einer Teständerung bis zum Neustart deaktiviert**, damit Testwerte nicht in normale
 Spielstände gelangen. Nach einem Neustart gelten wieder normale Kaufkosten.
 Ein herabgestufter Kern macht bereits freigelegte Weltzellen nicht rückgängig.
 

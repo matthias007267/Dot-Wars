@@ -191,7 +191,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.keycode == KEY_F11:
 		_toggle_fullscreen()
 	elif event.keycode == KEY_F5:
-		if not sim.debug_mode:
+		if not sim.debug_modified and not sim.debug_modified and not sim.debug_mode:
 			SaveGame.write_file("user://slot.dw", sim)
 	elif event.keycode == KEY_F9:
 		_boot_from_save("user://slot.dw")

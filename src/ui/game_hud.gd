@@ -594,8 +594,8 @@ func _pause_game() -> void:
 
 
 func _save_game() -> void:
-	if sim.debug_mode:
-		_notice("Testlabor: Speichern deaktiviert. Neustart setzt den Test zurück.")
+	if sim.debug_modified or sim.debug_mode:
+		_notice("Testlabor: Speichern bis zum Neustart deaktiviert.")
 		return
 	_notice("Spiel gespeichert." if SaveGame.write_file("user://slot.dw", sim) else "Speichern fehlgeschlagen.")
 
@@ -1114,7 +1114,7 @@ func _build_test_lab(parent: Node) -> void:
 func _toggle_test_lab() -> void:
 	sim.debug_mode = not sim.debug_mode
 	_test_scroll.visible = sim.debug_mode
-	_notice("Testlabor aktiv. Teststände werden nicht gespeichert." if sim.debug_mode else "Testlabor beendet. Änderungen bleiben bis zum Neustart.")
+	_notice("Testlabor aktiv. Teststände werden nicht gespeichert." if sim.debug_mode else "Testlabor beendet. Änderungen bleiben bis zum Neustart und werden nicht gespeichert.")
 	_refresh_test_lab()
 
 

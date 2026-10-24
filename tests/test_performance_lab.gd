@@ -25,6 +25,9 @@ func test_debug_upgrades_are_free_reversible_and_disabled_by_default() -> void:
 	check_eq(sim.upgrades.dig_level, 0, "zurück auf 0")
 	check_eq(sim.upgrades.energy, energy, "kein Energieverbrauch")
 	check_eq(sim.upgrades.purchased, 0, "kein bezahlter Kauf")
+	check(sim.debug_modified, "Debug-Änderungen sperren Saves")
+	sim.debug_mode = false
+	check(sim.debug_modified, "Save-Sperre bleibt nach Testmodus-Ende")
 	check_no_errors(sim.check_invariants(), "Bilanz")
 
 

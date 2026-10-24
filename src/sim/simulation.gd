@@ -44,6 +44,8 @@ var march_cell := -1
 var picked := PackedInt32Array()
 ## Testlabor: nur laufzeitlokal, kein regulärer Spielmodus und nicht im SaveGame enthalten.
 var debug_mode: bool = false
+## Bleibt bis zum Neustart gesetzt, damit Debug-Werte auch nach Deaktivierung nie gespeichert werden.
+var debug_modified: bool = false
 
 ## Alle internen Gruppen verwenden dieselbe Arbeiterfarbe. Rot bleibt für spätere Krieger reserviert.
 const GROUP_PALETTE: Array[Color] = [
@@ -654,6 +656,7 @@ func debug_adjust_upgrade(kind: int, delta: int) -> bool:
 				desired_size[g] = mini(int(desired_size[g]), u.max_size())
 		_:
 			return false
+	debug_modified = true
 	return true
 
 
@@ -666,6 +669,7 @@ func debug_adjust_building(kind: int, delta: int) -> bool:
 		buildings.refinery_level = clampi(buildings.refinery_level + delta, 0, Buildings.REFINERY_TIER_MAX)
 	else:
 		return false
+	debug_modified = true
 	return true
 
 
@@ -683,6 +687,8 @@ func debug_spawn_workers(want: int) -> int:
 	for cell in available:
 		workers.add(cell, GroupQuotas.pick_group(workers.group_mass, quotas))
 	purchased_workers += available.size()
+	if not available.is_empty():
+		debug_modified = true
 	peak_mass = maxi(peak_mass, total_mass())
 	max_units = maxi(max_units, workers.count)
 	return available.size()
