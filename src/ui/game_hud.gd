@@ -46,6 +46,13 @@ var _message: Label
 var _approach: Label
 var _opponent_value: Label
 var _pause_layer: Control
+var _test_lab: VBoxContainer
+var _test_scroll: ScrollContainer
+var _test_toggle: Button
+var _test_labels: Array[Label] = []
+var _test_keys: Array[int] = []
+var _test_stats: Label
+var _perf_overlay: Label
 var _volume: HSlider
 var _dock_row: HBoxContainer
 var selection := PackedInt32Array()
@@ -78,6 +85,7 @@ func _ready() -> void:
 	add_child(layer)
 
 	_build_stats(layer)
+	_build_perf_overlay(layer)
 	_build_goals(layer)
 	_build_dock(layer)
 	_build_upgrade_panel(layer)
@@ -263,6 +271,30 @@ func refresh() -> void:
 
 	_refresh_selection()
 	_refresh_upgrades()
+	_refresh_test_lab()
+	if _perf_overlay != null:
+		_perf_overlay.visible = sim.debug_mode
+		if sim.debug_mode:
+			_perf_overlay.text = "TESTLABOR  |  %d Dots  |  %.1f FPS\nTick: %.2f ms  |  Ziel: %.2f ms  |  Bewegung: %.2f ms\nAbbau: %.2f ms  |  Suche: %d  |  Pfade: %d" % [
+				sim.workers.count, Engine.get_frames_per_second(),
+				float(sim.last_tick_usec) / 1000.0,
+				float(sim.stage_usec[Simulation.Stage.TARGET_SEARCH]) / maxi(1, sim.tick_count) / 1000.0,
+				float(sim.stage_usec[Simulation.Stage.MOVEMENT]) / maxi(1, sim.tick_count) / 1000.0,
+				float(sim.stage_usec[Simulation.Stage.MINING]) / maxi(1, sim.tick_count) / 1000.0,
+				SwarmMind.seeks_last_tick, SwarmMind.paths_last_tick,
+			]
+
+
+func _build_perf_overlay(layer: Control) -> void:
+	_perf_overlay = _label(layer, "", 12, UiTheme.ACCENT)
+	_perf_overlay.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_perf_overlay.offset_left = -470
+	_perf_overlay.offset_right = -16
+	_perf_overlay.offset_top = 16
+	_perf_overlay.offset_bottom = 78
+	_perf_overlay.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_perf_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_perf_overlay.visible = false
 
 
 func _build_stats(layer: Control) -> void:
@@ -562,6 +594,9 @@ func _pause_game() -> void:
 
 
 func _save_game() -> void:
+	if sim.debug_modified or sim.debug_mode:
+		_notice("Testlabor: Speichern bis zum Neustart deaktiviert.")
+		return
 	_notice("Spiel gespeichert." if SaveGame.write_file("user://slot.dw", sim) else "Speichern fehlgeschlagen.")
 
 
@@ -1015,6 +1050,8 @@ func _build_pause_menu(layer: Control) -> void:
 	_menu_button(column, "WEITER", _close_pause_menu)
 	_menu_button(column, "SPEICHERN", _save_game)
 	_menu_button(column, "LADEN", _load_game)
+	_test_toggle = _menu_button(column, "TESTLABOR AKTIVIEREN", _toggle_test_lab)
+	_build_test_lab(column)
 	_menu_button(column, "NEU STARTEN", func() -> void: restart_requested.emit())
 	_label(column, "LAUTSTÄRKE", 12, UiTheme.MUTED)
 	_volume = HSlider.new()
@@ -1028,9 +1065,121 @@ func _build_pause_menu(layer: Control) -> void:
 	_menu_button(column, "BEENDEN", func() -> void: leave_requested.emit())
 
 
-func _menu_button(parent: Node, title: String, action: Callable) -> void:
+func _menu_button(parent: Node, title: String, action: Callable) -> Button:
 	var button := _button(parent, title, action)
 	button.custom_minimum_size = Vector2(280, 36)
+	return button
+
+
+## Nur im Testlabor: Stufen beliebig hoch/runter, Dots für reproduzierbare Lasttests.
+func _build_test_lab(parent: Node) -> void:
+	_test_scroll = ScrollContainer.new()
+	_test_scroll.custom_minimum_size = Vector2(340, 235)
+	_test_scroll.visible = false
+	parent.add_child(_test_scroll)
+	_test_lab = VBoxContainer.new()
+	_test_lab.add_theme_constant_override("separation", 4)
+	_test_scroll.add_child(_test_lab)
+	_label(_test_lab, "TESTLABOR – OHNE KOSTEN", 12, UiTheme.ACCENT)
+	for item in [
+		["Arbeiter-Tempo", Upgrades.KIND_SPEED],
+		["Energie-Tempo", Upgrades.KIND_ENERGY_SPEED],
+		["Abbau", Upgrades.KIND_DIG],
+		["Intelligenz", Upgrades.KIND_SWARM],
+		["Kern", Upgrades.KIND_CORE],
+		["Fusion", Upgrades.KIND_FUSION2],
+		["Forschung", Upgrades.KIND_RESEARCH],
+		["Quellenstufe", -1],
+		["Veredlerstufe", -2],
+	]:
+		var row := HBoxContainer.new()
+		_test_lab.add_child(row)
+		var name := _label(row, str(item[0]), 12, UiTheme.TEXT)
+		name.custom_minimum_size.x = 128
+		_button(row, "−", _test_change.bind(int(item[1]), -1))
+		var value := _label(row, "0", 12, UiTheme.ACCENT)
+		value.custom_minimum_size.x = 24
+		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_button(row, "+", _test_change.bind(int(item[1]), 1))
+		_test_labels.append(value)
+		_test_keys.append(int(item[1]))
+	var spawns := HBoxContainer.new()
+	_test_lab.add_child(spawns)
+	_button(spawns, "+100 Dots", _test_spawn.bind(100))
+	_button(spawns, "+500 Dots", _test_spawn.bind(500))
+	_test_stats = _label(_test_lab, "", 11, UiTheme.MUTED)
+	_test_lab.visible = true
+
+
+func _toggle_test_lab() -> void:
+	sim.debug_mode = not sim.debug_mode
+	_test_scroll.visible = sim.debug_mode
+	_notice("Testlabor aktiv. Teststände werden nicht gespeichert." if sim.debug_mode else "Testlabor beendet. Änderungen bleiben bis zum Neustart und werden nicht gespeichert.")
+	_refresh_test_lab()
+
+
+func _test_change(kind: int, delta: int) -> void:
+	var ok := false
+	if kind == -1:
+		ok = sim.debug_adjust_building(Buildings.KIND_SOURCE, delta)
+	elif kind == -2:
+		ok = sim.debug_adjust_building(Buildings.KIND_REFINERY, delta)
+	else:
+		ok = sim.debug_adjust_upgrade(kind, delta)
+	if ok and kind == Upgrades.KIND_CORE and renderer != null:
+		renderer.set_core_mask(sim.core_mask)
+	if not ok:
+		_notice("Stufengrenze erreicht oder Änderung nicht möglich.")
+	_refresh_test_lab()
+	refresh()
+
+
+func _test_spawn(count: int) -> void:
+	var spawned := sim.debug_spawn_workers(count)
+	_notice("%d von %d Test-Dots erzeugt." % [spawned, count])
+	_refresh_test_lab()
+	refresh()
+
+
+func _refresh_test_lab() -> void:
+	if _test_lab == null or sim == null:
+		return
+	_test_scroll.visible = sim.debug_mode
+	if _test_toggle != null:
+		_test_toggle.text = "TESTLABOR DEAKTIVIEREN" if sim.debug_mode else "TESTLABOR AKTIVIEREN"
+	var u := sim.upgrades
+	for i in _test_keys.size():
+		var kind := _test_keys[i]
+		var level := 0
+		match kind:
+			Upgrades.KIND_SPEED:
+				level = u.speed_level
+			Upgrades.KIND_ENERGY_SPEED:
+				level = u.energy_speed_level
+			Upgrades.KIND_DIG:
+				level = u.dig_level
+			Upgrades.KIND_SWARM:
+				level = u.swarm_level
+			Upgrades.KIND_CORE:
+				level = u.core_level
+			Upgrades.KIND_FUSION2:
+				level = 2 if u.fusion3 else 1 if u.fusion2 else 0
+			Upgrades.KIND_RESEARCH:
+				level = u.research_level
+			-1:
+				level = sim.buildings.source_level
+			-2:
+				level = sim.buildings.refinery_level
+		_test_labels[i].text = str(level)
+	if _test_stats != null:
+		_test_stats.text = "Dots: %d | Tick: %.2f ms | Ziel: %.2f | Bewegung: %.2f | Abbau: %.2f | BFS: %d/%d" % [
+			sim.workers.count,
+			float(sim.last_tick_usec) / 1000.0,
+			float(sim.stage_usec[Simulation.Stage.TARGET_SEARCH]) / maxi(1, sim.tick_count) / 1000.0,
+			float(sim.stage_usec[Simulation.Stage.MOVEMENT]) / maxi(1, sim.tick_count) / 1000.0,
+			float(sim.stage_usec[Simulation.Stage.MINING]) / maxi(1, sim.tick_count) / 1000.0,
+			SwarmMind.seeks_last_tick, SwarmMind.paths_last_tick,
+		]
 
 
 func _open_pause_menu() -> void:
@@ -1039,6 +1188,7 @@ func _open_pause_menu() -> void:
 	if _upgrade_panel != null:
 		_upgrade_panel.visible = false
 	_pause_layer.visible = true
+	_refresh_test_lab()
 	if clock != null:
 		clock.paused = true
 

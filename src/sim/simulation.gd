@@ -42,6 +42,10 @@ var command_group := -1
 var march_cell := -1
 ## Vom Spieler markierte Arbeiter. Zählt nicht in den Zustandshash.
 var picked := PackedInt32Array()
+## Testlabor: nur laufzeitlokal, kein regulärer Spielmodus und nicht im SaveGame enthalten.
+var debug_mode: bool = false
+## Bleibt bis zum Neustart gesetzt, damit Debug-Werte auch nach Deaktivierung nie gespeichert werden.
+var debug_modified: bool = false
 
 ## Alle internen Gruppen verwenden dieselbe Arbeiterfarbe. Rot bleibt für spätere Krieger reserviert.
 const GROUP_PALETTE: Array[Color] = [
@@ -619,6 +623,76 @@ func set_sacrifice(group_id: int, enabled: bool) -> bool:
 		return false
 	sacrifice_on[group_id] = 0
 	return true
+
+## Debug-Werkzeuge umgehen ausschließlich Kosten, nicht Grenzen oder Kern-Kollisionen.
+func debug_adjust_upgrade(kind: int, delta: int) -> bool:
+	if not debug_mode or absi(delta) != 1:
+		return false
+	var u := upgrades
+	match kind:
+		Upgrades.KIND_SPEED:
+			u.speed_level = clampi(u.speed_level + delta, 0, Upgrades.SPEED_MAX)
+		Upgrades.KIND_ENERGY_SPEED:
+			u.energy_speed_level = clampi(u.energy_speed_level + delta, 0, Upgrades.ENERGY_SPEED_MAX)
+		Upgrades.KIND_DIG:
+			u.dig_level = clampi(u.dig_level + delta, 0, 20)
+		Upgrades.KIND_SWARM:
+			u.swarm_level = clampi(u.swarm_level + delta, 0, Upgrades.SWARM_MAX)
+		Upgrades.KIND_RESEARCH:
+			u.research_level = clampi(u.research_level + delta, 0, Upgrades.RESEARCH_MAX)
+		Upgrades.KIND_CORE:
+			var next := clampi(u.core_level + delta, 0, Upgrades.CORE_MAX)
+			if next == u.core_level:
+				return false
+			if not _bind_core(next, next > u.core_level):
+				return false
+			u.core_level = next
+		Upgrades.KIND_FUSION2, Upgrades.KIND_FUSION3:
+			var level := (2 if u.fusion3 else 1 if u.fusion2 else 0)
+			level = clampi(level + delta, 0, 2)
+			u.fusion2 = level >= 1
+			u.fusion3 = level >= 2
+			for g in desired_size.size():
+				desired_size[g] = mini(int(desired_size[g]), u.max_size())
+		_:
+			return false
+	debug_modified = true
+	return true
+
+
+func debug_adjust_building(kind: int, delta: int) -> bool:
+	if not debug_mode or absi(delta) != 1 or not buildings.allowed(config.mode, kind):
+		return false
+	if kind == Buildings.KIND_SOURCE:
+		buildings.source_level = clampi(buildings.source_level + delta, 0, Buildings.SOURCE_TIER_MAX)
+	elif kind == Buildings.KIND_REFINERY:
+		buildings.refinery_level = clampi(buildings.refinery_level + delta, 0, Buildings.REFINERY_TIER_MAX)
+	else:
+		return false
+	debug_modified = true
+	return true
+
+
+## Setzt Dots in einem einzigen BFS-Lauf statt 500 einzelne teure Spawn-Suchen.
+## Die Masse wird regulär bilanziert; fehlender Platz begrenzt die tatsächlich erzeugten Dots.
+func debug_spawn_workers(want: int) -> int:
+	if not debug_mode or want <= 0:
+		return 0
+	var origin := _worker_origin()
+	if origin < 0:
+		return 0
+	var available := spawner.find_free_cells(
+		world, workers, origin, mini(want, 2000), world.cell_count(), core_mask
+	)
+	for cell in available:
+		workers.add(cell, GroupQuotas.pick_group(workers.group_mass, quotas))
+	purchased_workers += available.size()
+	if not available.is_empty():
+		debug_modified = true
+	peak_mass = maxi(peak_mass, total_mass())
+	max_units = maxi(max_units, workers.count)
+	return available.size()
+
 
 func buy(kind: int) -> bool:
 	if kind == Upgrades.KIND_RESEARCH:

@@ -94,13 +94,44 @@ static func mark_route(sim: Simulation, group_id: int, goal: int) -> int:
 	var along := PackedInt32Array()
 	var step := found
 	var mask: PackedByteArray = sim.areas.masks[group_id]
+	# Der Arbeitskorridor wird aus den tatsächlich zum Auftrag gehörenden Dots abgeleitet,
+	# nicht aus festen Engine-Gruppen. Kleine Trupps graben schmal, große Schwärme parallel.
+	var radius := tunnel_radius(sim.workers.group_counts[group_id])
 	while step >= 0:
 		if Materials.is_mineable(world.cells[step]) and mask[step] == 0:
 			along.append(step)
-		step = parent[step]
+		var previous := int(parent[step])
+		if previous >= 0 and radius > 0:
+			var horizontal := absi(step % width - previous % width) == 1
+			var x := step % width
+			var y := int(step / width)
+			for offset in range(-radius, radius + 1):
+				if offset == 0:
+					continue
+				var side_x := x if horizontal else x + offset
+				var side_y := y + offset if horizontal else y
+				if side_x < 0 or side_x >= width or side_y < 0 or side_y >= world.height:
+					continue
+				var side := side_y * width + side_x
+				if mask[side] == 0 and Materials.is_mineable(world.cells[side]):
+					along.append(side)
+		step = previous
 	if along.is_empty():
 		return ROUTE_CLEAR
 	return ROUTE_MINING if sim.assign_cells(group_id, along) else ROUTE_CLEAR
+
+
+## Breite 1, 3, 5, 7 oder 9 Zellen je nach aktivem Auftragsschwarm.
+static func tunnel_radius(moving_dots: int) -> int:
+	if moving_dots < 6:
+		return 0
+	if moving_dots < 16:
+		return 1
+	if moving_dots < 40:
+		return 2
+	if moving_dots < 100:
+		return 3
+	return 4
 
 
 static func _worker_reaches_field(sim: Simulation, group_id: int) -> bool:
