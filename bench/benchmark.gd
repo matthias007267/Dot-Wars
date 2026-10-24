@@ -13,6 +13,7 @@ var _warmup: int = 0
 var _size: int = 256
 var _seed: int = 1337
 var _move_period: int = 2
+var _swarm_level: int = 0
 var _out_path: String = ""
 
 
@@ -51,6 +52,8 @@ func _parse_args(args: PackedStringArray) -> void:
 			_seed = value.to_int()
 		elif arg.begins_with("--move-period="):
 			_move_period = value.to_int()
+		elif arg.begins_with("--swarm="):
+			_swarm_level = clampi(value.to_int(), 0, Upgrades.SWARM_MAX)
 		elif arg.begins_with("--out="):
 			_out_path = value
 
@@ -84,6 +87,7 @@ func _run_scenario(worker_count: int) -> Dictionary:
 	if sim == null:
 		return {}
 	var sim_create_ms := (Time.get_ticks_usec() - t_sim) / 1000.0
+	sim.upgrades.swarm_level = _swarm_level
 	sim.assign_area(0, Rect2i(0, 0, _size / 2, _size))
 	sim.assign_area(1, Rect2i(_size / 2, 0, _size - _size / 2, _size))
 	var memory_after := OS.get_static_memory_usage()
@@ -158,11 +162,12 @@ func _run_scenario(worker_count: int) -> Dictionary:
 		"world_size": _size,
 		"move_period_ticks": _move_period,
 		"world_seed": _seed,
+		"swarm_level": _swarm_level,
 	}
 
 
 func _print_report(results: Array[Dictionary]) -> void:
-	print("== DOT WARS Benchmark (Godot %s) ==" % Engine.get_version_info()["string"])
+	print("== DOT WARS Benchmark (Godot %s; Intelligenzstufe %d) ==" % [Engine.get_version_info()["string"], _swarm_level])
 	print("CPU: %s (%d Threads) | Welt %d² | Seed %d | Bewegungsperiode %d Takte | %d Takte (Warmup %d)" % [
 		_cpu_model(), OS.get_processor_count(), _size, _seed, _move_period, _ticks, _warmup,
 	])

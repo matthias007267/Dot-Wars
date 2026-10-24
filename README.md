@@ -66,12 +66,32 @@ godot --headless --path . -s tests/run_tests.gd -- mining
 
 Der Runner endet mit Code 1, wenn eine Prüfung fehlschlägt oder kein Test läuft. GitHub Actions führt dieselben Tests und den Headless-Start aus.
 
+## Testlabor (Performance und Fortschritte)
+
+Im laufenden Spiel **Escape → TESTLABOR AKTIVIEREN** wählen. Im Pausemenü können
+Arbeiter-/Energie-Tempo, Abbau, Intelligenz, Kern, Fusion, Forschung und
+Gebäudestufen kostenlos über **− / +** geändert werden. Mit **+100 Dots**
+oder **+500 Dots** lassen sich größere Schwärme erzeugen, soweit freie
+Zellen vorhanden sind. Nach „WEITER“ erscheint oben rechts ein Overlay mit
+FPS, Tickdauer, Zielsuche, Bewegung, Abbau und der Zahl individueller BFS-Läufe.
+
+Der Testmodus ist nur für den laufenden Spielstand aktiv. **Speichern und
+Autosave sind im Testlabor deaktiviert**, damit Testwerte nicht in normale
+Spielstände gelangen. Nach einem Neustart gelten wieder normale Kaufkosten.
+Ein herabgestufter Kern macht bereits freigelegte Weltzellen nicht rückgängig.
+
+Manuelle Marschbefehle graben abhängig von der Zahl der beauftragten Dots
+einen 1–9 Zellen breiten Arbeitskorridor. Dies ist eine erste
+lastabhängige Verbreiterung, noch keine dynamische Navigationskohorte.
+
 ## Benchmark
 
-Der Simulations-Benchmark misst keine Bildrate. Die Darstellung hat einen eigenen Messlauf.
+Der Simulations-Benchmark misst keine Bildrate. Die Darstellung hat einen eigenen Messlauf. Vergleiche insbesondere p95/p99, `stage_avg_ms` und die Schwarmstufen 0 und 4 auf derselben Hardware.
 
 ```bash
 godot --headless --path . -s bench/benchmark.gd -- --workers=1000,10000 --ticks=200
+# Vergleich mit individueller Zielsuche, gleicher Seed und gleiche Hardware:
+godot --headless --path . -s bench/benchmark.gd -- --workers=1000,10000 --ticks=200 --swarm=4
 godot --path . -- --size=1000 --frames=150 --window=1920x1080
 ```
 
