@@ -13,26 +13,47 @@ func _new_hud() -> GameHud:
 	return hud
 
 
-func test_mining_area_is_sent_to_every_working_group() -> void:
+func test_conquer_sends_only_the_selection() -> void:
 	var hud := _new_hud()
+	var layer := Control.new()
+	hud._build_stats(layer)
 	var rect := Rect2i(1, 1, 8, 8)
-	check(hud.issue_dig_area(rect), "globaler Abbauauftrag")
+	check(not hud.issue_conquer(rect), "Eroberung ohne Auswahl")
+	check(hud._message.text.contains("Wähle"), "Hinweis zur Auswahl")
+	check_eq(hud.sim.command_group, -1, "ohne Auswahl keine Befehlsgruppe")
+	hud.select_at(hud.sim.workers.cell[0])
+	check(hud.issue_conquer(rect), "Eroberung der Auswahl")
+	var group_id := hud.sim.command_group
+	check(group_id >= 0, "Befehlsgruppe")
+	check_eq(hud.sim.areas.rects[group_id].size(), 1, "ein Gebiet")
+	check_eq(hud.sim.areas.rects[group_id][0], rect, "das markierte Rechteck")
+	check_eq(hud.sim.workers.group_counts[group_id], 1, "nur der gewählte Arbeiter")
 	for g in hud.sim.group_open.size():
-		check_eq(hud.sim.areas.rects[g].size(), 1, "jede aktive Gruppe hat genau ein Gebiet")
-		check_eq(hud.sim.areas.rects[g][0], rect, "alle erhalten dasselbe Gebiet")
+		if g == group_id:
+			continue
+		check_eq(hud.sim.areas.rects[g].size(), 0, "andere Gruppen graben das nicht")
 	check_no_errors(hud.sim.check_invariants(), "Befehle verändern keine Masse")
+	layer.free()
 	hud.free()
 
 
-func test_move_goal_replaces_mining_for_all_groups() -> void:
+func test_right_drag_pans_until_ctrl_marks_an_area() -> void:
+	check_eq(GameHud.pointer_gesture(MOUSE_BUTTON_RIGHT, false, true), GameHud.Pointer.PAN, "Rechtszug verschiebt die Karte")
+	check_eq(GameHud.pointer_gesture(MOUSE_BUTTON_RIGHT, true, true), GameHud.Pointer.CONQUER, "Strg und Rechtszug setzen das Gebiet")
+	check_eq(GameHud.pointer_gesture(MOUSE_BUTTON_RIGHT, false, false), GameHud.Pointer.MARCH, "Rechtsklick schickt die Auswahl")
+	check_eq(GameHud.pointer_gesture(MOUSE_BUTTON_RIGHT, true, false), GameHud.Pointer.WAR, "Strg und Rechtsklick")
+	check_eq(GameHud.pointer_gesture(MOUSE_BUTTON_LEFT, false, true), GameHud.Pointer.SELECT_RECT, "Linkszug wählt")
+
+
+func test_selected_workers_march_together() -> void:
 	var hud := _new_hud()
-	hud.issue_dig_area(Rect2i(0, 0, 10, 10))
+	hud.select_in_rect(Rect2i(0, 0, 32, 32))
+	check_eq(hud.selection.size(), hud.sim.workers.count, "alle eigenen Arbeiter")
 	var pit_neighbor := hud.sim.world.find_nearest_empty(16, 16)
 	check(pit_neighbor >= 0, "eine Tunnelzelle ist vorhanden")
-	check(hud.issue_move_goal(pit_neighbor), "globaler Laufbefehl")
-	for g in hud.sim.group_open.size():
-		check_eq(hud.sim.move_goal(g), pit_neighbor, "gemeinsames Laufziel")
-		check_eq(hud.sim.areas.rects[g].size(), 0, "Abbauauftrag ersetzt")
+	check(hud.issue_march(pit_neighbor), "Marsch der Auswahl")
+	check_eq(hud.sim.move_goal(hud.sim.command_group), pit_neighbor, "Laufziel der Auswahl")
+	check_eq(hud.sim.workers.group_counts[hud.sim.command_group], hud.sim.workers.count, "die Auswahl geht gemeinsam")
 	check_no_errors(hud.sim.check_invariants(), "Befehle verändern keine Masse")
 	hud.free()
 
@@ -86,8 +107,10 @@ func test_escape_menu_holds_save_and_the_dock_does_not() -> void:
 	hud._build_stats(layer)
 	hud._build_dock(layer)
 	hud._build_pause_menu(layer)
-	var dock := _texts(hud._mine_button.get_parent())
-	check(dock.has("ABBAU"), "Abbau bleibt in der Leiste")
+	var dock := _texts(hud._dock_row)
+	check(not dock.has("ABBAU"), "Abbau ist kein eigener Knopf")
+	check(not dock.has("BEWEGEN"), "Bewegen ist kein eigener Knopf")
+	check(dock.has("ARBEITER +10"), "Arbeiter bleibt in der Leiste")
 	check(not dock.has("SPEICHERN"), "Speichern ist nicht in der Leiste")
 	check(not dock.has("PAUSE"), "Pause ist nicht in der Leiste")
 	check(not hud.menu_open(), "das Menü ist zu")
@@ -119,7 +142,8 @@ func test_unreachable_dig_order_is_announced() -> void:
 	hud.sim = sim
 	var layer := Control.new()
 	hud._build_stats(layer)
-	check(hud.issue_dig_area(Rect2i(5, 1, 3, 2)), "Auftrag")
+	hud.select_at(sim.workers.cell[0])
+	check(hud.issue_conquer(Rect2i(5, 1, 3, 2)), "Auftrag")
 	check(hud._message.text.contains("nicht erreichbar"), "Hinweis auf den Weg")
 	layer.free()
 	hud.free()

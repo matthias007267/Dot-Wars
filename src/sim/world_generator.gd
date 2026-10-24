@@ -2,12 +2,14 @@ class_name WorldGenerator
 extends RefCounted
 ## Reproduzierbare Weltgenerierung mit reiner Ganzzahl-Wertnoise (unabhängig von Engine-Versionen).
 ##
-## Die Welt ist ein zusammenhängender Materialkörper. In der Mitte liegt ein leerer Starttunnel.
-## Eine Zelle neben dem Tunnel ist für das spätere Energiekern reserviert und unzerstörbar.
+## Die Welt ist ein zusammenhängender Materialkörper. Im Einzelspieler beginnt sie mit
+## einer kompakten, abgerundeten Startlichtung um den unzerstörbaren Energiekern.
 ## Ein kleines unzerstörbares Feld daneben macht diesen Materialtyp in der Ansicht sichtbar.
 
 const LARGE_SCALE := 32
 const SMALL_SCALE := 11
+## Fünf Reihen mit Breiten 3, 5, 5, 5, 3: kein kreuzförmiger Starttunnel.
+const START_CLEARING_RADIUS := 2
 
 
 static func generate(config: SimConfig) -> WorldState:
@@ -23,31 +25,32 @@ static func generate(config: SimConfig) -> WorldState:
 		elif value < thresholds[1]:
 			material = Materials.MEDIUM
 		world.cells[idx] = material
-	# Mehrspieler hat Basen auf dem Ring. Der alte Mittelkreuz-Tunnel und das Opferloch bleiben Einzelspieler.
+	# Mehrspieler legt eigene Basen an; Einzelspieler bekommt eine kleine Startlichtung.
 	if config.mode != SimConfig.MODE_MATCH:
-		carve_start_tunnel(world, config.tunnel_arm_length)
+		carve_start_clearing(world, sacrifice_cell(world))
 		_place_unbreakable(world, config.tunnel_arm_length)
+	# Der Rausch schreibt das Array direkt. Die Flächenliste liest danach den fertigen Stand.
+	world.rebuild_faces()
 	return world
 
 
-## Zelle des späteren Opferlochs: orthogonal neben der Tunnelmitte, nicht auf dem Tunnel.
+## Unzerstörbarer Energiekern im Zentrum der Einzelspieler-Startlichtung.
 static func sacrifice_cell(world: WorldState) -> Vector2i:
 	return Vector2i(world.width / 2 + 1, world.height / 2 + 1)
 
 
-## Kreuzförmiger Starttunnel um den Weltmittelpunkt.
-static func carve_start_tunnel(world: WorldState, arm: int) -> void:
-	var cx := world.width / 2
-	var cy := world.height / 2
-	world.carve_rect(Rect2i(cx - arm, cy, arm * 2 + 1, 1))
-	world.carve_rect(Rect2i(cx, cy - arm, 1, arm * 2 + 1))
+## Kompakte, abgerundete Lichtung um einen Kern. Der Aushub zählt nicht als Abbau.
+## Dieselbe Form gilt für alle Fraktionen und ist unabhängig von der alten Tunnelarmlänge.
+static func carve_start_clearing(world: WorldState, center: Vector2i) -> void:
+	for dy in range(-START_CLEARING_RADIUS, START_CLEARING_RADIUS + 1):
+		var half_width := 1 if absi(dy) == START_CLEARING_RADIUS else START_CLEARING_RADIUS
+		world.carve_rect(Rect2i(center.x - half_width, center.y + dy, half_width * 2 + 1, 1))
 
 
 static func _place_unbreakable(world: WorldState, arm: int) -> void:
 	var pit := sacrifice_cell(world)
 	var pit_idx := world.index(pit.x, pit.y)
-	if world.cells[pit_idx] != Materials.EMPTY:
-		world.set_material(pit_idx, Materials.INDESTRUCTIBLE)
+	world.set_material(pit_idx, Materials.INDESTRUCTIBLE)
 	var origin_x := clampi(world.width / 2 - arm - 6, 1, world.width - 5)
 	var origin_y := clampi(world.height / 2 - arm - 6, 1, world.height - 5)
 	for y in range(origin_y, origin_y + 4):

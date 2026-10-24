@@ -1,32 +1,38 @@
 name: Tests
 
 on:
+  # Ein PR-Test genügt; Push-Tests auf Feature-Branches würden dieselbe Suite doppelt ausführen.
   push:
+    branches: [main]
   pull_request:
+
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   headless:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Godot 4.3 installieren
         run: |
-          curl -fsSL -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
+          curl -fsSL --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
           unzip -q /tmp/godot.zip -d /tmp/godot
           sudo mv /tmp/godot/Godot_v4.3-stable_linux.x86_64 /usr/local/bin/godot
           godot --version
 
       - name: Projekt importieren
-        run: godot --headless --path . --import
+        run: timeout 60s godot --headless --path . --import
 
       - name: Tests
-        run: godot --headless --path . -s tests/run_tests.gd
+        run: timeout 180s godot --headless --path . -s tests/run_tests.gd
 
       - name: Hauptszene startet
         run: |
-          godot --headless --path . --quit-after 8 > /tmp/boot.log 2>&1 || true
+          timeout 30s godot --headless --path . --quit-after 8 > /tmp/boot.log 2>&1
           cat /tmp/boot.log
           if grep -E "SCRIPT ERROR|Parse Error|Startprüfung fehlgeschlagen|Konfiguration ungültig" /tmp/boot.log; then
             exit 1

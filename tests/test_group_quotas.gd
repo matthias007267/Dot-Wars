@@ -100,6 +100,6 @@ func test_new_workers_follow_quotas_in_simulation() -> void:
 	check_eq(sim.spawner.pending(), 0, "alle platziert")
 	var total := sim.workers.count
 	check_eq(total, 101, "Startarbeiter plus Käufe")
-	check(absi(sim.workers.group_counts[0] * 100 - 70 * total) <= 100, "Gruppe 0 ≈ 70 % (%d)" % sim.workers.group_counts[0])
+	check(absi(sim.workers.group_counts[0] * 100 - 70 * total) <= 100, "Gruppe 0 ≈ 70 %% (%d)" % sim.workers.group_counts[0])
 	check_eq(sim.workers.group_counts[0] + sim.workers.group_counts[1], total, "Zähler passen")
 	check_no_errors(sim.check_invariants(), "Bilanzen")

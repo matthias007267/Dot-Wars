@@ -3,6 +3,9 @@ extends Node2D
 ## Zeichnet Abbaugebiete und Sammelpunkte. Keine Node pro Zelle.
 
 var sim: Simulation
+var drag_rect := Rect2i()
+var drag_active := false
+var drag_conquer := false
 
 
 func _process(_delta: float) -> void:
@@ -32,7 +35,20 @@ func _draw() -> void:
 			var tint := color
 			tint.a = 0.72
 			draw_rect(Rect2(goal % width, goal / width, 1, 1), tint, true)
+	_draw_selection(width)
+	if drag_active and drag_rect.has_area():
+		var tone := Color(1, 0.89, 0.37, 0.9) if drag_conquer else Color(1, 1, 1, 0.85)
+		draw_rect(Rect2(drag_rect.position, drag_rect.size), tone, false, 0.12)
 	_draw_bases(width)
+
+
+func _draw_selection(width: int) -> void:
+	for id in sim.picked:
+		if id < 0 or id >= sim.workers.count:
+			continue
+		var cell := sim.workers.cell[id]
+		var unit := int(sim.workers.size[id])
+		draw_rect(Rect2(cell % width, cell / width, unit, unit), Color(1, 1, 1, 0.95), false, 0.14)
 
 
 func _faction_of(group_id: int) -> int:

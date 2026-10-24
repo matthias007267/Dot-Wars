@@ -18,7 +18,15 @@ func _init() -> void:
 	for file in files:
 		if not filter.is_empty() and not file.contains(filter):
 			continue
-		var suite: TestCase = load("%s/%s" % [TEST_DIR, file]).new()
+		var path := "%s/%s" % [TEST_DIR, file]
+		var script := load(path) as Script
+		if script == null or not script.can_instantiate():
+			failures.append("%s: Testskript konnte nicht geladen werden (Syntaxfehler?)" % file)
+			continue
+		var suite := script.new() as TestCase
+		if suite == null:
+			failures.append("%s: Testskript ist keine TestCase-Suite" % file)
+			continue
 		for method in suite.get_method_list():
 			var method_name: String = method["name"]
 			if not method_name.begins_with("test_"):

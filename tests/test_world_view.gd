@@ -80,9 +80,9 @@ func test_core_plaza_is_tinted_and_the_pit_stays_bright() -> void:
 			break
 	check(plaza.x >= 0, "eine freie Kernzelle")
 	_check_color(image, plaza, Materials.PLAZA_COLOR, "Kernfläche")
-	var outside := Vector2i(pit.x - 5, pit.y - 1)
-	check_eq(sim.core_mask[sim.world.index(outside.x, outside.y)], 0, "der äußere Tunnel bleibt frei")
-	_check_color(image, outside, Materials.COLORS[Materials.EMPTY], "Tunnel außerhalb")
+	var outside := Vector2i(pit.x - 2, pit.y - 1)
+	check_eq(sim.core_mask[sim.world.index(outside.x, outside.y)], 0, "die äußere Lichtung bleibt frei")
+	_check_color(image, outside, Materials.COLORS[Materials.EMPTY], "Lichtung außerhalb")
 	var chunk_id := (plaza.y / sim.world.chunk_size) * sim.world.chunks_x + plaza.x / sim.world.chunk_size
 	WorldRenderer.paint_rect(bytes, sim.world, palette, sim.world.chunk_rect(chunk_id), pit_index, sim.core_mask)
 	var repainted := Image.create_from_data(sim.world.width, sim.world.height, false, Image.FORMAT_RGBA8, bytes)

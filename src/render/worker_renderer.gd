@@ -2,6 +2,10 @@ class_name WorkerRenderer
 extends Node2D
 ## Zeichnet alle Arbeiter in eine Textur, ein Pixel pro Zelle. Keine Node pro Arbeiter.
 
+const DOT_GLOW_SHADER := preload("res://src/render/shaders/dot_glow.gdshader")
+@export var glow_enabled := true
+@export_range(0.0, 1.0, 0.05) var glow_strength := 0.80
+
 var world: WorldState
 var workers: WorkerStore
 var colors: Array[Color] = [
@@ -18,6 +22,12 @@ var _painted := PackedInt32Array()
 
 func _ready() -> void:
 	texture_filter = TEXTURE_FILTER_NEAREST
+	if glow_enabled:
+		var shader_material := ShaderMaterial.new()
+		shader_material.shader = DOT_GLOW_SHADER
+		shader_material.set_shader_parameter("glow_strength", glow_strength)
+		shader_material.set_shader_parameter("dot_brightness", 1.13)
+		material = shader_material
 	_bytes.resize(world.cell_count() * 4)
 	_upload()
 

@@ -49,14 +49,15 @@ Zustände bleiben wenige und klar, zum Beispiel Warten, Bewegen, Abbauen, Blocki
 
 * Bewegung nur orthogonal durch leere Zellen innerhalb der Welt.
 * Kein Weg durch Material. Tunnel entstehen durch Abbau.
+* Ein Marsch merkt sich den gewünschten Punkt und gilt nur für die ausgewählten Arbeiter. Die Wegsuche läuft zum nächstmöglichen erreichbaren Punkt. Ist der Punkt selbst erreichbar, ist er das Ziel. Sonst sammelt sich die Auswahl an der nächsten Zelle. Danach suchen sich diese Arbeiter wieder selbst Arbeit.
 * Abbau nur von einer orthogonal benachbarten, begehbaren Zelle.
 * Größere Dots brauchen entsprechend breite, freie Durchgänge.
 * Gekaufte Arbeiter entstehen nur auf freien Tunnelzellen in der Nähe des Energiekerns.
-* Der Spieler setzt nur Auftrag und Zielgebiet.
+* Der Spieler setzt Auftrag und Zielgebiet nur für die aktuelle Auswahl. Ohne Auswahl bleibt der automatische Abbau.
 
-Die Wegfindung gilt für den Schwarm gemeinsam: Distanzfelder oder Flow-Fields, zwischengespeichert, bei Tunneländerungen gezielt aktualisiert, über mehrere Takte verteilt. Bis zu 32 geänderte Zellen korrigieren das bestehende Feld. Ein neues Gebiet, ein neues Laufziel oder eine größere Änderung berechnet es neu. Die Grenzen stehen in D-020.
+Die Wegfindung gilt für den Schwarm gemeinsam: Distanzfelder oder Flow-Fields, zwischengespeichert, bei Tunneländerungen gezielt aktualisiert, über mehrere Takte verteilt. Bis zu 32 geänderte Zellen korrigieren das bestehende Feld. Ein neues Gebiet, ein neues Laufziel oder eine größere Änderung berechnet es neu. Die automatische Arbeit sucht Fels zuerst im Umkreis von 16 Zellen und weitet die Suche nur, wenn dort nichts liegt. Die Grenzen stehen in D-020 und D-038.
 
-Unerreichbare Ziele lassen die Arbeiter warten. Es wird kein Weg durch Material erfunden. Ein Feld wird nur einmal abgebaut. Gleichzeitige Versuche erzeugen die Ressource nicht doppelt. Fortschritt liegt an der Zelle. Abgebaute Zellen werden begehbar.
+Ein unerreichbarer Wunschpunkt schickt den Schwarm an die nächste erreichbare Zelle. Es wird kein Weg durch Material erfunden. Ein Feld wird nur einmal abgebaut. Gleichzeitige Versuche erzeugen die Ressource nicht doppelt. Fortschritt liegt an der Zelle. Abgebaute Zellen werden begehbar.
 
 ## Energie, Transport und Wachstum
 
@@ -98,7 +99,7 @@ Der Energiekern steht im Startbereich und ist unzerstörbar. Ankommende Energie-
 | Verschmelzung | 100 | schaltet 2×2 frei | einmal |
 | Erweiterte Verschmelzung | 250 | schaltet 3×3 frei | einmal |
 
-Kostenformeln sind zentral und testbar. Effekte gelten global und konsistent. Die Abbildung von +25 % auf den Ganzzahl-Takt ist noch offen.
+Kostenformeln sind zentral und testbar. Effekte gelten global und konsistent. Jede Abbaustufe multipliziert die Leistung mit 5/4, ohne Rundung, auch bei hohen Stufen.
 
 Die Ziele hängen am Modus und sind vorläufig. In der Räumung ist die Runde gewonnen, wenn alle drei Prüfungen erfüllt sind: mindestens 100 gekaufte und vorhandene Arbeitermasse, mindestens zwei Käufe, mindestens 90 % des ursprünglich abbaubaren Materials. Leer und unzerstörbar zählen nicht zur Bezugsmenge. Förderung endet bei 1.000 gelieferten Energieeinheiten. Veredelung endet bei 400 veredelten Einheiten am Kern. Nach dem Sieg kann weitergespielt werden. Die Statistik zeigt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades, die maximale Zahl Einheiten und die veredelte Menge. 20 bis 40 Minuten auf der Standardwelt sind das Balancingziel der Räumung. Ein skriptierter Lauf mit Seed 1337 hat die drei Räumungsziele auf der 256er-Welt nach 37:28 erreicht, noch mit dem alten Zwei-Takt-Tempo. Ein menschliches Spiel ist damit nicht gemessen.
 
@@ -135,12 +136,12 @@ Das Menü trennt zuerst Einzelspieler und Mehrspieler. Im Einzelspieler folgt de
 * Die Welt wird als eine Textur gezeichnet. Teilweise abgebaute Zellen dunkeln ab. Kamera, Zoom und Debug-Raster sind im Fenster.
 * Arbeiter werden als zweite Textur gezeichnet, große Einheiten über ihr Quadrat.
 * Das Startmenü fragt zuerst Einzelspieler oder Mehrspieler und zeigt danach nur die passenden Einstellungen. Ein neues Spiel startet mit drei Gruppen (40/30/30) oder lädt einen Speicherstand.
-* Das HUD bietet zwei Modi: „Abbau“ markiert ein Gebiet per Ziehen, „Bewegen“ setzt einen gemeinsamen Sammelpunkt im Tunnel. Gebiete und Sammelpunkte tragen die Farbe der Fraktion. Ein Gebiet über die ganze Karte bleibt unsichtbar. Ein unerreichbares Gebiet nennt den Hinweis und der Schwarm gräbt sich dorthin. Ohne Auftrag, oder wenn im Auftrag nichts mehr liegt, nimmt er die nächste Ressource. Ein Sammelpunkt hält ihn davon ab. „Arbeiter +10“ kauft einen Arbeiter für 10 gelieferte Energie. Die Energiezeile nennt das eigene Guthaben und die eigenen Dots unterwegs. Im Mehrspieler steht die gegnerische Masse in einer eigenen Zeile. Quotenregler gibt es nicht.
+* Die linke Taste wählt Arbeiter. Ein Rechtsklick schickt nur diese Auswahl, unterwegs werden die Ressourcen auf dem Weg abgebaut. Ist der Auftrag erledigt, suchen sich dieselben Arbeiter wieder selbst die nächste Arbeitsfront. Die übrigen arbeiten dabei weiter. Ohne Auswahl bleibt alles beim automatischen Abbau. Liegen mehrere Dot-Fraktionen in der Auswahl, bleibt die mit der höchsten Priorität. Gebiete und Sammelpunkte tragen die Farbe der Fraktion. Ein unerreichbares Gebiet nennt den Hinweis und die Auswahl gräbt sich dorthin. Die gehaltene rechte Taste verschiebt die Karte. Zusammen mit Strg markiert der Zug ein Gebiet. „Arbeiter +10“ kauft einen Arbeiter für 10 gelieferte Energie. Die Energiezeile nennt das eigene Guthaben und die eigenen Dots unterwegs. Im Mehrspieler steht die gegnerische Masse in einer eigenen Zeile. Quotenregler gibt es nicht.
 * Die Gruppenverwaltung existiert weiterhin als interne API. Die Quoten bleiben in der Simulation exakt 100 %, aber die Standardoberfläche zeigt keine Quotenregler und keine Gruppenliste.
 * Verschmelzung auf 2×2 und 3×3 ist nach dem passenden Upgrade die Wunschgröße der Gruppe. Masse bleibt erhalten, enge Tunnel sind nicht passierbar.
-* Die Leiste öffnet ein Fähigkeiten-Fenster. Darin liegen Kern, Bewegung (Arbeiter- und Energie-Tempo), Schwarm (Abbau, 2×2, 3×3) und Bauen. Der Modus entscheidet, ob dort die Quelle oder der Veredler steht. Weitere Zweige kommen in dieses Fenster, nicht in die Leiste. Die Kosten stehen in `docs/DECISIONS.md`.
+* Die Leiste öffnet ein Fähigkeiten-Fenster. Darin liegen Kern, Bewegung (Arbeiter- und Energie-Tempo), Schwarm (Abbau, Intelligenz, 2×2, 3×3) und Bauen. Intelligenz lässt jeden Dot einen noch freien Fels suchen. Stufe 0 läuft gemeinsam und blockiert sich. Höhere Stufen wechseln das Ziel schneller, wenn ein Dot zu lange ohne Abbau auf einer Zelle steht. Sind alle Nachbarzellen von eigenen Arbeitern belegt, wartet er mit der neuen Suche. Der Modus entscheidet, ob dort die Quelle oder der Veredler steht. Weitere Zweige kommen in dieses Fenster, nicht in die Leiste. Die Kosten stehen in `docs/DECISIONS.md`.
 * Der Modus steht im Einzelspieler. Räumung gewinnt mit Arbeitermasse, zwei Käufen und 90 % Abbau. Förderung gewinnt mit 1.000 gelieferter Energie, Veredelung mit 400 veredelter Energie. Mehrspieler gewinnt über die gewählten Ziele gegen KI. Die Schwierigkeit steht nur dort und ändert den Plan der KI. Danach läuft das Spiel weiter. Die Auswertung nennt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades, die höchste Zahl gleichzeitiger Einheiten und die veredelte Menge. Die Masse wächst durch Käufe. Im Mehrspieler zieht das Entfernen einer Fraktion die entfernte Masse wieder ab.
-* Escape öffnet das Pausenmenü mit Weiter, Speichern, Laden, Neu starten, Lautstärke und Beenden. Die untere Leiste behält Abbau, Bewegen, Arbeiter, Größe, Fähigkeiten und die Stufen 1×, 2× und 4×.
+* Escape öffnet das Pausenmenü mit Weiter, Speichern, Laden, Neu starten, Lautstärke und Beenden. Die untere Leiste behält Arbeiter, Größe, Fähigkeiten und die Stufen 1×, 2× und 4×. Die Kamera folgt der rechten Taste, der mittleren Taste, WASD und den Pfeiltasten. Ein Gebietsauftrag braucht zusätzlich Strg.
 * Kleine Tunneländerungen korrigieren die Zielsuche lokal. Ab 33 Zellen, bei einem neuen Gebiet oder einem neuen Laufziel wird das Feld neu aufgebaut. Eine geöffnete Zelle setzt eine laufende vollständige Berechnung nicht zurück.
 * Die Fraktions-ID liegt am Arbeiter. Einzelspieler bleibt bei 0. Mehrspieler vergibt je KI eine eigene Fraktion, ein eigenes Guthaben und einen eigenen Kern.
 
