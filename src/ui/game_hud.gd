@@ -47,6 +47,7 @@ var _approach: Label
 var _opponent_value: Label
 var _pause_layer: Control
 var _test_lab: VBoxContainer
+var _test_scroll: ScrollContainer
 var _test_toggle: Button
 var _test_labels: Array[Label] = []
 var _test_keys: Array[int] = []
@@ -1047,9 +1048,13 @@ func _menu_button(parent: Node, title: String, action: Callable) -> Button:
 
 ## Nur im Testlabor: Stufen beliebig hoch/runter, Dots für reproduzierbare Lasttests.
 func _build_test_lab(parent: Node) -> void:
+	_test_scroll = ScrollContainer.new()
+	_test_scroll.custom_minimum_size = Vector2(340, 235)
+	_test_scroll.visible = false
+	parent.add_child(_test_scroll)
 	_test_lab = VBoxContainer.new()
 	_test_lab.add_theme_constant_override("separation", 4)
-	parent.add_child(_test_lab)
+	_test_scroll.add_child(_test_lab)
 	_label(_test_lab, "TESTLABOR – OHNE KOSTEN", 12, UiTheme.ACCENT)
 	for item in [
 		["Arbeiter-Tempo", Upgrades.KIND_SPEED],
@@ -1078,12 +1083,12 @@ func _build_test_lab(parent: Node) -> void:
 	_button(spawns, "+100 Dots", _test_spawn.bind(100))
 	_button(spawns, "+500 Dots", _test_spawn.bind(500))
 	_test_stats = _label(_test_lab, "", 11, UiTheme.MUTED)
-	_test_lab.visible = false
+	_test_lab.visible = true
 
 
 func _toggle_test_lab() -> void:
 	sim.debug_mode = not sim.debug_mode
-	_test_lab.visible = sim.debug_mode
+	_test_scroll.visible = sim.debug_mode
 	_notice("Testlabor aktiv. Teststände werden nicht gespeichert." if sim.debug_mode else "Testlabor beendet. Änderungen bleiben bis zum Neustart.")
 	_refresh_test_lab()
 
@@ -1114,7 +1119,7 @@ func _test_spawn(count: int) -> void:
 func _refresh_test_lab() -> void:
 	if _test_lab == null or sim == null:
 		return
-	_test_lab.visible = sim.debug_mode
+	_test_scroll.visible = sim.debug_mode
 	if _test_toggle != null:
 		_test_toggle.text = "TESTLABOR DEAKTIVIEREN" if sim.debug_mode else "TESTLABOR AKTIVIEREN"
 	var u := sim.upgrades
