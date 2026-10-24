@@ -61,6 +61,25 @@ func test_debug_bulk_spawn_preserves_mass() -> void:
 		check_eq(restored.state_hash(), sim.state_hash(), "Testwerte deterministisch")
 
 
+func test_swarm_searches_are_bounded_for_large_populations() -> void:
+	var config := TestHelpers.default_config()
+	config.world_size = 64
+	config.move_period_ticks = 1
+	var world := WorldState.new(64, 64, 8, Materials.SOFT)
+	world.carve_rect(Rect2i(3, 3, 58, 58))
+	var sim := Simulation.from_world(config, world, PackedInt32Array(), false)
+	for i in 120:
+		sim.workers.add(world.index(5 + i % 30, 5 + int(i / 30)), 0)
+	sim.initial_mass = 120
+	sim.peak_mass = 120
+	sim.upgrades.swarm_level = Upgrades.SWARM_MAX
+	sim.assign_area(0, Rect2i(0, 0, 64, 64))
+	sim.tick_once()
+	check(SwarmMind.seeks_last_tick <= SwarmMind.MAX_SEEKS_PER_TICK, "Suchläufe je Takt gedeckelt")
+	check(SwarmMind.paths_last_tick <= SwarmMind.MAX_PATHS_PER_TICK, "Pfadläufe je Takt gedeckelt")
+	check_no_errors(sim.check_invariants(), "Bilanz")
+
+
 func test_tunnel_width_follows_active_order_party() -> void:
 	check_eq(DigGuidance.tunnel_radius(1), 0, "ein Dot: schmal")
 	check_eq(DigGuidance.tunnel_radius(8), 1, "acht Dots: drei Zellen")

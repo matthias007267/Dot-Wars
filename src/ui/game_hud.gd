@@ -1147,12 +1147,13 @@ func _refresh_test_lab() -> void:
 				level = sim.buildings.refinery_level
 		_test_labels[i].text = str(level)
 	if _test_stats != null:
-		_test_stats.text = "Dots: %d | Tick: %.2f ms | Ziel: %.2f | Bewegung: %.2f | Abbau: %.2f" % [
+		_test_stats.text = "Dots: %d | Tick: %.2f ms | Ziel: %.2f | Bewegung: %.2f | Abbau: %.2f | BFS: %d/%d" % [
 			sim.workers.count,
 			float(sim.last_tick_usec) / 1000.0,
 			float(sim.stage_usec[Simulation.Stage.TARGET_SEARCH]) / maxi(1, sim.tick_count) / 1000.0,
 			float(sim.stage_usec[Simulation.Stage.MOVEMENT]) / maxi(1, sim.tick_count) / 1000.0,
 			float(sim.stage_usec[Simulation.Stage.MINING]) / maxi(1, sim.tick_count) / 1000.0,
+			SwarmMind.seeks_last_tick, SwarmMind.paths_last_tick,
 		]
 
 

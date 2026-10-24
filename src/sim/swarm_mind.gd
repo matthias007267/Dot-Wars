@@ -8,6 +8,12 @@ extends RefCounted
 
 const PATIENCE := [0, 80, 40, 20, 10]
 const BUDGET := [0, 64, 192, 768, 3072]
+## Obergrenze für teure individuelle BFS-Arbeit pro Simulationstakt.
+## Große Schwärme verteilen ihre Sucharbeit deterministisch über mehrere Takte.
+const MAX_SEEKS_PER_TICK := 24
+const MAX_PATHS_PER_TICK := 48
+static var seeks_last_tick: int = 0
+static var paths_last_tick: int = 0
 ## Wie oft ein eigener Weg neu gesucht wurde. Tests lesen das, die Simulation nicht.
 static var path_builds: int = 0
 ## Temporäre, gemeinsam wiederverwendete Suchpuffer. Keine Zuordnung zu festen Dot-Gruppen:
@@ -46,6 +52,8 @@ static func _neighbor(cell: int, direction: int, width: int, count: int) -> int:
 
 static func step(sim: Simulation) -> void:
 	var workers := sim.workers
+	seeks_last_tick = 0
+	paths_last_tick = 0
 	if workers.count == 0:
 		return
 	var levels := _levels(sim)
@@ -69,7 +77,13 @@ static func step(sim: Simulation) -> void:
 		if not _marked(sim, id, rock):
 			continue
 		claimed[_key(int(workers.faction[id]), rock)] = id
-	for id in workers.count:
+	# Nur bei großen Schwärmen rotieren die IDs. Kleine Szenen bleiben bytegleich.
+	# Die Position ist aus tick_count ableitbar und braucht keinen Save-Zustand.
+	var start := 0
+	if workers.count > MAX_SEEKS_PER_TICK:
+		start = (sim.tick_count * MAX_SEEKS_PER_TICK) % workers.count
+	for offset in workers.count:
+		var id := (start + offset) % workers.count
 		var faction := int(workers.faction[id])
 		var level := levels[mini(faction, levels.size() - 1)]
 		if level <= 0 or int(workers.size[id]) > 1 or sim.move_goal(int(workers.group[id])) >= 0:
@@ -101,6 +115,9 @@ static func step(sim: Simulation) -> void:
 		elif boxed:
 			workers.aim[id] = WorkerStore.NO_TARGET
 		else:
+			if seeks_last_tick >= MAX_SEEKS_PER_TICK:
+				continue
+			seeks_last_tick += 1
 			var ban := previous if drop else WorkerStore.NO_TARGET
 			var found := _seek(sim, id, level, claimed, ban)
 			if found < 0 and ban >= 0:
@@ -112,6 +129,11 @@ static func step(sim: Simulation) -> void:
 		var sig := _watch(sim, id, aim_now)
 		if sig == int(workers.aim_watch[id]) and aim_now == previous:
 			continue
+		if paths_last_tick >= MAX_PATHS_PER_TICK:
+			# Ein veralteter Schritt darf nicht gegen die aktuelle Belegung benutzt werden.
+			workers.aim_step[id] = WorkerStore.NO_TARGET
+			continue
+		paths_last_tick += 1
 		workers.aim_watch[id] = sig
 		workers.aim_step[id] = _first_step(sim, id, aim_now, level)
 
