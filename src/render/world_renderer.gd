@@ -4,7 +4,14 @@ extends Node2D
 ## Es gibt keine Node pro Zelle.
 
 const GRID_MIN_ZOOM := 8.0
-const PIT_GLOW_MIN_ZOOM := 3.0
+const PIT_GLOW_MIN_ZOOM := 2.5
+const TERRAIN_SHADER := preload("res://src/render/shaders/terrain.gdshader")
+
+## Reine Darstellungsoptionen, ohne Einfluss auf die Welt oder das HUD.
+@export var world_fx_enabled := true
+@export_range(0.0, 1.0, 0.05) var terrain_detail := 0.85
+@export_range(0.0, 1.0, 0.05) var tunnel_depth := 0.80
+@export_range(0.0, 0.35, 0.01) var vignette_strength := 0.15
 
 var world: WorldState
 var camera: Camera2D
@@ -27,10 +34,26 @@ const RELIC_COLOR := Color8(0xD7, 0xC4, 0xFF)
 var _bytes := PackedByteArray()
 var _image: Image
 var _texture: ImageTexture
+var _surface: Sprite2D
+var _last_glow_frame := -1
 
 
 func _ready() -> void:
 	texture_filter = TEXTURE_FILTER_NEAREST
+	# Nur dieser eine Sprite erhaelt den Welt-Shader. Eigene Draw-Befehle
+	# (Kernlicht, Raster) liegen darueber; die Minimap nutzt die Rohtextur.
+	_surface = Sprite2D.new()
+	_surface.centered = false
+	_surface.texture_filter = TEXTURE_FILTER_NEAREST
+	_surface.show_behind_parent = true
+	if world_fx_enabled:
+		var shader_material := ShaderMaterial.new()
+		shader_material.shader = TERRAIN_SHADER
+		shader_material.set_shader_parameter("detail_strength", terrain_detail)
+		shader_material.set_shader_parameter("edge_strength", tunnel_depth)
+		shader_material.set_shader_parameter("vignette_strength", vignette_strength)
+		_surface.material = shader_material
+	add_child(_surface)
 	_bytes.resize(world.cell_count() * 4)
 	_paint_everything()
 	_upload()
@@ -40,22 +63,26 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	var dirty := world.consume_dirty_chunks()
-	if dirty.is_empty():
-		return
-	var palette := palette_bytes()
-	for chunk in dirty:
-		paint_rect(
-			_bytes, world, palette, world.chunk_rect(chunk), _pit_index(), core_mask, building_mask,
-			marker_cores, marker_rgb, marker_hill, marker_relics, marker_relic_rgb
-		)
-	_upload()
-	queue_redraw()
+	if not dirty.is_empty():
+		var palette := palette_bytes()
+		for chunk in dirty:
+			paint_rect(
+				_bytes, world, palette, world.chunk_rect(chunk), _pit_index(), core_mask, building_mask,
+				marker_cores, marker_rgb, marker_hill, marker_relics, marker_relic_rgb
+			)
+		_upload()
+		queue_redraw()
+	# Kernpuls mit maximal etwa 15 Updates/Sekunde, ohne Welttextur-Upload.
+	if world_fx_enabled and camera != null and camera.zoom.x >= PIT_GLOW_MIN_ZOOM:
+		var glow_frame := int(Time.get_ticks_msec() / 66)
+		if glow_frame != _last_glow_frame:
+			_last_glow_frame = glow_frame
+			queue_redraw()
 
 
 func _draw() -> void:
 	if _texture == null:
 		return
-	draw_texture_rect(_texture, Rect2(0, 0, world.width, world.height), false)
 	_draw_pit_glow()
 	if show_chunks:
 		_draw_chunks()
@@ -190,21 +217,36 @@ func _upload() -> void:
 		_texture = ImageTexture.create_from_image(_image)
 	else:
 		_texture.update(_image)
+	if _surface != null:
+		_surface.texture = _texture
 
 
-## Der Lichtakzent wird nur beim Zeichnen berechnet; kein Pixel/Node je Zelle.
-## Bei kleinen Zoomstufen bleibt das Energiekern ein einzelner farbiger Dot.
+## Die Kerne aller Fraktionen leuchten ohne zusaetzliche Nodes oder Lichtquellen.
+## Im Fernzoom bleibt die Basismarkierung exakt ein Weltpixel.
 func _draw_pit_glow() -> void:
-	if not marker_cores.is_empty():
+	if not world_fx_enabled or camera == null or camera.zoom.x < PIT_GLOW_MIN_ZOOM:
 		return
-	if camera == null or camera.zoom.x < PIT_GLOW_MIN_ZOOM:
+	var pulse := 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * 0.0028)
+	if marker_cores.is_empty():
+		_glow_at(_pit_index(), Materials.PIT_COLOR, pulse)
 		return
-	var point := WorldGenerator.sacrifice_cell(world)
-	var center := Vector2(point.x + 0.5, point.y + 0.5)
-	var glow := Materials.PIT_COLOR
-	draw_circle(center, 3.6, Color(glow.r, glow.g, glow.b, 0.055))
-	draw_circle(center, 2.4, Color(glow.r, glow.g, glow.b, 0.095))
-	draw_circle(center, 1.35, Color(glow.r, glow.g, glow.b, 0.18))
+	for index in marker_cores.size():
+		var at := index * 3
+		if at + 2 >= marker_rgb.size():
+			continue
+		var color := Color8(marker_rgb[at], marker_rgb[at + 1], marker_rgb[at + 2])
+		_glow_at(marker_cores[index], color, pulse)
+
+
+func _glow_at(cell: int, color: Color, pulse: float) -> void:
+	if cell < 0 or cell >= world.cell_count():
+		return
+	var center := Vector2(float(cell % world.width) + 0.5, float(cell / world.width) + 0.5)
+	var radius := 3.0 + 0.3 * pulse
+	draw_circle(center, radius, Color(color.r, color.g, color.b, 0.045 + 0.025 * pulse))
+	draw_circle(center, 1.9 + 0.2 * pulse, Color(color.r, color.g, color.b, 0.095 + 0.045 * pulse))
+	draw_arc(center, 2.1 + 0.25 * pulse, 0.0, TAU, 28,
+		Color(color.r, color.g, color.b, 0.30 + 0.15 * pulse), 0.14, true)
 
 
 func _draw_grid() -> void:

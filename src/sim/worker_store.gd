@@ -25,6 +25,16 @@ var faction := PackedByteArray()
 var state := PackedByteArray()
 ## Zielzelle des Abbaus (nur bei STATE_MINING gültig).
 var target := PackedInt32Array()
+## Eigener Fels der Schwarm-Intelligenz. -1 heißt: das gemeinsame Wegfeld gilt.
+var aim := PackedInt32Array()
+## Nächster Schritt zum eigenen Fels. Bleibt, solange Ziel, Standplatz und Nachbarn gleich sind.
+## Wird nicht gespeichert.
+var aim_step := PackedInt32Array()
+## Signatur der letzten Schrittsuche. Nicht im Hash und nicht im Speicherstand.
+var aim_watch := PackedInt32Array()
+## Takte auf derselben Zelle ohne Abbau.
+var idle_ticks := PackedInt32Array()
+var idle_cell := PackedInt32Array()
 ## Tick, in dem sich der Arbeiter zuletzt bewegt hat (verhindert Doppelschritte durch Tausch).
 var last_move_tick := PackedInt32Array()
 ## Kantenlänge des Quadrats. 1 ist der Basis-Arbeiter.
@@ -177,6 +187,9 @@ func state_hash() -> int:
 		hash(faction),
 		hash(state),
 		hash(target),
+		hash(aim),
+		hash(idle_ticks),
+		hash(idle_cell),
 		hash(last_move_tick),
 		hash(size),
 		hash(mass),
@@ -191,6 +204,11 @@ func _append(anchor: int, group_id: int, faction_id: int, unit_size: int, unit_m
 	faction.append(faction_id)
 	state.append(STATE_WAITING)
 	target.append(NO_TARGET)
+	aim.append(NO_TARGET)
+	aim_step.append(NO_TARGET)
+	aim_watch.append(0)
+	idle_ticks.append(0)
+	idle_cell.append(NO_TARGET)
 	last_move_tick.append(-1)
 	size.append(unit_size)
 	mass.append(unit_mass)
@@ -217,6 +235,11 @@ func _copy_slot(src: int, dst: int) -> void:
 	faction[dst] = faction[src]
 	state[dst] = state[src]
 	target[dst] = target[src]
+	aim[dst] = aim[src]
+	aim_step[dst] = aim_step[src]
+	aim_watch[dst] = aim_watch[src]
+	idle_ticks[dst] = idle_ticks[src]
+	idle_cell[dst] = idle_cell[src]
 	last_move_tick[dst] = last_move_tick[src]
 	size[dst] = size[src]
 	mass[dst] = mass[src]
@@ -229,6 +252,11 @@ func _shrink() -> void:
 	faction.resize(count)
 	state.resize(count)
 	target.resize(count)
+	aim.resize(count)
+	aim_step.resize(count)
+	aim_watch.resize(count)
+	idle_ticks.resize(count)
+	idle_cell.resize(count)
 	last_move_tick.resize(count)
 	size.resize(count)
 	mass.resize(count)

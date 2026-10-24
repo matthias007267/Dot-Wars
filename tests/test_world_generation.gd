@@ -45,14 +45,17 @@ func test_three_materials_with_requested_hardness() -> void:
 	check(absf(float(counts[Materials.MEDIUM]) / solid - 0.35) < 0.02, "Anteil mittel ≈ 35 %")
 
 
-func test_start_tunnel_is_connected_and_inside_world() -> void:
+func test_start_clearing_is_compact_connected_and_not_a_cross() -> void:
 	var config := _config(256, 99)
 	var world := WorldGenerator.generate(config)
 	var center := world.index(128, 128)
-	check_eq(world.cells[center], Materials.EMPTY, "Mitte ist leer")
-	var tunnel_cells := 4 * config.tunnel_arm_length + 1
-	check_eq(world.solid_count, 256 * 256 - tunnel_cells, "Nur der Tunnel ist leer")
-	check_eq(TestHelpers.reachable_empty_cells(world, center), tunnel_cells, "Tunnel zusammenhängend")
+	var pit := WorldGenerator.sacrifice_cell(world)
+	check_eq(world.cells[center], Materials.EMPTY, "Weltmitte ist frei")
+	check_eq(world.cells[world.index(pit.x, pit.y)], Materials.INDESTRUCTIBLE, "Kern ist fest")
+	check_eq(world.solid_count, 256 * 256 - 20, "20 freie Felder um den Kern")
+	check_eq(TestHelpers.reachable_empty_cells(world, center), 20, "Lichtung zusammenhängend")
+	check(world.cells[world.index(pit.x + 3, pit.y)] != Materials.EMPTY, "kein langer Kreuzarm")
+	check(world.cells[world.index(pit.x, pit.y + 3)] != Materials.EMPTY, "kein senkrechter Kreuzarm")
 	check_eq(world.mined_count, 0, "Aushub zählt nicht als Abbau")
 
 
@@ -66,7 +69,9 @@ func test_world_is_one_connected_solid_mass() -> void:
 			if n >= 0 and n < 64 * 64 and world.cells[n] != Materials.EMPTY and not seen.has(n):
 				seen[n] = true
 				stack.append(n)
-	check_eq(seen.size(), world.solid_count, "Alle festen Zellen hängen zusammen")
+	var pit := WorldGenerator.sacrifice_cell(world)
+	check_eq(world.cells[world.index(pit.x, pit.y)], Materials.INDESTRUCTIBLE, "Kern ist umgeben von Freifläche")
+	check_eq(seen.size(), world.solid_count - 1, "Alle Felszellen hängen zusammen; nur der isolierte Kern nicht")
 
 
 func test_initial_workers_have_valid_distinct_positions() -> void:
@@ -99,14 +104,14 @@ func test_config_validation() -> void:
 	check_eq(args.world_seed, 9, "Seed aus Kommandozeile")
 
 
-func test_sacrifice_cell_is_unbreakable_and_next_to_the_tunnel() -> void:
+func test_sacrifice_cell_is_unbreakable_and_inside_the_clearing() -> void:
 	var world := WorldGenerator.generate(_config(256, 99))
 	var pit := WorldGenerator.sacrifice_cell(world)
 	var center := Vector2i(128, 128)
-	check_eq(world.cells[world.index(center.x, center.y)], Materials.EMPTY, "Tunnelmitte bleibt leer")
+	check_eq(world.cells[world.index(center.x, center.y)], Materials.EMPTY, "Weltmitte bleibt frei")
 	check_eq(world.cells[world.index(pit.x, pit.y)], Materials.INDESTRUCTIBLE, "Opferlochzelle")
-	check_eq(absi(pit.x - center.x) + absi(pit.y - center.y), 2, "diagonal zur Mitte, nicht auf dem Kreuz")
-	check_eq(world.cells[world.index(pit.x, pit.y - 1)], Materials.EMPTY, "orthogonal an den Tunnel angrenzend")
+	check_eq(absi(pit.x - center.x) + absi(pit.y - center.y), 2, "Energiekern bleibt an der bisherigen Position")
+	check_eq(world.cells[world.index(pit.x, pit.y - 1)], Materials.EMPTY, "orthogonal an die Lichtung angrenzend")
 	check(not world.mine_cell(world.index(pit.x, pit.y)), "Abbau der Opferlochzelle scheitert")
 	check_eq(world.cells[world.index(pit.x, pit.y)], Materials.INDESTRUCTIBLE, "Zelle bleibt")
 
@@ -152,7 +157,7 @@ func test_standard_and_target_world_sizes() -> void:
 		var elapsed := (Time.get_ticks_usec() - started) / 1000.0
 		check_eq(world.width, size, "Breite %d" % size)
 		check_eq(world.cells.size(), size * size, "Zellen %d" % size)
-		check_eq(world.cells[world.index(size / 2, size / 2)], Materials.EMPTY, "Starttunnel %d" % size)
+		check_eq(world.cells[world.index(size / 2, size / 2)], Materials.EMPTY, "Startlichtung %d" % size)
 		var pit := WorldGenerator.sacrifice_cell(world)
 		check_eq(world.cells[world.index(pit.x, pit.y)], Materials.INDESTRUCTIBLE, "Opferloch %d" % size)
 		var again := WorldGenerator.generate(_config(size, 11))

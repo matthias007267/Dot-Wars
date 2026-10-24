@@ -102,6 +102,87 @@ func test_dig_upgrade_is_exactly_one_quarter_faster() -> void:
 	check_eq(upgraded, 16, "mit +25 % sind es 16 Takte")
 
 
+func test_high_dig_levels_keep_mining() -> void:
+	check_eq(_mining_ticks(1, false, 13), 2, "Stufe 13 braucht zwei Takte")
+	check_eq(_mining_ticks(1, false, 14), 1, "Stufe 14 baut in einem Takt")
+	check_eq(_mining_ticks(1, false, 16), 1, "Stufe 16 teilt nicht durch null")
+	check_eq(_mining_ticks(1, false, 31), 1, "Stufe 31 bleibt exakt")
+	check_eq(_mining_ticks(1, false, 16, "H"), 5, "harte Zelle auf Stufe 16 dauert fünf Takte")
+
+
+func test_high_dig_remainder_survives_a_save() -> void:
+	var world := WorldState.new(16, 16, 32, Materials.EMPTY)
+	var cell := world.index(8, 7)
+	world.set_material(cell, Materials.HARD)
+	var config := TestHelpers.default_config()
+	config.world_size = 16
+	config.move_period_ticks = 1
+	var sim := Simulation.from_world(config, world, PackedInt32Array(), false)
+	sim.workers.add(world.index(8, 8), 0, 0)
+	sim.initial_mass = 1
+	sim.peak_mass = 1
+	sim.upgrades.dig_level = 16
+	sim.assign_area(0, Rect2i(8, 7, 1, 1))
+	sim.tick_once()
+	check_eq(int(sim.world.progress[cell]), 35, "erster Takt setzt 35 Punkte")
+	check_eq(int(sim.world.progress_frac[cell]), 116551617, "niederes Restglied")
+	check_eq(int(sim.world.progress_frac_high[cell][0]), 1, "hohes Restglied")
+	var restored := SaveGame.from_bytes(SaveGame.to_bytes(sim))
+	check(restored != null, "Laden")
+	check_eq(restored.state_hash(), sim.state_hash(), "Rest bleibt erhalten")
+	for _tick in 4:
+		sim.tick_once()
+		restored.tick_once()
+	check_eq(sim.world.mined_count, 1, "nach fünf Takten abgebaut")
+	check_eq(restored.world.mined_count, 1, "geladener Stand baut gleich ab")
+	check_eq(restored.state_hash(), sim.state_hash(), "gleiche Fortsetzung")
+	check(sim.world.progress_frac_high.is_empty(), "abgeschlossene Zelle verwirft den Rest")
+
+
+func test_dig_level_past_64_bit_fraction_still_finishes() -> void:
+	var sim := _dig_world(40, "#", 10000)
+	sim.tick_once()
+	check_eq(sim.world.mined_count, 0, "erster Takt reicht nicht")
+	check(not sim.world.progress_frac_high.is_empty(), "Rest braucht weitere Glieder")
+	sim.tick_once()
+	check_eq(sim.world.mined_count, 1, "zweiter Takt schließt die Zelle")
+
+
+func test_large_unit_high_dig_does_not_stall() -> void:
+	var world := WorldState.new(8, 8, 8, Materials.EMPTY)
+	world.set_material(world.index(4, 1), Materials.SOFT)
+	var config := TestHelpers.default_config()
+	var sim := Simulation.from_world(config, world, PackedInt32Array(), false)
+	var id := sim.workers.add_sized(world.index(1, 1), 0, 0, 3)
+	sim.workers.state[id] = WorkerStore.STATE_MINING
+	sim.assign_area(0, Rect2i(4, 1, 1, 1))
+	MiningSystem.step_scaled(
+		sim.workers, sim.world, sim.areas, sim.energy_dots, config.work_per_hardness, config.dig_power, 13
+	)
+	check_eq(sim.world.mined_count, 1, "3×3 auf Stufe 13 trägt die volle Leistung")
+
+
+func test_faction_dig_level_does_not_overflow() -> void:
+	var config := TestHelpers.default_config()
+	var sim := TestHelpers.sim_from_ascii(["###", "#w#", "###"], config)
+	sim.assign_area(0, Rect2i(0, 0, 3, 1))
+	sim.workers.state[0] = WorkerStore.STATE_MINING
+	var levels := PackedInt32Array([16])
+	MiningSystem.step_scaled(
+		sim.workers, sim.world, sim.areas, sim.energy_dots, config.work_per_hardness, config.dig_power, 0, levels
+	)
+	check_eq(sim.world.mined_count, 1, "Fraktion mit Stufe 16 baut ab")
+	var plain := TestHelpers.sim_from_ascii(["###", "#w#", "###"], config)
+	plain.assign_area(0, Rect2i(0, 0, 3, 1))
+	plain.workers.state[0] = WorkerStore.STATE_MINING
+	MiningSystem.step_scaled(
+		plain.workers, plain.world, plain.areas, plain.energy_dots,
+		config.work_per_hardness, config.dig_power, 0, PackedInt32Array([0])
+	)
+	check_eq(plain.world.mined_count, 0, "Stufe 0 baut die Zelle nicht in einem Takt")
+	check_eq(int(plain.world.progress[plain.world.index(1, 0)]), 1, "Stufe 0 setzt einen Punkt")
+
+
 func test_double_speed_produces_about_forty_ticks_per_second() -> void:
 	var clock := TickClock.new()
 	clock.speed = 2
@@ -158,6 +239,10 @@ func test_save_roundtrip_continues_identically() -> void:
 	check_eq(restored.world.mined_count, sim.world.mined_count, "Abbau")
 	check_eq(restored.workers.count, sim.workers.count, "Anzahl")
 	check_eq(restored.tick_count, sim.tick_count, "Tick")
+	check_eq(restored.areas.state_hash(), sim.areas.state_hash(), "Abbaugebiete inklusive Masken bleiben identisch")
+	check_eq(restored.areas.revision, sim.areas.revision, "Abbaugebiet-Revision bleibt erhalten")
+	check_eq(restored.areas.group_revision, sim.areas.group_revision, "Gruppenrevisionen bleiben erhalten")
+	check_eq(restored.state_hash(), sim.state_hash(), "identischer Zustand direkt nach dem Laden")
 	sim.run_ticks(20)
 	restored.run_ticks(20)
 	check_eq(restored.state_hash(), sim.state_hash(), "gleiche Fortsetzung")
@@ -170,25 +255,41 @@ func test_save_roundtrip_continues_identically() -> void:
 	check_eq(loaded.total_mass(), sim.total_mass(), "Datei-Masse")
 
 
-func _mining_ticks(unit_size: int, upgrade: bool = false) -> int:
-	var rows := ["###", "#w#", "###"] if unit_size == 1 else ["####", "#ww#", "#ww#", "####"]
-	var config := TestHelpers.default_config()
-	config.move_period_ticks = 1
-	var sim := TestHelpers.sim_from_ascii(rows, config)
-	if unit_size == 2:
+func _mining_ticks(unit_size: int, upgrade: bool = false, dig_level: int = -1, material := "#") -> int:
+	var sim: Simulation
+	if unit_size == 1:
+		sim = _dig_world(1 if upgrade else 0, material)
+	else:
+		var config := TestHelpers.default_config()
+		config.move_period_ticks = 1
+		sim = TestHelpers.sim_from_ascii(["####", "#ww#", "#ww#", "####"], config)
 		while sim.workers.count > 0:
 			sim.workers.remove_swap(0)
 		sim.workers.add_sized(sim.world.index(1, 1), 0, 0, 2)
 		sim.initial_mass = 4
 		sim.peak_mass = 4
-	if upgrade:
-		sim.upgrades.dig_level = 1
-	sim.assign_area(0, Rect2i(0, 0, sim.world.width, 1))
-	for tick in 80:
+		sim.assign_area(0, Rect2i(0, 0, sim.world.width, 1))
+		if upgrade:
+			sim.upgrades.dig_level = 1
+	if dig_level >= 0:
+		sim.upgrades.dig_level = dig_level
+	for tick in 200:
 		sim.tick_once()
 		if sim.world.mined_count > 0:
 			return tick + 1
 	return -1
+
+
+func _dig_world(dig_level: int, material := "#", work_per_hardness := 20) -> Simulation:
+	var rock := material if material.length() == 1 else "#"
+	var rows := [rock + rock + rock, rock + "w" + rock, rock + rock + rock]
+	var config := TestHelpers.default_config()
+	config.move_period_ticks = 1
+	config.work_per_hardness = work_per_hardness
+	var sim := TestHelpers.sim_from_ascii(rows, config)
+	sim.upgrades.dig_level = dig_level
+	sim.assign_area(0, Rect2i(0, 0, sim.world.width, 1))
+	return sim
 
 
 func _empty_sim() -> Simulation:

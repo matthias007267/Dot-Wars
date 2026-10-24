@@ -11,8 +11,10 @@ var chunks_y: int
 var cells := PackedByteArray()
 ## Abbaufortschritt je Zelle in Arbeitspunkten (immer kleiner als die Haltbarkeit).
 var progress := PackedInt32Array()
-## Restbrüche der Abbauleistung, kleiner als der aktuelle Nenner.
+## Niederes Glied des Restbruchs, Basis 2^31. Kleiner als der Nenner, solange der Rest hier hineinpasst.
 var progress_frac := PackedInt32Array()
+## Weitere Glieder desselben Restbruchs. Leer, solange `progress_frac` den ganzen Rest trägt.
+var progress_frac_high := {}
 
 ## Zählt jede Änderung an `cells`. Abgeleitete Daten erkennen damit Veralterung.
 var revision: int = 0
@@ -32,6 +34,12 @@ var opened_count: int = 0
 
 var _chunk_dirty := PackedByteArray()
 var _dirty_chunks := PackedInt32Array()
+## Abbaubare Zellen mit mindestens einer leeren Nachbarzelle, je Chunk.
+var face_lists: Array = []
+var face_slot := PackedInt32Array()
+var face_count: int = 0
+## Steigt, wenn sich das Material einer Zelle ändert. DigAreas hängt sich daran.
+signal material_changed(idx: int, old: int, now: int)
 
 
 func _init(p_width: int, p_height: int, p_chunk_size: int = 32, fill_material: int = Materials.SOFT) -> void:
@@ -52,6 +60,9 @@ func _init(p_width: int, p_height: int, p_chunk_size: int = 32, fill_material: i
 	_chunk_dirty.fill(1)
 	for chunk in chunks_x * chunks_y:
 		_dirty_chunks.append(chunk)
+		face_lists.append(PackedInt32Array())
+	face_slot.resize(width * height)
+	face_slot.fill(-1)
 
 
 func cell_count() -> int:
@@ -86,9 +97,14 @@ func set_material(idx: int, material: int) -> void:
 	cells[idx] = material
 	progress[idx] = 0
 	progress_frac[idx] = 0
+	if progress_frac_high.has(idx):
+		progress_frac_high.erase(idx)
+	_update_face(idx)
+	_update_face_neighbors(idx)
 	revision += 1
 	change_log.append(idx)
 	change_from.append(old)
+	material_changed.emit(idx, old, material)
 	if change_log.size() > 100000:
 		change_log = PackedInt32Array()
 		change_from = PackedInt32Array()
@@ -162,8 +178,127 @@ func note_progress(idx: int) -> void:
 	_mark_dirty(idx)
 
 
+## Baut die Flächenliste neu. Nötig, wenn Zellen am Array vorbeigehend gesetzt wurden.
+func rebuild_faces() -> void:
+	face_count = 0
+	face_slot.fill(-1)
+	for list in face_lists:
+		var faces: PackedInt32Array = list
+		faces.resize(0)
+	for idx in cell_count():
+		if _is_face(idx):
+			_add_face(idx)
+
+
+## True, wenn irgendeine Fläche höchstens `radius` Schritte (Manhattan) von einem Ursprung liegt.
+## Negativer Radius heißt: irgendwo auf der Karte.
+func has_face_within(origins: PackedInt32Array, radius: int) -> bool:
+	if face_count <= 0 or origins.is_empty():
+		return false
+	if radius < 0:
+		return true
+	var seen := PackedByteArray()
+	seen.resize(chunks_x * chunks_y)
+	var cs := chunk_size
+	for origin in origins:
+		var ox := origin % width
+		var oy := int(origin / width)
+		var x0 := maxi(0, ox - radius) / cs
+		var y0 := maxi(0, oy - radius) / cs
+		var x1 := mini(width - 1, ox + radius) / cs
+		var y1 := mini(height - 1, oy + radius) / cs
+		for cy in range(y0, y1 + 1):
+			for cx in range(x0, x1 + 1):
+				var chunk := cy * chunks_x + cx
+				if seen[chunk] == 1:
+					continue
+				seen[chunk] = 1
+				var list: PackedInt32Array = face_lists[chunk]
+				for idx in list:
+					var x := idx % width
+					var y := int(idx / width)
+					for other in origins:
+						if absi(x - other % width) + absi(y - int(other / width)) <= radius:
+							return true
+	return false
+
+
+func _is_face(idx: int) -> bool:
+	if not Materials.is_mineable(cells[idx]):
+		return false
+	var x := idx % width
+	var count := cell_count()
+	if idx >= width and cells[idx - width] == Materials.EMPTY:
+		return true
+	if x < width - 1 and cells[idx + 1] == Materials.EMPTY:
+		return true
+	if idx + width < count and cells[idx + width] == Materials.EMPTY:
+		return true
+	if x > 0 and cells[idx - 1] == Materials.EMPTY:
+		return true
+	return false
+
+
+func _update_face(idx: int) -> void:
+	var exposed := _is_face(idx)
+	var slot := face_slot[idx]
+	if exposed and slot < 0:
+		_add_face(idx)
+	elif not exposed and slot >= 0:
+		_remove_face(idx)
+
+
+func _update_face_neighbors(idx: int) -> void:
+	var x := idx % width
+	var count := cell_count()
+	if idx >= width:
+		_update_face(idx - width)
+	if x < width - 1:
+		_update_face(idx + 1)
+	if idx + width < count:
+		_update_face(idx + width)
+	if x > 0:
+		_update_face(idx - 1)
+
+
+func _add_face(idx: int) -> void:
+	var list: PackedInt32Array = face_lists[_chunk_index(idx)]
+	face_slot[idx] = list.size()
+	list.append(idx)
+	face_count += 1
+
+
+func _remove_face(idx: int) -> void:
+	var list: PackedInt32Array = face_lists[_chunk_index(idx)]
+	var slot := face_slot[idx]
+	var last := list[list.size() - 1]
+	list[slot] = last
+	face_slot[last] = slot
+	list.resize(list.size() - 1)
+	face_slot[idx] = -1
+	face_count -= 1
+
+
+func _chunk_index(idx: int) -> int:
+	var x := idx % width
+	var y := int(idx / width)
+	return int(y / chunk_size) * chunks_x + int(x / chunk_size)
+
+
 func state_hash() -> int:
-	return hash([hash(cells), hash(progress), hash(progress_frac), mined_count, opened_count, solid_count])
+	var base := hash([hash(cells), hash(progress), hash(progress_frac), mined_count, opened_count, solid_count])
+	if progress_frac_high.is_empty():
+		return base
+	var keys: Array = progress_frac_high.keys()
+	keys.sort()
+	var packed := PackedInt32Array()
+	for key in keys:
+		packed.append(int(key))
+		var limbs: Array = progress_frac_high[key]
+		packed.append(limbs.size())
+		for limb in limbs:
+			packed.append(int(limb))
+	return hash([base, hash(packed)])
 
 
 func _mark_dirty(idx: int) -> void:

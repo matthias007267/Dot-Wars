@@ -273,4 +273,80 @@ Eine laufende vollständige Wegsuche setzt eine geöffnete Zelle nicht zurück. 
 
 Im Mehrspieler zeigt die Statuskarte die eigene Masse und die eigenen Energie-Dots unterwegs. Die gegnerische Masse steht in einer eigenen Zeile. Der weltweite Abbauanteil bleibt, weil die Räumung ihn braucht. Abbaurahmen und Sammelpunkte tragen die Farbe der Fraktion.
 
-Escape öffnet das Pausenmenü: Weiter, Speichern, Laden, Neu starten, Lautstärke und Beenden. Die untere Leiste behält Abbau, Bewegen, Arbeiter, Größe, Fähigkeiten und die Spielgeschwindigkeit. Neu starten verwendet dieselbe Konfiguration. Beenden kehrt ins Startmenü zurück. Die Speicherversion bleibt 2. Die drei Prüfungen der Räumung bleiben.
+Escape öffnet das Pausenmenü: Weiter, Speichern, Laden, Neu starten, Lautstärke und Beenden. Neu starten verwendet dieselbe Konfiguration. Beenden kehrt ins Startmenü zurück. Die Speicherversion bleibt 2. Die drei Prüfungen der Räumung bleiben.
+
+
+### D-033 Gemeinsamer Marsch
+
+Datum: 23. Oktober 2026.
+
+Abbau und Bewegen sind ein Befehl. Die linke Taste wählt Arbeiter. Ein Zug markiert ein Rechteck, ein Klick einen Arbeiter, ein Klick ins Leere hebt die Auswahl auf. Liegen mehrere Dot-Fraktionen im Rechteck, bleibt nur die mit der höchsten Priorität. Krieger stehen über Arbeitern. Energie-Dots sind nicht wählbar. Krieger gibt es noch nicht, die Priorität ist schon festgelegt.
+
+Die rechte Taste setzt das Ziel. Die Auswahl geht dorthin und baut die Ressourcen auf dem kürzesten Weg ab. Ein Rechtszug markiert ein Gebiet. Dieselbe Auswahl erobert es und baut alles darin ab. Kämpfen in diesem Gebiet kommt mit den Kriegern. Strg und Rechtsklick schickt dann alle Krieger. Solange keine da sind, bleibt der Schwarm stehen und ein Hinweis sagt das.
+
+Ohne Auswahl gehen etwa zehn Prozent der eigenen Arbeiter, mindestens einer. Es sind die, die dem Ziel am nächsten stehen. Bei gleichem Abstand gewinnt die kleinere ID. Die Abordnung liegt in einer eigenen Gruppe mit Quote 0. Die übrigen Gruppen behalten ihren Auftrag. Ein Laufziel unterdrückt den Abbau der nächsten beliebigen Ressource. Felsen auf dem Weg zum Marschziel werden markiert. Ist das Ziel noch fest, wird es zum Laufziel, sobald es leer ist.
+
+Gruppen über Strg und die Tasten 0 bis 9 kommen später. Zehn Kontrollgruppen sind vorgesehen und noch nicht belegt. Die Kamera verschiebt sich mit der mittleren Taste, WASD und den Pfeiltasten. Die Speicherversion bleibt 2. Fehlt die Befehlsgruppe in einem älteren Stand, gibt es keinen offenen Marsch. Die drei Prüfungen der Räumung bleiben.
+
+### D-034 Hohe Abbaustufen
+
+Datum: 23. Oktober 2026.
+
+Die Abbauleistung bleibt der Bruch 5/4 je Stufe aus D-016, ohne Rundungsverlust. Zähler und Nenner liefen bisher über 32 Bit. Ab Stufe 14 wurde der Zähler falsch, ab Stufe 16 war der Nenner 0, und der Abbau blieb stehen. Große Einheiten treffen das früher, weil ihre Leistung den Zähler noch multipliziert.
+
+Die Rechnung nutzt jetzt breite Ganzzahlen. Der Restbruch steht weiter in `progress_frac`, solange er in 31 Bit passt. Darüber kommen weitere Glieder dazu. Ein älterer Speicherstand ohne diese Glieder lädt wie bisher. Die Version bleibt 2. Stufe 0 dauert 20 Takte, Stufe 1 dauert 16 Takte. Die drei Prüfungen der Räumung bleiben.
+
+### D-035 Nächstmöglicher Punkt
+
+Datum: 23. Oktober 2026.
+
+Ein Laufziel, ein Marsch und später ein Kriegerbefehl merken sich den gewünschten Punkt. Die Wegsuche läuft nicht auf diesen Punkt zu, wenn die Gruppe ihn nicht betreten kann. Sie sucht in der erreichbaren leeren Fläche die Zelle mit dem kleinsten Manhattan-Abstand und läuft dorthin. Ist der Punkt selbst erreichbar, bleibt er der Standpunkt. Mehrere Arbeiter sammeln sich dort und reihen sich davor auf. Eine feste oder abgeschnittene Zelle ist trotzdem ein gültiger Wunsch: der Schwarm geht so nah heran, wie die Fläche es erlaubt, und gräbt nur, wenn auf dem Weg abbaubares Material liegt.
+
+Abbaugebiete bleiben bei der nächsten Arbeitszelle. Ein unerreichbares Gebiet wird weiter angebaggert. Die Speicherversion bleibt 2. Die drei Prüfungen der Räumung bleiben.
+
+### D-036 Auswahl, eigene Arbeit und Karte
+
+Datum: 23. Oktober 2026.
+
+Ein Handbefehl überschreibt nur die Aufträge der ausgewählten Arbeiter. Ohne Auswahl bleibt der Schwarm, wo er ist, und ein Hinweis sagt „Wähle zuerst Arbeiter.“ Die Abordnung von etwa zehn Prozent aus D-033 gilt für Marsch und Eroberung nicht mehr.
+
+Die anderen Gruppen graben weiter. Ein neues Gebiet rechnet nur das Wegfeld dieser Gruppe neu. So bleibt ein Befehl an ein paar Arbeiter stehen, ohne die übrigen anzuhalten.
+
+Ist in der Befehlsgruppe nichts Markiertes mehr übrig und läuft niemand mehr auf das Ziel zu, fallen Laufziel, Marschzelle und Gebiet weg. Dieselben Arbeiter suchen sich danach wieder selbst die nächste Arbeitsfront, höchstens 32 angrenzende Felszellen auf einmal. Steht jemand noch auf dem Weg, bleibt der Befehl. Laufziele von Hügel, Reliquie und KI bleiben davon unberührt.
+
+Gedrückt gehaltene rechte Taste verschiebt die Karte. Zusammen mit Strg markiert derselbe Zug ein Gebiet. Ein kurzer Rechtsklick schickt die Auswahl, Strg und ein kurzer Rechtsklick bleibt der spätere Kriegerbefehl. Mittlere Taste, WASD und Pfeiltasten verschieben wie bisher. Die Speicherversion bleibt 2. Die drei Prüfungen der Räumung bleiben.
+
+### D-037 Schwarm-Intelligenz
+
+Datum: 23. Oktober 2026.
+
+Die Fähigkeit Intelligenz liegt im Fähigkeiten-Fenster unter Schwarm, neben Abbau. Sie ändert nicht die Abbaugeschwindigkeit. Sie ändert, wie die Dots ihre Felsen wählen.
+
+Stufe 0 ist der Start. Die Gruppe teilt sich ein Wegfeld. Die Dots laufen zum selben nahen Fels und stellen sich dahinter an, wenn die Zelle belegt ist.
+
+Jede gekaufte Stufe gibt jedem Dot ein eigenes Ziel: den nächsten markierten Fels, den noch kein Arbeiter derselben Fraktion hat. Der Weg dorthin ist sein eigener. Stufe 1 sucht 64 Zellen weit und wechselt nach 80 Takten auf derselben Zelle ohne Abbau. Stufe 2 sucht 192 Zellen und wartet 40 Takte, Stufe 3 sucht 768 und wartet 20, Stufe 4 sucht 3072 und wartet 10. Die Kosten sind vorläufig 40, 80, 120 und 160 Energie. Danach ist die Stufe voll.
+
+Stehen auf allen Nachbarzellen eigene Arbeiter, beginnt diese neue Suche nicht. Sie wartet, bis eine Nachbarzelle frei ist. Ein Laufziel, ein Marsch und die Ziele der KI bleiben beim gemeinsamen Wegfeld. Große Einheiten ebenfalls. Speicherstände bleiben Version 2. Fehlt `swarm_level`, gilt Stufe 0. Die drei Prüfungen der Räumung bleiben.
+
+### D-038 Reichweite der Zielsuche
+
+Datum: 23. Oktober 2026.
+
+Die Flächenliste einer Welt enthält nur abbaubare Zellen mit einer leeren Nachbarzelle. Sie ändert sich, wenn eine Zelle das Material wechselt, nicht bei jedem Abbaufortschritt.
+
+Die automatische Front markiert höchstens 32 dieser Flächen, und zuerst nur solche, die höchstens 16 orthogonale Schritte von einem Arbeiter der Gruppe entfernt sind. Ist der Umkreis leer, bleibt das Ergebnis liegen. Der nächste Versuch sucht 32, dann 64, dann die ganze erreichbare Höhle, jeweils einmal. Bewegt sich ein Arbeiter um mindestens 8 Zellen oder öffnet sich in dem durchsuchten Bereich eine Zelle, beginnt die Suche wieder bei 16. Ein gesetztes Gebiet, das noch nicht erreichbar ist, wird weiter angebaggert.
+
+Die Samen des Wegfelds sind diese Flächen, nicht jede Zelle des Rechtecks. Eine Materialänderung außerhalb von 16 Zellen um die Arbeiter, ohne Markierung der Gruppe und ohne Anschluss an das veröffentlichte Feld, lässt die Richtungen dieser Gruppe stehen. Ein neues Gebiet, ein neues Laufziel und der Kernausbau rechnen das Feld der betroffenen Gruppe weiter neu.
+
+Ab Intelligenz-Stufe 1 merkt sich ein Dot den nächsten Schritt, solange dasselbe Ziel gilt, er stehen bleibt und sich auf den Nachbarzellen weder Material noch Belegung ändert. Eine neue Suche gibt es, wenn die Geduld abläuft, das Ziel wegfällt oder der Schritt blockiert ist. Eingekreist wartet er wie bisher.
+
+Speicherstände bleiben Version 2. Die drei Prüfungen der Räumung bleiben. Abbaugeschwindigkeit, Auswahlbefehle und der nächstmögliche Standpunkt eines Marsches bleiben.
+
+
+### D-033 Kompakte Startlichtungen und fairer Kartenrand
+
+Datum: 24. Oktober 2026.
+
+Die kreuzförmigen Starttunnel werden im Einzelspieler und im Mehrspieler durch eine kompakte, abgerundete 5×5-Lichtung ersetzt (Reihenbreiten 3/5/5/5/3). Der jeweilige unzerstörbare Energiekern liegt in ihrer Mitte. Pro Basis bleiben 20 zusammenhängende, begehbare Zellen. Der Aushub ist keine Abbauleistung und erzeugt keine Energie. Die bisherige `tunnel_arm_length`-Einstellung bleibt für alte Konfigurationen lesbar, steuert aber nicht mehr die Startlichtung.
+
+Im Mehrspieler liegen die Kernzentren symmetrisch auf den vier Himmelsrichtungen. Ihr Abstand zum jeweiligen Kartenrand beträgt mindestens `max(9, floor(Weltgröße / 5))` Zellen; dadurch bleiben die Basen auch auf kleinen Karten von den Rändern und den mittigen Spielzielen getrennt. Anzahl und Zuordnung der Fraktionen bleiben unverändert. Dies ersetzt nur die Startgeometrie und Positionierung aus D-032, nicht KI, Wirtschaft, Siegbedingungen, HUD oder Minimap. Die Einzelspieler-Kartengeometrie ändert sich absichtlich auch bei gleichen Seeds; bestehende Speicherstände behalten ihre gespeicherte Welt.

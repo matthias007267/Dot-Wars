@@ -72,12 +72,11 @@ func install(sim: Simulation) -> bool:
 		control[faction] = CONTROL_AI
 		ai_upgrades.append(Upgrades.new())
 	_assign_difficulty(sim.config.difficulty)
-	var arm := sim.config.tunnel_arm_length
-	var origins := _base_origins(sim.world.width, arm, faction_count)
+	var origins := _base_origins(sim.world.width, faction_count)
 	if origins.size() != faction_count:
 		return false
 	for faction in faction_count:
-		var core := _carve_base(sim.world, origins[faction], arm)
+		var core := _carve_base(sim.world, origins[faction])
 		if core < 0:
 			return false
 		cores[faction] = core
@@ -162,6 +161,7 @@ func export_state() -> Dictionary:
 			"core_level": upgrades.core_level,
 			"purchased": upgrades.purchased,
 			"research_level": upgrades.research_level,
+			"swarm_level": upgrades.swarm_level,
 		})
 	return {
 		"factions": faction_count,
@@ -220,6 +220,7 @@ func restore(blob: Dictionary) -> bool:
 		upgrades.core_level = int(row.get("core_level", 0))
 		upgrades.purchased = int(row.get("purchased", 0))
 		upgrades.research_level = int(row.get("research_level", 0))
+		upgrades.swarm_level = int(row.get("swarm_level", 0))
 		ai_upgrades.append(upgrades)
 	return (
 		control.size() == faction_count
@@ -606,13 +607,15 @@ func _open_objective(world: WorldState, x: int, y: int) -> int:
 	return idx
 
 
-func _carve_base(world: WorldState, origin: Vector2i, arm: int) -> int:
+func _carve_base(world: WorldState, origin: Vector2i) -> int:
 	var core_x := origin.x + 1
 	var core_y := origin.y + 1
-	if not world.in_bounds(origin.x, origin.y) or not world.in_bounds(core_x, core_y):
+	var radius := WorldGenerator.START_CLEARING_RADIUS
+	if not world.in_bounds(core_x - radius, core_y - radius):
 		return -1
-	world.carve_rect(Rect2i(origin.x - arm, origin.y, arm * 2 + 1, 1))
-	world.carve_rect(Rect2i(origin.x, origin.y - arm, 1, arm * 2 + 1))
+	if not world.in_bounds(core_x + radius, core_y + radius):
+		return -1
+	WorldGenerator.carve_start_clearing(world, Vector2i(core_x, core_y))
 	var core := world.index(core_x, core_y)
 	world.set_material(core, Materials.INDESTRUCTIBLE)
 	return core
@@ -735,14 +738,17 @@ func _attack_cell(sim: Simulation, core: int, faction: int) -> int:
 	return _nearest_cell(sim, _base_origin_of(sim, faction), SacrificeSystem.delivery_cells(sim.world, core))
 
 
-func _base_origins(size: int, arm: int, count: int) -> Array[Vector2i]:
-	var inset := arm + 3
+func _base_origins(size: int, count: int) -> Array[Vector2i]:
+	# Kernzentren liegen symmetrisch mindestens ein Fünftel der Weltbreite vom Rand.
+	# Auch auf 32×32 bleiben zwischen Lichtung und Kartenrand mindestens sieben Zellen.
+	var inset := maxi(WorldGenerator.START_CLEARING_RADIUS + 7, size / 5)
 	var mid := size / 2
+	# _carve_base platziert den Kern jeweils eine Zelle rechts/unten vom Ursprung.
 	var spots: Array[Vector2i] = [
-		Vector2i(inset, mid),
-		Vector2i(size - 1 - inset, mid),
-		Vector2i(mid, inset),
-		Vector2i(mid, size - 1 - inset),
+		Vector2i(inset - 1, mid - 1),
+		Vector2i(size - 2 - inset, mid - 1),
+		Vector2i(mid - 1, inset - 1),
+		Vector2i(mid - 1, size - 2 - inset),
 	]
 	var result: Array[Vector2i] = []
 	if count > spots.size():

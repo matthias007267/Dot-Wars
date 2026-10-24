@@ -8,6 +8,7 @@ signal restart_requested
 signal leave_requested
 
 enum Command { MINE, MOVE, BUILD }
+enum Pointer { SELECT_ONE, SELECT_RECT, MARCH, WAR, CONQUER, PAN }
 
 var sim: Simulation
 var clock: TickClock
@@ -46,8 +47,8 @@ var _approach: Label
 var _opponent_value: Label
 var _pause_layer: Control
 var _volume: HSlider
-var _mine_button: Button
-var _move_button: Button
+var _dock_row: HBoxContainer
+var selection := PackedInt32Array()
 var _buy_worker_button: Button
 var _pause_button: Button
 var _speed_button: Button
@@ -65,7 +66,6 @@ var _build_kind := Buildings.KIND_SOURCE
 var _size_buttons: Array[Button] = []
 var _map: WorldMinimap
 
-var _last_mode_style := -1
 var _last_size_style := -1
 var _last_mine_area := Rect2i()
 
@@ -86,44 +86,105 @@ func _ready() -> void:
 	refresh()
 
 
-## Für einen Abbauauftrag werden alle nicht opfernden internen Gruppen zusammen eingesetzt.
-## Neue Befehle ersetzen ältere Gebiete, um nicht beliebig viele unsichtbare Aufträge anzuhäufen.
-func issue_dig_area(rect: Rect2i) -> bool:
+func select_in_rect(rect: Rect2i) -> void:
+	if sim == null:
+		return
+	var clipped := rect.abs().intersection(Rect2i(0, 0, sim.world.width, sim.world.height))
+	var ids := PackedInt32Array()
+	var kinds := PackedByteArray()
+	for id in sim.workers.count:
+		if int(sim.workers.faction[id]) != 0 or not _unit_hits(id, clipped):
+			continue
+		ids.append(id)
+		kinds.append(DotOrder.kind_of(sim, id))
+	_set_selection(DotOrder.filter_highest(ids, kinds))
+
+
+func select_at(cell: int) -> void:
+	if sim == null:
+		return
+	if cell < 0 or cell >= sim.world.cell_count():
+		_set_selection(PackedInt32Array())
+		return
+	var occ := sim.workers.occupant[cell]
+	if occ == WorkerStore.NO_WORKER or int(sim.workers.faction[occ]) != 0:
+		_set_selection(PackedInt32Array())
+		return
+	var ids := PackedInt32Array([occ])
+	var kinds := PackedByteArray([DotOrder.kind_of(sim, occ)])
+	_set_selection(DotOrder.filter_highest(ids, kinds))
+
+
+## Rechte Taste allein verschiebt die Karte. Mit Strg setzt ein Zug das Gebiet, ein Klick schickt Krieger.
+static func pointer_gesture(button: int, ctrl: bool, dragged: bool) -> int:
+	if button == MOUSE_BUTTON_LEFT:
+		if dragged:
+			return Pointer.SELECT_RECT
+		return Pointer.SELECT_ONE
+	if ctrl and dragged:
+		return Pointer.CONQUER
+	if ctrl:
+		return Pointer.WAR
+	if dragged:
+		return Pointer.PAN
+	return Pointer.MARCH
+
+
+## Rechtsklick schickt nur die aktuelle Auswahl. Sie gräbt den Weg frei und sucht sich danach wieder selbst Arbeit.
+func issue_march(cell: int) -> bool:
+	if sim == null or cell < 0 or cell >= sim.world.cell_count():
+		return false
+	var party := _party_for(cell, Rect2i())
+	if party.is_empty():
+		_notice("Wähle zuerst Arbeiter.")
+		return false
+	var group_id := sim.take_party(party)
+	if group_id < 0:
+		_notice("Der Befehl hat keinen Platz.")
+		return false
+	var route := DigGuidance.mark_route(sim, group_id, cell)
+	var exact := sim.world.cells[cell] == Materials.EMPTY and not sim._in_core(cell) and sim.set_move_goal(group_id, cell)
+	if not exact and not sim.set_approach(group_id, cell):
+		_notice("Dorthin führt kein Weg.")
+		return false
+	sim.march_cell = cell
+	_notice(_march_notice(route, exact and sim.reaches_move_goal(group_id)))
+	return true
+
+
+## Strg und Rechtszug: die Auswahl erobert das Rechteck und baut alles darin ab.
+func issue_conquer(rect: Rect2i) -> bool:
 	if sim == null:
 		return false
 	var clipped := rect.abs().intersection(Rect2i(0, 0, sim.world.width, sim.world.height))
 	if not clipped.has_area():
 		return false
-	var issued := false
-	for group_id in sim.group_open.size():
-		if not _available_for_work(group_id):
-			continue
-		sim.clear_move_goal(group_id)
-		sim.clear_area(group_id)
-		issued = sim.assign_area(group_id, clipped) or issued
-	if issued:
-		_last_mine_area = clipped
-		_notice(_dig_notice(clipped))
-	else:
-		_notice("Kein aktiver Schwarm für den Abbau.")
-	return issued
+	var party := _party_for(-1, clipped)
+	if party.is_empty():
+		_notice("Wähle zuerst Arbeiter.")
+		return false
+	var group_id := sim.take_party(party)
+	if group_id < 0 or not sim.assign_area(group_id, clipped):
+		_notice("Der Befehl hat keinen Platz.")
+		return false
+	_last_mine_area = clipped
+	_notice(_dig_notice(clipped))
+	return true
 
 
-## Der gemeinsame Laufbefehl ersetzt Abbauziele, Opfergruppen bleiben unberührt.
-func issue_move_goal(cell: int) -> bool:
+## Strg und Rechtsklick schickt später alle Krieger. Solange es keine gibt, bleibt der Schwarm stehen.
+func issue_war(cell: int) -> bool:
 	if sim == null or cell < 0 or cell >= sim.world.cell_count():
 		return false
-	if sim.world.cells[cell] != Materials.EMPTY:
-		_notice("Bewegungsziel muss im Tunnel liegen.")
+	var warriors := PackedInt32Array()
+	for id in sim.workers.count:
+		if int(sim.workers.faction[id]) == 0 and DotOrder.kind_of(sim, id) == DotOrder.KIND_WARRIOR:
+			warriors.append(id)
+	if warriors.is_empty():
+		_notice("Krieger folgen später.")
 		return false
-	var issued := false
-	for group_id in sim.group_open.size():
-		if not _available_for_work(group_id):
-			continue
-		sim.clear_area(group_id)
-		issued = sim.set_move_goal(group_id, cell) or issued
-	_notice("Sammelpunkt gesetzt." if issued else "Kein aktiver Schwarm verfügbar.")
-	return issued
+	_set_selection(warriors)
+	return issue_march(cell)
 
 
 func issue_build(cell: int) -> bool:
@@ -293,11 +354,8 @@ func _build_dock(layer: Control) -> void:
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 7)
 	dock.add_child(buttons)
+	_dock_row = buttons
 
-	_mine_button = _button(buttons, "ABBAU", func() -> void: _set_mode(Command.MINE))
-	_mine_button.tooltip_text = "Rechteck auf die Welt ziehen, um Material abzubauen."
-	_move_button = _button(buttons, "BEWEGEN", func() -> void: _set_mode(Command.MOVE))
-	_move_button.tooltip_text = "Auf einen freien Tunnel klicken, um den Schwarm zu bewegen."
 	_buy_worker_button = _button(buttons, "ARBEITER +10", _buy_worker)
 	_buy_worker_button.tooltip_text = "Kauft einen Arbeiter für 10 Energie. Start am Energiekern."
 
@@ -339,6 +397,7 @@ func _build_upgrade_panel(layer: Control) -> void:
 	_add_upgrade_button(content, Upgrades.KIND_ENERGY_SPEED, 0)
 	_label(content, "SCHWARM", 12, UiTheme.MUTED)
 	_add_upgrade_button(content, Upgrades.KIND_DIG, 0)
+	_add_upgrade_button(content, Upgrades.KIND_SWARM, 0)
 	_add_upgrade_button(content, Upgrades.KIND_FUSION2, 0)
 	_add_upgrade_button(content, Upgrades.KIND_FUSION3, 22)
 	_research_caption = _label(content, "FORSCHUNG", 12, UiTheme.MUTED)
@@ -477,17 +536,6 @@ func _available_for_work(group_id: int) -> bool:
 
 
 
-func _set_mode(next: int) -> void:
-	command_mode = next
-	if next == Command.MINE:
-		_notice("Abbaufläche aufziehen.")
-	elif next == Command.MOVE:
-		_notice("Ziel im Tunnel anklicken.")
-	else:
-		_notice("Freien Tunnel anklicken.")
-	refresh()
-
-
 func _cycle_speed() -> void:
 	if clock.speed == 1:
 		clock.speed = 2
@@ -549,6 +597,8 @@ func _buy(kind: int) -> void:
 			_notice("Energie bewegt sich schneller.")
 		elif kind == Upgrades.KIND_RESEARCH:
 			_notice("Forschung steigt.")
+		elif kind == Upgrades.KIND_SWARM:
+			_notice("Der Schwarm sucht sich freie Ziele.")
 		else:
 			_notice("Fähigkeit gekauft.")
 	else:
@@ -588,6 +638,13 @@ func _refresh_upgrades() -> void:
 			Upgrades.KIND_DIG:
 				cost = u.dig_cost()
 				button.text = "ABBAU   Stufe %d    •    %d Energie" % [u.dig_level + 1, cost]
+			Upgrades.KIND_SWARM:
+				cost = u.swarm_cost()
+				locked = cost < 0
+				if locked:
+					button.text = "INTELLIGENZ   Stufe %d    VOLL" % u.swarm_level
+				else:
+					button.text = "INTELLIGENZ   Stufe %d    •    %d Energie" % [u.swarm_level + 1, cost]
 			Upgrades.KIND_FUSION2:
 				cost = u.fusion2_cost()
 				locked = u.fusion2
@@ -809,14 +866,14 @@ func _build_button(parent: Node, action: Callable) -> Button:
 
 func _opening_hint() -> String:
 	if sim == null:
-		return "Ziehen markiert den Abbau. Bewegen setzt einen Punkt im Tunnel."
+		return "Linke Taste wählt. Rechtsklick schickt die Auswahl. Rechte Taste verschiebt, mit Strg ein Gebiet."
 	if sim.config.mode == SimConfig.MODE_MATCH:
-		return "Gegen KI (%s). Andere Spieler folgen später. Die Ziele stehen oben rechts." % sim.rules.difficulty_label()
+		return "Gegen KI (%s). Rechtsklick schickt die Auswahl. Rechte Taste verschiebt, mit Strg ein Gebiet." % sim.rules.difficulty_label()
 	if sim.config.mode == SimConfig.MODE_EXTRACTION:
-		return "Quellen lassen Material nachwachsen. Markiere es zum Abbau."
+		return "Quellen lassen Material nachwachsen. Rechtsklick schickt die Auswahl, mit Strg ein Gebiet."
 	if sim.config.mode == SimConfig.MODE_REFINING:
-		return "Setze den Veredler in eine Ader. Nur veredelte Dots zählen."
-	return "Ziehen markiert den Abbau. Bewegen setzt einen Punkt im Tunnel."
+		return "Setze den Veredler in eine Ader. Rechtsklick schickt die Auswahl, mit Strg ein Gebiet."
+	return "Linke Taste wählt. Rechtsklick schickt die Auswahl. Rechte Taste verschiebt, mit Strg ein Gebiet."
 
 
 func _grouped(value: int) -> String:
@@ -830,11 +887,6 @@ func _grouped(value: int) -> String:
 
 
 func _refresh_selection() -> void:
-	if _last_mode_style != command_mode:
-		UiTheme.style_button(_mine_button, command_mode == Command.MINE)
-		UiTheme.style_button(_move_button, command_mode == Command.MOVE)
-		_last_mode_style = command_mode
-
 	var unit_size := 1
 	for group_id in sim.group_open.size():
 		if _available_for_work(group_id):
@@ -890,19 +942,55 @@ func _match_live() -> bool:
 	return sim != null and sim.config.mode == SimConfig.MODE_MATCH and sim.rules.faction_count > 1
 
 
-func _dig_notice(rect: Rect2i) -> String:
-	var empty := false
-	for group_id in sim.group_open.size():
-		if not _available_for_work(group_id):
+func _set_selection(ids: PackedInt32Array) -> void:
+	selection = ids
+	sim.picked = ids
+
+
+func _party_for(_cell: int, _rect: Rect2i) -> PackedInt32Array:
+	var chosen := PackedInt32Array()
+	for id in selection:
+		if id < 0 or id >= sim.workers.count:
 			continue
-		var kind := DigGuidance.preview(sim, group_id, rect)
-		if kind == DigGuidance.TOWARD:
-			return "Das Gebiet ist nicht erreichbar. Der Schwarm gräbt sich dorthin."
-		if kind == DigGuidance.EMPTY:
-			empty = true
-	if empty:
+		if int(sim.workers.faction[id]) != 0:
+			continue
+		chosen.append(id)
+	return chosen
+
+
+func _unit_hits(id: int, rect: Rect2i) -> bool:
+	if not rect.has_area():
+		return false
+	var width := sim.world.width
+	var anchor := sim.workers.cell[id]
+	var unit_size := int(sim.workers.size[id])
+	var origin_x := anchor % width
+	var origin_y := anchor / width
+	for dy in unit_size:
+		for dx in unit_size:
+			if rect.has_point(Vector2i(origin_x + dx, origin_y + dy)):
+				return true
+	return false
+
+
+func _march_notice(route: int, reaches: bool) -> String:
+	if route == DigGuidance.ROUTE_MINING:
+		return "Die Auswahl gräbt sich den Weg frei."
+	if reaches:
+		return "Die Auswahl ist unterwegs."
+	return "Die Auswahl geht zum nächstmöglichen Punkt."
+
+
+func _dig_notice(rect: Rect2i) -> String:
+	var group_id := sim.command_group
+	if group_id < 0:
+		return "Das Gebiet wird erobert."
+	var kind := DigGuidance.preview(sim, group_id, rect)
+	if kind == DigGuidance.TOWARD:
+		return "Das Gebiet ist nicht erreichbar. Der Schwarm gräbt sich dorthin."
+	if kind == DigGuidance.EMPTY:
 		return "Dort ist nichts abzubauen. Der Schwarm nimmt die nächste Ressource."
-	return "Abbaugebiet gesetzt."
+	return "Das Gebiet wird erobert."
 
 
 func _build_pause_menu(layer: Control) -> void:

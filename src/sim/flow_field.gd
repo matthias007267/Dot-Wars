@@ -2,15 +2,17 @@ class_name FlowField
 extends RefCounted
 ## Gemeinsame Zielsuche einer Gruppe.
 ##
-## Quellen sind leere Zellen neben festem, markiertem Material und ein gesetztes Laufziel.
-## Eine Multi-Source-BFS über leere Zellen liefert für jede erreichbare Zelle die Distanz zur
-## nächsten Quelle und die Richtung des nächsten Schritts. Das Ergebnis gilt für alle Arbeiter der
-## Gruppe, es gibt keine individuelle Wegsuche.
+## Quellen sind leere Zellen neben festem, markiertem Material und der nächstmögliche Standpunkt
+## eines Laufziels. Liegt das Ziel in der erreichbaren Fläche, ist das der Zielpunkt selbst.
+## Sonst ist es die erreichbare leere Zelle mit dem kleinsten Manhattan-Abstand. Eine
+## Multi-Source-BFS über leere Zellen liefert für jede erreichbare Zelle die Distanz zur nächsten
+## Quelle und die Richtung des nächsten Schritts. Das Ergebnis gilt für alle Arbeiter der Gruppe.
 ##
 ## Die Berechnung ist in Phasen (Quellen suchen, Ausbreiten, lokale Korrektur) mit festem
 ## Budget pro Aufruf zerlegt und schreibt in einen Hintergrundpuffer. Erst nach Abschluss
 ## wird getauscht. Wenige geänderte Zellen korrigieren das letzte veröffentlichte Feld.
 ## Ein neues Gebiet, ein neues Laufziel oder eine große Änderung bauen es vollständig neu.
+## Eine Zelle außerhalb der Reichweite, ohne Markierung und ohne Anschluss an das Feld, lässt es stehen.
 
 const DIR_NONE := 0
 const DIR_UP := 1
@@ -26,6 +28,9 @@ enum Phase { IDLE, SEED, SPREAD, PATCH }
 
 ## Mehr geöffnete Zellen als das: vollständiger Neuaufbau statt lokaler Korrektur.
 const PATCH_CELL_LIMIT := 32
+## Dieselbe Reichweite wie die automatische Front. Darüber hinaus gilt eine Zelle nur,
+## wenn sie markiert ist oder an das veröffentlichte Feld grenzt.
+const INTEREST_RADIUS := 16
 ## Größerer Abhängigkeitskegel: die Korrektur würde einen Takt zu lange blockieren.
 const PATCH_CLEAR_LIMIT := 8192
 
@@ -43,8 +48,10 @@ var _next_dir := PackedByteArray()
 var _queue := PackedInt32Array()
 var _head: int = 0
 var _phase: Phase = Phase.IDLE
-var _rect_index: int = 0
-var _scan_pos: int = 0
+var _seed_faces := PackedInt32Array()
+var _seed_pos: int = 0
+var _seeds_listed: bool = false
+var _forced: bool = false
 var _rect_solid := PackedInt32Array()
 var _built_world_revision: int = -1
 var _built_area_revision: int = -1
@@ -58,11 +65,15 @@ var _improve: bool = false
 ## Vollständige Aufbauten und abgeschlossene lokale Korrekturen.
 var full_rebuilds: int = 0
 var patches: int = 0
-## Leere Zielzelle der Gruppe. -1 heißt: kein Laufziel, nur Abbaugebiete.
+## Gewünschter Punkt der Gruppe. Darf fest sein. -1 heißt: kein Laufziel, nur Abbaugebiete.
 var goal_cell: int = -1
+## Leere Zellen, von denen aus die Gruppe losläuft. Daraus wird der nächstmögliche Standpunkt.
+var anchors := PackedInt32Array()
 ## 1 verbietet die Zelle für Arbeiter. Leer heißt: nichts gesperrt.
 var blocked := PackedByteArray()
 var _built_goal: int = -2
+## Erreichbare Zelle, auf die das veröffentlichte Feld zuläuft. -2 solange noch keines gebaut wurde.
+var _stand_cell: int = -2
 
 
 func _init(world: WorldState, areas: DigAreas, group_id: int) -> void:
@@ -76,6 +87,7 @@ func _init(world: WorldState, areas: DigAreas, group_id: int) -> void:
 	dir.fill(DIR_NONE)
 	_next_dist = dist.duplicate()
 	_next_dir = dir.duplicate()
+	_areas.attach(world)
 
 
 func is_building() -> bool:
@@ -87,27 +99,47 @@ func settled() -> bool:
 	return (
 		_phase == Phase.IDLE
 		and generation > 0
-		and _built_area_revision == _areas.revision
+		and _built_area_revision == _area_revision()
 		and _built_world_revision == _world.revision
 		and _applied_epoch == _world.change_epoch
+		and _built_goal == goal_cell
 	)
 
 
 ## Führt höchstens `budget` Zellbesuche aus und startet bei veralteten Daten einen neuen Aufbau.
 func step(budget: int) -> void:
 	var goal_changed := goal_cell != _built_goal
-	var area_changed := _areas.revision != _built_area_revision
-	var world_changed := _world.revision != _built_world_revision or _world.change_epoch != _applied_epoch
+	var area_changed := _area_revision() != _built_area_revision
+	var epoch_gap := _world.change_epoch != _applied_epoch
+	var world_changed := _world.revision != _built_world_revision or epoch_gap
+	if (
+		not _forced
+		and _phase == Phase.IDLE
+		and generation > 0
+		and world_changed
+		and not area_changed
+		and not goal_changed
+		and not epoch_gap
+		and not _pending_touches()
+	):
+		_acknowledge_world()
+		world_changed = false
+	if _forced and _phase == Phase.IDLE:
+		_forced = false
+		world_changed = true
+	var stand_changed := false
+	if _phase == Phase.IDLE and goal_cell >= 0 and (goal_changed or world_changed):
+		stand_changed = _nearest_stand() != _stand_cell
 	if _phase != Phase.IDLE and (area_changed or goal_changed or world_changed):
 		if area_changed or goal_changed:
 			_begin()
-		elif _phase == Phase.PATCH:
+		elif _phase == Phase.PATCH and (epoch_gap or _pending_touches()):
 			_restart_patch_from_published()
 		# Ein laufender Vollaufbau liest die Welt mit. Eine geöffnete Zelle setzt ihn nicht zurück.
 	elif _phase == Phase.IDLE:
-		if not area_changed and not goal_changed and not world_changed:
+		if not area_changed and not goal_changed and not world_changed and not stand_changed:
 			return
-		if area_changed or goal_changed or generation == 0 or not _can_patch():
+		if area_changed or goal_changed or stand_changed or generation == 0 or not _can_patch():
 			_begin()
 		else:
 			_begin_patch()
@@ -123,6 +155,7 @@ func step(budget: int) -> void:
 
 ## Der nächste Takt baut das Feld neu, auch wenn die Welt sich nicht geändert hat.
 func force_rebuild() -> void:
+	_forced = true
 	_built_world_revision = -1
 	_applied_changes = _world.change_log.size()
 	_applied_epoch = _world.change_epoch
@@ -142,17 +175,17 @@ func _begin() -> void:
 	full_rebuilds += 1
 	_count_rects_on_publish = false
 	_built_world_revision = _world.revision
-	_built_area_revision = _areas.revision
+	_built_area_revision = _area_revision()
 	_next_dist.fill(UNREACHABLE)
 	_next_dir.fill(DIR_NONE)
 	_queue.clear()
 	_head = 0
-	_rect_index = 0
-	_scan_pos = 0
-	var rects: Array[Rect2i] = _areas.rects[_group]
-	_rect_solid.resize(rects.size())
-	_rect_solid.fill(0)
+	_seed_faces = PackedInt32Array()
+	_seed_pos = 0
+	_seeds_listed = false
+	_rect_solid = _areas.sync_counts(_world, _group).duplicate()
 	_built_goal = goal_cell
+	_stand_cell = _nearest_stand()
 	_applied_changes = _world.change_log.size()
 	_applied_epoch = _world.change_epoch
 	_improve = false
@@ -160,39 +193,184 @@ func _begin() -> void:
 
 
 func _scan_seeds(budget: int) -> int:
-	var rects: Array[Rect2i] = _areas.rects[_group]
-	var cells := _world.cells
+	if not _seeds_listed:
+		_seed_faces = _collect_seed_faces()
+		_seeds_listed = true
+		_seed_pos = 0
 	var w := _world.width
-	var h := _world.height
 	var remaining := budget
-	while _rect_index < rects.size():
-		var rect := rects[_rect_index]
-		var total := rect.size.x * rect.size.y
-		while _scan_pos < total:
-			if remaining <= 0:
-				return 0
-			remaining -= 1
-			var x := rect.position.x + _scan_pos % rect.size.x
-			var y := rect.position.y + _scan_pos / rect.size.x
-			_scan_pos += 1
-			var idx := y * w + x
-			if not Materials.is_mineable(cells[idx]):
-				continue
-			_rect_solid[_rect_index] += 1
-			if x > 0:
-				_seed(idx - 1)
-			if x < w - 1:
-				_seed(idx + 1)
-			if y > 0:
-				_seed(idx - w)
-			if y < h - 1:
-				_seed(idx + w)
-		_rect_index += 1
-		_scan_pos = 0
-	if goal_cell >= 0 and _open(goal_cell):
-		_seed(goal_cell)
+	while _seed_pos < _seed_faces.size():
+		if remaining <= 0:
+			return 0
+		remaining -= 1
+		var idx := _seed_faces[_seed_pos]
+		_seed_pos += 1
+		var x := idx % w
+		var y := int(idx / w)
+		if x > 0:
+			_seed(idx - 1)
+		if x < w - 1:
+			_seed(idx + 1)
+		if y > 0:
+			_seed(idx - w)
+		if y < _world.height - 1:
+			_seed(idx + w)
+	if _stand_cell >= 0:
+		_seed(_stand_cell)
 	_phase = Phase.SPREAD
 	return remaining
+
+
+func _collect_seed_faces() -> PackedInt32Array:
+	var result := PackedInt32Array()
+	var seen := {}
+	var rects: Array[Rect2i] = _areas.rects[_group]
+	var mask: PackedByteArray = _areas.masks[_group]
+	var lists: Array = _world.face_lists
+	var cs := _world.chunk_size
+	var w := _world.width
+	var cxn := _world.chunks_x
+	var cells := _world.cells
+	for rect in rects:
+		if rect.size.x <= 0 or rect.size.y <= 0:
+			continue
+		var batch := PackedInt32Array()
+		var x0: int = rect.position.x / cs
+		var y0: int = rect.position.y / cs
+		var x1: int = (rect.end.x - 1) / cs
+		var y1: int = (rect.end.y - 1) / cs
+		for cy in range(y0, y1 + 1):
+			for cx in range(x0, x1 + 1):
+				var list: PackedInt32Array = lists[cy * cxn + cx]
+				for idx in list:
+					if seen.has(idx) or mask[idx] != 1:
+						continue
+					var x := idx % w
+					var y := int(idx / w)
+					if x < rect.position.x or y < rect.position.y or x >= rect.end.x or y >= rect.end.y:
+						continue
+					if not Materials.is_mineable(cells[idx]):
+						continue
+					batch.append(idx)
+		batch.sort()
+		for idx in batch:
+			if seen.has(idx):
+				continue
+			seen[idx] = true
+			result.append(idx)
+	return result
+
+
+func _pending_touches() -> bool:
+	var log := _world.change_log
+	if _applied_changes > log.size():
+		return true
+	var mask: PackedByteArray = _areas.masks[_group]
+	for n in range(_applied_changes, log.size()):
+		if _touches(log[n], mask):
+			return true
+	return false
+
+
+func _touches(idx: int, mask: PackedByteArray) -> bool:
+	var count := _world.cell_count()
+	if idx < 0 or idx >= count:
+		return true
+	if idx < mask.size() and mask[idx] == 1:
+		return true
+	if _near_anchor(idx):
+		return true
+	if idx < dist.size() and dist[idx] >= 0:
+		return true
+	var width := _world.width
+	if idx >= width and dist[idx - width] >= 0:
+		return true
+	if idx % width < width - 1 and dist[idx + 1] >= 0:
+		return true
+	if idx + width < count and dist[idx + width] >= 0:
+		return true
+	if idx % width > 0 and dist[idx - 1] >= 0:
+		return true
+	return false
+
+
+func _near_anchor(idx: int) -> bool:
+	if anchors.is_empty():
+		return false
+	var width := _world.width
+	var x := idx % width
+	var y := int(idx / width)
+	for cell in anchors:
+		if absi(cell % width - x) + absi(int(cell / width) - y) <= INTEREST_RADIUS:
+			return true
+	return false
+
+
+func _acknowledge_world() -> void:
+	_built_world_revision = _world.revision
+	_applied_changes = _world.change_log.size()
+	_applied_epoch = _world.change_epoch
+	_published_revision = _built_world_revision
+	_published_changes = _applied_changes
+	_published_epoch = _applied_epoch
+
+
+## True, wenn der gewünschte Punkt selbst der nächstmögliche Standpunkt ist.
+func goal_is_stand() -> bool:
+	return goal_cell >= 0 and _nearest_stand() == goal_cell
+
+
+## Erreichbare leere Zelle mit dem kleinsten Manhattan-Abstand zum gewünschten Punkt.
+## Ohne Anker bleibt ein leeres Ziel der Standpunkt, ein festes Ziel hat keinen.
+func _nearest_stand() -> int:
+	if goal_cell < 0 or goal_cell >= _world.cell_count():
+		return -1
+	if anchors.is_empty():
+		return goal_cell if _open(goal_cell) else -1
+	var count := _world.cell_count()
+	var seen := PackedByteArray()
+	seen.resize(count)
+	var queue := PackedInt32Array()
+	var best := -1
+	var best_rank := 2147483647
+	for cell in anchors:
+		if cell < 0 or cell >= count or seen[cell] != 0 or not _open(cell):
+			continue
+		seen[cell] = 1
+		queue.append(cell)
+		var rank := _manhattan(cell, goal_cell)
+		if rank < best_rank:
+			best = cell
+			best_rank = rank
+	var head := 0
+	var width := _world.width
+	var neighbors := PackedInt32Array()
+	while head < queue.size():
+		var cell := queue[head]
+		head += 1
+		_collect_neighbors(cell, width, count, neighbors)
+		for next in neighbors:
+			if seen[next] != 0 or not _open(next):
+				continue
+			seen[next] = 1
+			queue.append(next)
+			var next_rank := _manhattan(next, goal_cell)
+			if next_rank < best_rank:
+				best = next
+				best_rank = next_rank
+	return best
+
+
+func _area_revision() -> int:
+	var stamps := _areas.group_revision
+	if _group < 0 or _group >= stamps.size():
+		return 0
+	return stamps[_group]
+
+
+func _manhattan(a: int, b: int) -> int:
+	var width := _world.width
+	return absi(a % width - b % width) + absi(a / width - b / width)
 
 
 func _open(idx: int) -> bool:
@@ -349,7 +527,7 @@ func _reseed_opened(idx: int) -> void:
 func _is_source(idx: int) -> bool:
 	if not _open(idx):
 		return false
-	if idx == goal_cell:
+	if idx == _stand_cell:
 		return true
 	var mask: PackedByteArray = _areas.masks[_group]
 	var cells := _world.cells

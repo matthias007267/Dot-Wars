@@ -128,11 +128,15 @@ func test_hud_dig_does_not_overwrite_the_ai_rect() -> void:
 	check(sim.assign_area(group_id, rect), "KI-Gebiet")
 	var hud := GameHud.new()
 	hud.sim = sim
-	check(hud.issue_dig_area(Rect2i(8, 8, 4, 4)), "der Spieler markiert")
+	var player := _worker(sim, 0)
+	check(player >= 0, "Spielerarbeiter")
+	hud.select_at(sim.workers.cell[player])
+	check(hud.issue_conquer(Rect2i(8, 8, 4, 4)), "der Spieler erobert")
 	var kept: Array = sim.areas.rects[group_id]
 	check_eq(kept.size(), 1, "das KI-Gebiet bleibt eines")
 	check_eq(kept[0], rect, "die KI-Fläche ist unverändert")
-	check(sim.areas.rects[0].size() > 0, "die eigene Gruppe hat das neue Gebiet")
+	check(sim.command_group > group_id, "der Befehl liegt nicht in der KI-Gruppe")
+	check(sim.areas.rects[sim.command_group].size() > 0, "das Aufgebot hat das Gebiet")
 	var layer := Control.new()
 	hud.clock = TickClock.new()
 	hud._build_stats(layer)
@@ -218,7 +222,7 @@ func test_easy_camps_and_hard_digs_toward_the_core() -> void:
 	check_eq(easy.move_goal(easy.rules.group_of[1]), -1, "Leicht setzt kein Laufziel")
 	var camp: Array = easy.areas.rects[easy.rules.group_of[1]]
 	check_eq(camp.size(), 1, "ein lokales Feld")
-	check_eq(camp[0], Rect2i(19, 12, 9, 9), "9×9 um die eigene Basis")
+	check_eq(camp[0], Rect2i(17, 11, 9, 9), "9×9 um die eigene Basis")
 	check(not camp[0].has_point(Vector2i(16, 16)), "der Hügel liegt außerhalb")
 	check_no_errors(easy.check_invariants(), "Bilanzen Leicht")
 	var hard := _match(MatchRules.VICTORY_ELIMINATION, 6, 1, SimConfig.DIFFICULTY_HARD)
@@ -232,7 +236,7 @@ func test_easy_camps_and_hard_digs_toward_the_core() -> void:
 	check_eq(hard.rules.match_bought, 0, "ein Werkzeug ist kein Arbeiter")
 	var lane: Array = hard.areas.rects[hard.rules.group_of[1]]
 	check_eq(lane.size(), 1, "ein Korridor")
-	check_eq(lane[0], Rect2i(7, 14, 19, 6), "Band von der Basis zum gegnerischen Kern")
+	check_eq(lane[0], Rect2i(7, 13, 17, 6), "Band von der Basis zum gegnerischen Kern")
 	check(lane[0].get_area() < hard.world.width * hard.world.height, "nicht die ganze Karte")
 	check(hard.move_goal(hard.rules.group_of[1]) >= 0, "Schwer läuft auf eine Angriffszelle")
 	var plain := _match(MatchRules.VICTORY_ELIMINATION, 6)

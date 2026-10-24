@@ -68,6 +68,20 @@ static func step(
 			continue
 		var c := cell_of[id]
 		var direction := dirs[group[id]][c]
+		var personal := workers.aim[id]
+		if personal >= 0:
+			var step_cell := workers.aim_step[id]
+			if step_cell == c:
+				if MiningSystem.claim_cell(workers, world, areas, id, personal):
+					continue
+				state[id] = WorkerStore.STATE_WAITING
+				continue
+			if step_cell < 0:
+				state[id] = WorkerStore.STATE_WAITING
+				continue
+			var personal_dir := _dir_between(c, step_cell, width)
+			if personal_dir != FlowField.DIR_NONE:
+				direction = personal_dir
 		if direction == FlowField.DIR_ARRIVED:
 			if not MiningSystem.acquire_target(workers, world, areas, id):
 				state[id] = WorkerStore.STATE_WAITING
@@ -94,6 +108,18 @@ static func step(
 		elif not _try_swap(tick, workers, dirs, id, n, width, cell_count):
 			if not _try_detour(tick, workers, terrain, fields[group[id]], direction, id, width, cell_count, forbidden):
 				state[id] = WorkerStore.STATE_BLOCKED
+
+
+static func _dir_between(here: int, dest: int, width: int) -> int:
+	if dest == here - width:
+		return FlowField.DIR_UP
+	if dest == here + width:
+		return FlowField.DIR_DOWN
+	if dest == here + 1 and here % width < width - 1:
+		return FlowField.DIR_RIGHT
+	if dest == here - 1 and here % width > 0:
+		return FlowField.DIR_LEFT
+	return FlowField.DIR_NONE
 
 
 static func _in_zone(forbidden: PackedByteArray, idx: int) -> bool:

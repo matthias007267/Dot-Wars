@@ -120,7 +120,7 @@ func test_core_upgrade_clears_the_gate_and_grows() -> void:
 		return
 	var pit := WorldGenerator.sacrifice_cell(sim.world)
 	var gates := sim.energy_exits()
-	check(gates.size() >= 2, "zwei Zugänge auf dem Kreuz")
+	check(gates.size() >= 2, "mindestens zwei Zugänge zur Lichtung")
 	var spare: Array[int] = []
 	for id in sim.workers.count:
 		var on_gate := false
@@ -147,7 +147,8 @@ func test_core_upgrade_clears_the_gate_and_grows() -> void:
 			if sim.workers.cell[id] == gate_cell and group_id > 0:
 				sim.workers.reassign_group(id, group_id)
 		sim.set_move_goal(group_id, gate_cell)
-	var source := sim.world.index(pit.x - 3, pit.y - 1)
+	var source := sim.world.index(pit.x - 2, pit.y - 1)
+	check_eq(sim.world.cells[source], Materials.EMPTY, "Energiequelle liegt in der Startlichtung")
 	var count := 6
 	sim.energy_dots.enqueue(source, count)
 	sim.run_ticks(30)
