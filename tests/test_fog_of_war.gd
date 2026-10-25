@@ -33,6 +33,9 @@ func test_remembers_terrain_only_when_seen_again() -> void:
 	fog.update(sim)
 	check(fog.is_explored(0, cell), "own worker reveals terrain")
 	var old := fog.known_material(0, cell)
+	for site in sim.construction.sites.records:
+		if site.owner == 0 and not site.destroyed:
+			sim.construction.sites.damage(site.id, site.hp)
 	for id in range(sim.workers.count - 1, -1, -1):
 		if sim.workers.faction[id] == 0: sim.workers.remove_swap(id)
 	sim.world.set_material(cell, Materials.SOFT)
