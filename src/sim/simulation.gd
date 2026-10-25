@@ -20,6 +20,8 @@ const Construction = preload("res://src/sim/construction_system.gd")
 var construction: Construction = Construction.new()
 var buildings := Buildings.new()
 var rules := MatchRules.new()
+const Fog = preload("res://src/sim/fog_of_war.gd")
+var fog = Fog.new()
 var purchased_workers: int = 0
 const WORKER_COST := 10
 var fields: Array[FlowField] = []
@@ -172,6 +174,7 @@ func tick_once() -> void:
 	elif not won and _goals_met():
 		won = true
 		win_tick = tick_count
+	if _match_live(): fog.update(self)
 	# Auch KI, Kampf und Siegprüfung gehören zur vollständigen Taktzeit.
 	last_tick_usec = Time.get_ticks_usec() - t0
 	profiled_ticks += 1
@@ -568,6 +571,9 @@ func _setup(
 			if start_cells.is_empty() and pit >= 0 and world.cells[pit] == Materials.INDESTRUCTIBLE:
 				construction.initial(self, pit, 0)
 			if not _place_initial_workers(start_cells): return false
+	if config.mode == SimConfig.MODE_MATCH and place_workers:
+		fog.setup(world, rules.faction_count)
+		fog.update(self)
 	initial_mass = workers.mass_sum()
 	peak_mass = initial_mass
 	max_units = workers.count
