@@ -8,6 +8,7 @@ const KIND_WARRIOR := 1
 
 
 static func kind_of(_sim: Simulation, _id: int) -> int:
+	if _id >= ArmyState.TAG and _sim.army.slots.has(_id - ArmyState.TAG): return KIND_WARRIOR
 	return KIND_WORKER
 
 

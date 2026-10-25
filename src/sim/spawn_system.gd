@@ -7,6 +7,7 @@ extends RefCounted
 
 var _queue := PackedInt32Array()
 var _head: int = 0
+var _sites := PackedInt32Array()
 var _search_limit: int
 var _stamp := PackedInt32Array()
 var _stamp_generation: int = 0
@@ -30,10 +31,19 @@ func export_queue() -> PackedInt32Array:
 func import_queue(items: PackedInt32Array) -> void:
 	_queue = items.duplicate()
 	_head = 0
+	_sites.resize(items.size())
+	_sites.fill(-1)
 
 
-func enqueue(origin_cell: int) -> void:
+func site_queue() -> PackedInt32Array:
+	return _sites.slice(_head)
+
+func import_sites(items: PackedInt32Array) -> void:
+	_sites = items.duplicate()
+
+func enqueue(origin_cell: int, site: int = -1) -> void:
 	_queue.append(origin_cell)
+	_sites.append(site)
 
 
 ## Platziert so viele wartende Arbeiter wie möglich. Gibt die Anzahl neuer Arbeiter zurück.
@@ -43,9 +53,17 @@ func process(
 	workers: WorkerStore,
 	quotas: PackedInt32Array,
 	forbidden: PackedByteArray = PackedByteArray(),
+	sim: Simulation = null,
 ) -> int:
 	var spawned := 0
 	while _head < _queue.size():
+		if sim != null and _sites[_head] >= 0:
+			var site := _sites[_head]
+			if not sim.construction.sites.valid(site):
+				sim.rules.removed_mass += 1
+				_head += 1
+				continue
+			_queue[_head] = sim.construction.origin(sim, site)
 		var cell := find_free_cell(world, workers, _queue[_head], forbidden)
 		if cell < 0:
 			break
@@ -54,6 +72,7 @@ func process(
 		spawned += 1
 	if _head > 1024 and _head * 2 > _queue.size():
 		_queue = _queue.slice(_head)
+		_sites = _sites.slice(_head)
 		_head = 0
 	return spawned
 
@@ -115,3 +134,18 @@ func _visit(cells: PackedByteArray, c: int) -> void:
 
 func _forbidden(forbidden: PackedByteArray, idx: int) -> bool:
 	return idx >= 0 and idx < forbidden.size() and forbidden[idx] == 1
+
+
+func cancel_site(site: int) -> int:
+	var origins := PackedInt32Array()
+	var bindings := PackedInt32Array()
+	var cancelled := 0
+	for i in range(_head, _queue.size()):
+		if _sites[i] == site:
+			cancelled += 1
+		else:
+			origins.append(_queue[i])
+			bindings.append(_sites[i])
+	import_queue(origins)
+	import_sites(bindings)
+	return cancelled

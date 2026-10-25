@@ -124,6 +124,8 @@ func pace_text(period: int) -> String:
 
 
 func try_buy(kind: int) -> bool:
+	if kind == KIND_FUSION2 or kind == KIND_FUSION3:
+		return false
 	var cost := _cost(kind)
 	if cost < 0 or energy < cost:
 		return false

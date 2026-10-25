@@ -27,7 +27,7 @@ func test_clearing_ignores_delivered_energy_and_refuses_a_source() -> void:
 	check_no_errors(sim.check_invariants(), "Bilanzen")
 
 
-func test_extraction_wins_on_delivered_energy() -> void:
+func test_old_extraction_goal_is_disabled() -> void:
 	var sim := _empty(SimConfig.MODE_EXTRACTION)
 	sim.energy_dots.delivered = SimConfig.EXTRACTION_GOAL - 1
 	sim.energy_dots.generated = SimConfig.EXTRACTION_GOAL - 1
@@ -36,7 +36,7 @@ func test_extraction_wins_on_delivered_energy() -> void:
 	sim.energy_dots.delivered = SimConfig.EXTRACTION_GOAL
 	sim.energy_dots.generated = SimConfig.EXTRACTION_GOAL
 	sim.tick_once()
-	check(sim.won, "1.000 gelieferte Energie gewinnen die Förderung")
+	check(not sim.won, "altes Förderziel deaktiviert")
 	check(not sim.place_building(Buildings.KIND_REFINERY, sim.world.index(4, 4)), "Förderung hat keinen Veredler")
 
 
@@ -117,7 +117,7 @@ func test_refinery_doubles_a_nearby_dot_once() -> void:
 	check_no_errors(sim.check_invariants(), "Energiebilanz")
 
 
-func test_refining_goal_counts_only_refined_deliveries() -> void:
+func test_old_refining_goal_is_disabled() -> void:
 	var sim := _empty(SimConfig.MODE_REFINING)
 	sim.energy_dots.delivered = 400
 	sim.energy_dots.generated = 400
@@ -125,7 +125,7 @@ func test_refining_goal_counts_only_refined_deliveries() -> void:
 	check(not sim.won, "rohe Energie schließt die Veredelung nicht ab")
 	sim.energy_dots.refined_delivered = 400
 	sim.tick_once()
-	check(sim.won, "400 veredelte Dots gewinnen")
+	check(not sim.won, "altes Veredelungsziel deaktiviert")
 
 
 func test_a_refined_dot_is_credited_as_one_and_counted() -> void:
@@ -182,15 +182,15 @@ func test_hud_shows_the_mode_goal_and_its_building() -> void:
 	hud._build_dock(layer)
 	hud._build_upgrade_panel(layer)
 	hud.refresh()
-	check_eq(hud._goal_heading.text, "FÖRDERUNG", "Modus in der Zielkarte")
-	check_eq(hud._goal_names[0].text, "1.000 Energie liefern", "Förderziel")
+	check_eq(hud._goal_heading.text, "FREIES SPIEL", "keine alten Solo-Ziele")
+	check_eq(hud._goal_names[0].text, "Arbeiterlimit", "Populationsanzeige")
 	check(not hud._goal_sections[2].visible, "der 90-Prozent-Balken ist weg")
 	check(hud._source_place_button.visible, "Quelle wird angeboten")
 	check(not hud._refinery_place_button.visible, "Veredler bleibt in diesem Modus aus")
 	sim.config.mode = SimConfig.MODE_CLEARING
 	hud.refresh()
-	check_eq(hud._goal_heading.text, "RÄUMUNG", "Rückkehr zur Räumung")
-	check(hud._goal_sections[2].visible, "Abbauziel wieder sichtbar")
+	check_eq(hud._goal_heading.text, "FREIES SPIEL", "weiter freies Spiel")
+	check(not hud._goal_sections[2].visible, "Abbauziel bleibt deaktiviert")
 	check(hud._refinery_place_button.visible, "Veredler in der Räumung")
 	check(not hud._source_place_button.visible, "keine Quelle in der Räumung")
 	layer.free()

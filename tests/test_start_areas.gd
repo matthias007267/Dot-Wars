@@ -62,21 +62,16 @@ func test_match_start_is_reproducible() -> void:
 
 
 func _check_clearing(world: WorldState, center: Vector2i, context: String) -> void:
-	var radius := WorldGenerator.START_CLEARING_RADIUS
-	var empty := 0
-	for dy in range(-radius, radius + 1):
-		for dx in range(-radius, radius + 1):
-			var x := center.x + dx
-			var y := center.y + dy
-			check(world.in_bounds(x, y), "%s: Lichtung innerhalb der Karte" % context)
-			if not world.in_bounds(x, y):
-				continue
-			var material := world.cells[world.index(x, y)]
-			if dx == 0 and dy == 0:
-				check_eq(material, Materials.INDESTRUCTIBLE, "%s: Kern" % context)
-			elif absi(dx) == radius and absi(dy) == radius:
-				check(material != Materials.EMPTY, "%s: Ecke bleibt Fels" % context)
+	var free := 0
+	var solid := 0
+	for dy in range(-4, 5):
+		for dx in range(-4, 5):
+			var cell := world.index(center.x + dx, center.y + dy)
+			if absi(dx) <= 2 and absi(dy) <= 2:
+				check_eq(world.cells[cell], Materials.INDESTRUCTIBLE, context + ": Gebäudefläche")
+				solid += 1
 			else:
-				check_eq(material, Materials.EMPTY, "%s: Lichtung" % context)
-				empty += 1
-	check_eq(empty, 20, "%s: genau 20 freie Zellen" % context)
+				check_eq(world.cells[cell], Materials.EMPTY, context + ": freier Arbeits-/Produktionsring")
+				free += 1
+	check_eq(solid, 25, "5×5 Kern")
+	check_eq(free, 56, "ausreichend Startplatz für 50 Arbeiter")

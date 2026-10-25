@@ -7,3 +7,6 @@ bench/results/
 *.tmp
 
 native/bin/
+
+# Independent local checkout; not a submodule of this project.
+/dot-wars/

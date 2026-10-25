@@ -1,5 +1,7 @@
 # Premium Pixel Tactics – nur die Spielwelt
 
+Standhinweis vom 25. Oktober 2026: Dieser Bericht beschreibt die bestehende Prototypdarstellung, keine Sichtregel des neuen Zielspiels. Der unten genannte Zugriff der Minimap auf die unveränderte Originaltextur ist Ist-Verhalten. Mit Fog of War müssen Weltbild, Minimap und sonstige Anzeigen das aktuelle bzw. zuletzt bekannte Spielerwissen beachten; unbekannte Gegnergebäude dürfen nicht darüber sichtbar werden. Sichtfilterung und eine mögliche andere Welt-/Texturarchitektur sind noch nicht implementiert oder zur Umsetzung freigegeben. Maßgeblich: [GAME_DESIGN.md](GAME_DESIGN.md), [ARCHITECTURE.md](ARCHITECTURE.md), [CONCEPT_SYNC.md](CONCEPT_SYNC.md).
+
 Diese Aenderung betrifft **ausschliesslich die Weltansicht**. Das vorhandene HUD,
 die Buttons, das Startmenue, die Minimap und die Simulation bleiben unveraendert.
 

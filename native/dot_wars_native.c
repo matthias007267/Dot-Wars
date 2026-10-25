@@ -9,7 +9,7 @@
 #include <limits.h>
 
 typedef union { max_align_t alignment; unsigned char bytes[64]; } Value;
-typedef struct { int32_t *queue, *parent; uint32_t *seen; size_t count, queue_capacity; uint32_t stamp; } Search;
+typedef struct { int32_t *queue, *parent; uint32_t *seen; size_t count, queue_capacity; uint32_t stamp; void *army_cache; } Search;
 static GDExtensionClassLibraryPtr library;
 static Value class_name, parent_name, empty_name, empty_string;
 static GDExtensionInterfaceStringNameNewWithUtf8Chars sn_new;
@@ -36,7 +36,7 @@ static GDExtensionPtrBuiltInMethod resize_bytes, resize_longs;
 static GDExtensionTypeFromVariantConstructorFunc to_bytes, to_ints, to_int, to_bool;
 static GDExtensionVariantFromTypeConstructorFunc from_int, from_bytes, from_ints, from_array;
 static GDExtensionPtrDestructor destroy_bytes, destroy_ints, destroy_array, destroy_sn, destroy_string;
-static GDExtensionPtrConstructor new_array;
+static GDExtensionPtrConstructor new_array, new_ints;
 static GDExtensionPtrBuiltInMethod size_bytes, size_ints, resize_ints, resize_array;
 
 static int64_t read_int(GDExtensionConstVariantPtr v) { int64_t x; to_int(&x, (void *)v); return x; }
@@ -268,6 +268,10 @@ cleanup:
 }
 #include "movement_kernel.inc"
 #include "energy_kernel.inc"
+#include "army_cache.inc"
+#include "army_corners.inc"
+#include "army_kernel.inc"
+#include "window_probe.inc"
 
 static void *create(void *data) {
     (void)data; Search *s=calloc(1,sizeof(Search)); if(!s) return NULL;
@@ -277,7 +281,7 @@ static void *create(void *data) {
 }
 static void release(void *data,void *instance) {
     (void)data; Search *s=instance; if(!s) return;
-    free(s->queue); free(s->parent); free(s->seen); free(s);
+    free(s->queue); free(s->parent); free(s->seen); army_cache_free(s->army_cache); free(s);
 }
 static void bind_method(const char *name,GDExtensionClassMethodCall fn,const GDExtensionVariantType *types,int argc,GDExtensionVariantType result_type) {
     Value method_name; sn_new(&method_name,name);
@@ -298,12 +302,18 @@ static void initialize(void *data,GDExtensionInitializationLevel level) {
     bind_method("nearest_stand",nearest_call,nearest_types,5,N);
     bind_method("move_workers",movement_call,movement_types,10,GDEXTENSION_VARIANT_TYPE_ARRAY);
     bind_method("energy_next",energy_call,energy_types,5,I);
+    bind_method("army_step",army_call,army_types,5,GDEXTENSION_VARIANT_TYPE_ARRAY);
+    bind_method("army_step_cached",army_cached_call,army_types,5,GDEXTENSION_VARIANT_TYPE_ARRAY);
+    bind_method("army_route_stats",army_route_stats_call,NULL,0,GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY);
+    bind_method("trace_window",window_probe_call,window_probe_types,2,GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY);
+    bind_method("device_change_guard",device_guard_call,window_probe_types,2,GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY);
+    bind_method("device_change_guard_self_test",device_guard_test_call,window_test_types,1,GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY);
     bind_method("search",search_call,search_types,11,N);
     bind_method("flow_spread",flow_call,flow_types,9,GDEXTENSION_VARIANT_TYPE_ARRAY);
 }
 static void deinitialize(void *data,GDExtensionInitializationLevel level) {
     (void)data; if(level!=GDEXTENSION_INITIALIZATION_SCENE) return;
-    unregister_class(library,&class_name); destroy_sn(&class_name); destroy_sn(&parent_name); destroy_sn(&empty_name); destroy_string(&empty_string);
+    window_probe_stop(); unregister_class(library,&class_name); destroy_sn(&class_name); destroy_sn(&parent_name); destroy_sn(&empty_name); destroy_string(&empty_string);
 }
 #if defined(_WIN32)
 #define EXPORT __declspec(dllexport)
@@ -349,14 +359,14 @@ EXPORT GDExtensionBool dot_wars_native_init(GDExtensionInterfaceGetProcAddress g
     from_longs=from_type(GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY);
     new_bytes=constructor(B,0); new_longs=constructor(GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY,0);
     destroy_longs=destructor(GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY);
-    new_array=constructor(GDEXTENSION_VARIANT_TYPE_ARRAY,0);
+    new_array=constructor(GDEXTENSION_VARIANT_TYPE_ARRAY,0); new_ints=constructor(I,0);
     Value size_name,resize_name; sn_new(&size_name,"size"); sn_new(&resize_name,"resize");
     size_array=builtin(GDEXTENSION_VARIANT_TYPE_ARRAY,&size_name,3173160232LL);
     size_bytes=builtin(B,&size_name,3173160232LL); size_ints=builtin(I,&size_name,3173160232LL);
     resize_ints=builtin(I,&resize_name,848867239); resize_array=builtin(GDEXTENSION_VARIANT_TYPE_ARRAY,&resize_name,848867239);
     resize_bytes=builtin(B,&resize_name,848867239); resize_longs=builtin(GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY,&resize_name,848867239);
     destroy_sn(&size_name); destroy_sn(&resize_name);
-    if(!size_bytes || !size_ints || !resize_ints || !resize_array || !new_array) return 0;
+    if(!size_bytes || !size_ints || !resize_ints || !resize_array || !new_array || !new_ints) return 0;
     init->minimum_initialization_level=GDEXTENSION_INITIALIZATION_SCENE;
     init->initialize=initialize; init->deinitialize=deinitialize; init->userdata=NULL; return 1;
 }

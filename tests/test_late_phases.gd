@@ -37,28 +37,18 @@ func test_zero_quota_still_receives_nobody_after_a_third_group() -> void:
 	check_no_errors(sim.check_invariants(), "Invarianten")
 
 
-func test_four_workers_fuse_and_split_without_losing_mass() -> void:
+func test_four_workers_remain_individual_without_fusion() -> void:
 	var world := WorldState.new(6, 4, 8, Materials.EMPTY)
-	var config := TestHelpers.default_config()
-	var sim := Simulation.from_world(config, world, PackedInt32Array(), false)
-	for x in 4:
-		sim.workers.add(world.index(1 + x, 1), 0, 0)
-	sim.initial_mass = sim.workers.mass_sum()
-	sim.peak_mass = sim.initial_mass
+	var sim := Simulation.from_world(TestHelpers.default_config(), world, PackedInt32Array(), false)
+	for x in 4: sim.workers.add(world.index(1 + x, 1), 0, 0)
+	sim.initial_mass = 4
 	sim.upgrades.fusion2 = true
-	check(sim.set_desired_size(0, 2), "Wunschgröße 2")
-	check(not sim.set_desired_size(0, 3), "3×3 ist noch gesperrt")
+	check(not sim.set_desired_size(0, 2), "Fusion entfernt")
 	sim.tick_once()
-	check_eq(sim.workers.count, 1, "eine Einheit")
-	check_eq(sim.workers.size[0], 2, "2×2")
-	check_eq(sim.workers.mass[0], 4, "Masse 4")
-	check_eq(sim.total_mass(), 4, "Masse erhalten")
-	check(sim.set_desired_size(0, 1), "wieder klein")
-	sim.tick_once()
-	check_eq(sim.workers.count, 4, "vier Basis-Arbeiter")
-	check_eq(sim.total_mass(), 4, "Aufteilung erhält die Masse")
-	check_no_errors(sim.check_invariants(), "Invarianten")
-
+	check_eq(sim.workers.count, 4, "vier einzelne Arbeiter")
+	check_eq(sim.workers.max_size, 1, "nur Größe eins")
+	check_eq(sim.total_mass(), 4, "Masse bleibt erhalten")
+	check_no_errors(sim.check_invariants(), "Belegung")
 
 func test_large_unit_cannot_enter_a_one_wide_gap() -> void:
 	var world := WorldState.new(9, 5, 8, Materials.SOFT)
@@ -69,7 +59,7 @@ func test_large_unit_cannot_enter_a_one_wide_gap() -> void:
 	sim.workers.add_sized(world.index(1, 1), 0, 0, 2)
 	sim.initial_mass = 4
 	sim.upgrades.fusion2 = true
-	check(sim.set_desired_size(0, 2), "Größe halten")
+	check(not sim.set_desired_size(0, 2), "Legacy-Geometrie darf keine neue Fusion anfordern")
 	sim.peak_mass = 4
 	var goal := world.index(6, 1)
 	check(sim.set_move_goal(0, goal), "Ziel jenseits der Engstelle")
@@ -203,7 +193,7 @@ func test_failed_purchase_keeps_energy() -> void:
 	check_eq(sim.upgrades.purchased, 1, "gezählt")
 
 
-func test_victory_requires_all_three_goals() -> void:
+func test_old_clearing_goals_remain_disabled_even_when_all_are_met() -> void:
 	var sim := _empty_sim()
 	sim.tick_once()
 	check(not sim.won, "zu Beginn kein Sieg")
@@ -222,8 +212,8 @@ func test_victory_requires_all_three_goals() -> void:
 	sim.tick_once()
 	check(sim.total_mass() >= 100, "Masse")
 	check(sim.world.mined_fraction() >= 0.9, "Fortschritt")
-	check(sim.won, "alle drei Ziele")
-	check(sim.win_tick > 0, "Siegtick")
+	check(not sim.won, "alte Solo-Ziele deaktiviert")
+	check_eq(sim.win_tick, -1, "kein Solo-Siegtick")
 
 
 func test_save_roundtrip_continues_identically() -> void:

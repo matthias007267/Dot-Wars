@@ -174,14 +174,16 @@ func set_buildings(mask: PackedByteArray) -> void:
 func sync_match(sim: Simulation) -> void:
 	if sim.config.mode != SimConfig.MODE_MATCH or sim.rules.cores.is_empty():
 		return
-	var stamp := hash(sim.rules.relic_owner)
+	var stamp := hash([sim.rules.relic_owner, _site_marker_state(sim)])
 	if not marker_cores.is_empty() and stamp == _marker_stamp:
 		return
 	_marker_stamp = stamp
-	marker_cores = sim.rules.cores.duplicate()
+	marker_cores = PackedInt32Array()
 	marker_rgb = PackedByteArray()
-	for faction in sim.rules.faction_count:
-		_append_rgb(marker_rgb, MatchRules.FACTION_COLORS[faction])
+	for row in sim.construction.sites.records:
+		if row.destroyed or not row.ready: continue
+		marker_cores.append(sim.construction.center(row.id))
+		_append_rgb(marker_rgb, MatchRules.FACTION_COLORS[row.owner])
 	marker_hill = sim.rules.hill_cell
 	marker_relics = sim.rules.relic_cell.duplicate()
 	marker_relic_rgb = PackedByteArray()
@@ -404,3 +406,9 @@ static func _paint_indexed(
 		bytes[dst + 3] = 255
 		return true
 	return false
+
+
+func _site_marker_state(sim: Simulation) -> Array:
+	var state := []
+	for row in sim.construction.sites.records: state.append([row.id, row.ready, row.destroyed])
+	return state

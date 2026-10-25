@@ -13,7 +13,8 @@ const VICTORY_RELICS := 4
 const VICTORY_HILL := 8
 const VICTORY_ALL := 15
 
-const CORE_HP_MAX := 160
+const ConstructionAI = preload("res://src/sim/construction_ai.gd")
+const CORE_HP_MAX := 600
 const RELIC_NEED := 3
 const RELIC_CHANNEL := 100
 const HILL_TICKS := 600
@@ -80,6 +81,7 @@ func install(sim: Simulation) -> bool:
 		if core < 0:
 			return false
 		cores[faction] = core
+		if sim.construction.initial(sim, core, faction) < 0: return false
 	hill_cell = _open_objective(sim.world, sim.world.width / 2, sim.world.height / 2)
 	if hill_cell < 0 or not _place_relics(sim.world):
 		return false
@@ -120,6 +122,15 @@ func credit_energy(sim: Simulation, before: PackedInt32Array) -> void:
 
 
 func gates(sim: Simulation) -> Dictionary:
+	if not sim.construction.sites.records.is_empty():
+		var cells := PackedInt32Array()
+		var owners := PackedByteArray()
+		for faction in faction_count:
+			if alive[faction] == 0: continue
+			for cell in sim.construction.receivers(sim, faction):
+				cells.append(cell)
+				owners.append(faction)
+		return {"cells": cells, "owners": owners}
 	var cells := PackedInt32Array()
 	var owners := PackedByteArray()
 	for cell in sim.energy_exits():
@@ -293,6 +304,7 @@ func _ai(sim: Simulation) -> void:
 	for faction in range(1, faction_count):
 		if alive[faction] == 0 or control[faction] != CONTROL_AI:
 			continue
+		if ConstructionAI.step(sim, faction): continue
 		var level := _plan(faction)
 		if level == SimConfig.DIFFICULTY_EASY:
 			_ai_easy(sim, faction)
@@ -300,6 +312,8 @@ func _ai(sim: Simulation) -> void:
 			_ai_hard(sim, faction)
 		else:
 			_ai_normal(sim, faction)
+		if wallet(sim, faction).energy >= ArmyState.COST and sim.army.population(faction) < 2000:
+			sim.buy_warrior(faction)
 
 
 func _ai_easy(sim: Simulation, faction: int) -> void:
@@ -380,12 +394,13 @@ func _ai_hard(sim: Simulation, faction: int) -> void:
 
 func _buy_worker(sim: Simulation, faction: int) -> bool:
 	var upgrades := wallet(sim, faction)
-	if upgrades.energy < Simulation.WORKER_COST:
+	if not sim.can_buy_worker(faction) or upgrades.energy < Simulation.WORKER_COST:
 		return false
-	var origin := _tunnel_near(sim, cores[faction])
+	var site: int = sim.construction.production_site(faction)
+	var origin: int = sim.construction.origin(sim, site)
 	if origin < 0:
 		return false
-	var spot := sim.spawner.find_free_cell(sim.world, sim.workers, origin)
+	var spot := sim.spawner.find_free_cell(sim.world, sim.workers, origin, sim.army.blockers(PackedByteArray()))
 	if spot < 0:
 		return false
 	upgrades.energy -= Simulation.WORKER_COST
@@ -395,35 +410,16 @@ func _buy_worker(sim: Simulation, faction: int) -> bool:
 
 
 func _combat(sim: Simulation) -> void:
-	var damage := PackedInt32Array()
-	damage.resize(faction_count)
-	var width := sim.world.width
-	# Nur orthogonale Kernnachbarn können angreifen. Große Einheiten zählen einmal.
-	for other in faction_count:
-		if alive[other] == 0:
-			continue
-		var attackers := {}
-		for direction in range(1, 5):
-			var cell := MovementSystem.neighbor(cores[other], direction, width, sim.world.cell_count())
-			if cell < 0:
-				continue
-			var id := sim.workers.occupant[cell]
-			if id < 0:
-				continue
-			var faction := int(sim.workers.faction[id])
-			if faction < faction_count and faction != other and alive[faction] != 0:
-				attackers[id] = true
-		damage[other] = attackers.size()
+	sim.construction.combat(sim)
 	for faction in faction_count:
-		if damage[faction] <= 0 or alive[faction] == 0:
-			continue
-		core_hp[faction] = maxi(0, core_hp[faction] - damage[faction])
-		if core_hp[faction] == 0:
-			_eliminate(sim, faction)
+		if alive[faction] != 0 and not sim.construction.survives(faction): _eliminate(sim, faction)
 
 
 func _eliminate(sim: Simulation, faction: int) -> void:
 	alive[faction] = 0
+	for row in sim.construction.sites.records:
+		if not row.destroyed and row.owner == faction: sim.construction.damage(sim, row.id, row.hp)
+	sim.army.eliminate(faction)
 	# Nachrückende Slots sofort prüfen: gleiche Swap-Reihenfolge, ein Durchlauf.
 	var id := 0
 	while id < sim.workers.count:
@@ -543,7 +539,8 @@ func _workers_of(sim: Simulation, faction: int) -> int:
 
 
 func _place_workers(sim: Simulation, faction: int) -> bool:
-	var origin := _tunnel_near(sim, cores[faction])
+	var site: int = sim.construction.production_site(faction)
+	var origin: int = sim.construction.origin(sim, site)
 	if origin < 0:
 		return false
 	var spots := sim.spawner.find_free_cells(
@@ -700,7 +697,7 @@ func _aim_move(sim: Simulation, faction: int) -> void:
 
 func _nearest_living_enemy_core(sim: Simulation, faction: int) -> int:
 	var origin := _base_origin_of(sim, faction)
-	return _nearest_cell(sim, origin, _enemy_cores(faction))
+	return _nearest_cell(sim, origin, _enemy_cores(sim, faction))
 
 
 func _nearest_relic(sim: Simulation, faction: int) -> int:
@@ -712,11 +709,11 @@ func _nearest_relic(sim: Simulation, faction: int) -> int:
 	return _nearest_cell(sim, origin, cells)
 
 
-func _enemy_cores(faction: int) -> PackedInt32Array:
+func _enemy_cores(sim: Simulation, faction: int) -> PackedInt32Array:
 	var cells := PackedInt32Array()
-	for other in faction_count:
-		if other != faction and alive[other] != 0:
-			cells.append(cores[other])
+	for row in sim.construction.sites.records:
+		if not row.destroyed and row.owner != faction and alive[row.owner] != 0:
+			cells.append(sim.construction.center(row.id))
 	return cells
 
 
@@ -733,13 +730,16 @@ func _nearest_cell(sim: Simulation, origin: Vector2i, cells: PackedInt32Array) -
 
 
 func _attack_cell(sim: Simulation, core: int, faction: int) -> int:
-	return _nearest_cell(sim, _base_origin_of(sim, faction), SacrificeSystem.delivery_cells(sim.world, core))
+	var site: int = sim.construction.at(core)
+	var perimeter := sim.construction.receivers_for(sim, site) if site >= 0 else SacrificeSystem.delivery_cells(sim.world, core)
+	return _nearest_cell(sim, _base_origin_of(sim, faction), perimeter)
 
 
 func _base_origins(size: int, count: int) -> Array[Vector2i]:
 	# Kernzentren liegen symmetrisch mindestens ein Fünftel der Weltbreite vom Rand.
 	# Auch auf 32×32 bleiben zwischen Lichtung und Kartenrand mindestens sieben Zellen.
 	var inset := maxi(WorldGenerator.START_CLEARING_RADIUS + 7, size / 5)
+	if size == 32 and count == 4: inset = 8
 	var mid := size / 2
 	# _carve_base platziert den Kern jeweils eine Zelle rechts/unten vom Ursprung.
 	var spots: Array[Vector2i] = [

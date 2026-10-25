@@ -1,5 +1,17 @@
 # DOT WARS
 
+Prüfung des gesammelten Commitstands aus einem sauberen Export: [COMMIT_VALIDATION.md](docs/COMMIT_VALIDATION.md).
+
+Energiephase lokal integriert: 60 Sekunden ohne Terrainroute führen zum Verfall; Abfangstationen übernehmen physische gegnerische Energie, puffern und senden sie zum eigenen Kern/Außenposten. Bei Stationszerstörung wird nur der verbleibende Puffer neutral. Testlaborfreigabe und Bau unter Fähigkeiten → Energietransport; Regeln, Bilanz und Prüfstand in [ENERGY_PHASE.md](docs/ENERGY_PHASE.md).
+
+Reparatur, Baustellenabbruch und KI-Bauplanung sind lokal ergänzt. Eigene Arbeiter und ein beschädigtes fertiges Gebäude auswählen → „REPARIEREN“; eigene Baustelle auswählen → „ABBRUCH +…“. Die KI benutzt regulär bezahlte Bauplätze und ersetzt verlorene Hauptkerne. Vorläufige Kosten, Erstattung, Testfreigabe und Prüfstand: [MAINTENANCE_PHASE.md](docs/MAINTENANCE_PHASE.md).
+
+Bauphase lokal integriert: Arbeiter errichten Kerne und Außenposten, fertige Standorte produzieren Einheiten und empfangen Energie; begonnener Kernbau und fertige Außenposten schützen nach Hauptkernverlust. Außenposten sind vorläufig nur im Testlabor freischaltbar. Bedienung, bestätigte Testwerte und Grenzen: [CONSTRUCTION_PHASE.md](docs/CONSTRUCTION_PHASE.md).
+
+**Stand 25. Oktober 2026: spielbarer Einheitenprototyp.** Maximal 50 Arbeiter je Spieler einschließlich bezahlter Warteschlange; getrennte Krieger mit Produktion und Nahkampf; keine Fusion; alte Solo-Siegziele deaktiviert. Eigene Krieger passieren eigene Arbeiter und brauchen eine freie Endposition. Kampfwerte sind ausdrücklich vorläufig.
+
+[UNIT_PROTOTYPE.md](docs/UNIT_PROTOTYPE.md) enthält Testanleitung, Messungen und Grenzen. Das [Zielkonzept](docs/GAME_DESIGN.md) umfasst weiterhin noch nicht implementierte Systeme wie Außenposten, Fog of War, große prozedurale Welt und zeitbasierte Forschung. Der [Stabilitätsstand](docs/STABILITY_VALIDATION.md) behebt die nachgewiesenen Windows-Gerätemeldungs-Hänger, erweitert exakte Viele-Ziele-Wege und korrigiert das Fortsetzen nach dem Laden. Der gemischte Grafiktest erreicht rund 60 FPS bei 20 Takten/s. Grenzen, Langtests und die neue v7-Bibliothek stehen im Prüfbericht; das Spiel dafür vollständig neu starten. Die aktuelle Arbeitskopie ist lokal geändert, ohne Commit oder Veröffentlichung.
+
 Minimalistisches Echtzeit-Strategiespiel mit Godot 4. Die verbindlichen Regeln stehen in `docs/GAME_DESIGN.md`, die Architektur in `docs/ARCHITECTURE.md`, der Phasenstand in `docs/ROADMAP.md`. Agenten arbeiten nach `AGENTS.md`.
 
 `godot --path .` öffnet das Startmenü. „Neues Spiel“ startet die Welt. Das reduzierte HUD zeigt Masse, Energie, Abbaufortschritt und Missionsziele. Farbgruppen werden intern verwaltet und erscheinen nicht mehr als eigene Spielereinstellung. Beim Abbau entstehen ausschließlich Energie-Dots (Härte 1/3/8 → 1/3/8), die zum Energiekern transportiert werden. Nur eingelagerte Energie kann ausgegeben werden.
@@ -30,8 +42,8 @@ Steuerung im Fenster:
 * „Abbau“ ist der Startmodus. Ziehen mit der linken Taste markiert das Abbaugebiet des Schwarms. Die Fläche bleibt als Rahmen sichtbar.
 * „Bewegen“ und ein Klick in einen Tunnel setzen den Sammelpunkt. Er wird als farbige Zelle gezeichnet.
 * „Arbeiter +10“ kauft einen gelben Arbeiter für 10 bereits gelieferte Energie. Er erscheint am Energiekern. Die Energiezeile zeigt das Guthaben und in Klammern die Dots, die noch unterwegs sind.
-* „1×1“, „2×2“ und „3×3“ setzen die Wunschgröße. 2×2 und 3×3 brauchen das passende Upgrade.
-* „Upgrades“ öffnet Tempo, Abbau und Verschmelzung. „1×“ wechselt auf 2× und 4×.
+* „KRIEGER“ bestellt einen Nahkämpfer für vorläufig 20 Energie. Linksklick oder Auswahlrechteck wählt eigene Arbeiter und Krieger; Rechtsklick erteilt der Auswahl einen Marschbefehl.
+* „Fähigkeiten“ öffnet die vorhandenen Tempo-/Abbau-Upgrades. „1×“ wechselt auf 2× und 4×.
 * „Speichern“ und „Laden“ nutzen `user://slot.dw`, ebenso F5 und F9. Alle 600 Takte entsteht `user://autosave.dw`.
 * Leertaste oder „Pause“ hält die Simulation an. F11 schaltet Vollbild.
 * Die Übersicht unten rechts springt die Kamera. Mausrad zoomt zur Cursorposition.
@@ -69,7 +81,7 @@ Der Runner endet mit Code 1, wenn eine Prüfung fehlschlägt oder kein Test läu
 ## Testlabor (Performance und Fortschritte)
 
 Im laufenden Spiel **Escape → TESTLABOR AKTIVIEREN** wählen. Im Pausemenü können
-Arbeiter-/Energie-Tempo, Abbau, Intelligenz, Kern, Fusion, Forschung und
+Arbeiter-/Energie-Tempo, Abbau, Intelligenz, Kern, Forschung und
 Gebäudestufen kostenlos über **− / +** geändert werden. Mit **+100 Dots**
 oder **+500 Dots** lassen sich größere Schwärme erzeugen, soweit freie
 Zellen vorhanden sind. Nach „WEITER“ erscheint oben rechts ein Overlay mit

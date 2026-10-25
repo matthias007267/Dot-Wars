@@ -3,6 +3,7 @@ extends RefCounted
 ## Alle Parameter der Simulation. Wird vor dem Start validiert und danach nicht mehr verändert.
 
 const TICKS_PER_SECOND := 20
+const MAX_WORKERS_PER_PLAYER := 50
 const MAX_GROUPS := 8
 const MAX_DURABILITY := 1_000_000
 
@@ -31,6 +32,8 @@ var victory_mask: int = 15
 ## Nur Mehrspieler. Einzelspieler lässt den Wert stehen und ignoriert ihn.
 var difficulty: int = DIFFICULTY_NORMAL
 
+## Ausschließlich explizite Diagnose-/Testpopulationen dürfen das Spielerlimit umgehen.
+var population_test_mode := false
 var initial_workers: int = 5
 var tunnel_arm_length: int = 5
 
@@ -73,6 +76,8 @@ func validate() -> PackedStringArray:
 		errors.append("world_size muss zwischen 16 und 4096 liegen")
 	if chunk_size < 8 or chunk_size > 128:
 		errors.append("chunk_size muss zwischen 8 und 128 liegen")
+	if initial_workers > MAX_WORKERS_PER_PLAYER and not population_test_mode:
+		errors.append("Höchstens 50 Startarbeiter je Spieler")
 	if initial_workers < 1:
 		errors.append("initial_workers muss mindestens 1 sein")
 	if tunnel_arm_length < 1 or tunnel_arm_length * 2 + 2 > world_size:

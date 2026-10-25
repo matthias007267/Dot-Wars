@@ -1,5 +1,17 @@
 # Messungen
 
+## Zielpopulation und Geltung ab 25. Oktober 2026
+
+Das Zielkonzept sieht vorläufig maximal 50 Arbeiter je Spieler und mehrere Tausend Krieger je Spieler vor. Die folgenden historischen Arbeiter- und Darstellungsbenchmarks bleiben technische Stress-/Regressionstests. Sie weisen weder große Kriegerarmeen, Nahkampf, Fog of War noch eine echte Netzwerkpartie nach. Insbesondere ist „10.000 Arbeiter auf einer Karte“ nicht gleichbedeutend mit „mehrere Tausend Krieger pro Spieler“.
+
+Es wurden in dieser Planungspause keine neuen Benchmarks gestartet. Spätere Messungen müssen Native- und GDScript-Stand, Welt, Einheitentypen pro Spieler, Bündnisse, Befehle, Energieverkehr und Sichtkonfiguration angeben. FPS, reale Takte/s, p95/Maximum der Frame- und Tickzeiten, Zeitverlust, Speicher und Zustandsidentität sind getrennt auszuweisen. Zahlen aus den lokalen Diagnoseberichten bleiben historische Messungen; die beim Abgleich bereits veränderte Arbeitskopie wurde nicht erneut gemessen.
+
+**Nur Vorschlag für spätere Testprofile:** zwei bzw. vier Spieler mit jeweils höchstens dem beschlossenen Arbeiterlimit und beispielsweise 2.000 oder 5.000 Kriegern, freie Bewegung sowie enge Gefechte, gemischte Besitzverhältnisse und Sichtblockaden. Spielerzahl, Kriegerobergrenze, Leistungsbudgets und Zielhardware sind damit nicht beschlossen. Auch eine nahezu endlose Welt benötigt einen gesonderten Nachweis für aktive Fläche, Nachladen und Speicher.
+
+Die vorgeschlagenen Prüffälle stehen in [CONCEPT_SYNC.md](CONCEPT_SYNC.md). Vor einer Umsetzung sind die offenen Regeln in [GAME_DESIGN.md](GAME_DESIGN.md) zu klären.
+
+## Historische Läufe
+
 Zielwerte aus der Spezifikation sind Vorgaben, keine bereits bestandenen Nachweise. Diese Seite enthält nur Läufe, die auf dieser Maschine ausgeführt wurden.
 
 ## Headless-Benchmark vom 22. Oktober 2026
@@ -148,3 +160,18 @@ Dieselbe Maschine. Eine Gruppe, die ganze Welt als Abbaugebiet, Seed 1337. Der L
 | 256 × 256 | 37:28 | 283 s | 100 | 90 % | 174 103, 1 959 unterwegs | 6 | 1 | 100 |
 
 Beide Läufe enden mit erfüllten Siegzielen und ohne Invariantenfehler. Auf der 256er-Welt ist die Masse nach zwei Minuten erreicht, der Abbau bleibt der lange Teil. Nach zehn Minuten sind 39 % abgebaut, nach dreißig Minuten 70 %. 37:28 liegt am oberen Rand des Ziels von 20 bis 40 Minuten. Ein zweiter Seed und ein menschlicher Lauf fehlen. Arbeiter und Energie machten in diesem Lauf noch einen Schritt alle zwei Takte. Seit D-028 starten neue Spiele bei acht Takten. Die Zahl beschreibt also nicht mehr das aktuelle Starttempo.
+
+
+## Einheitenphase vom 25. Oktober 2026
+
+[UNIT_PROTOTYPE.md](UNIT_PROTOTYPE.md) dokumentiert neue Messungen mit echten Kriegern, nicht alten Massenarbeitern: 2.000 Krieger im Marsch-/Annäherungsfall benötigen im Mittel 18,49 ms/Takt, 10.000 noch 95,63 ms/Takt. Der Grafiklauf mit 10.000 anfänglichen Kriegern erreicht nur 9,34 Takte/s und 1,87 FPS. Das 20-Hz-Ziel ist nicht erfüllt; hohe FPS kleinerer Läufe verdecken einzelne Aussetzer. Rohdaten und reproduzierbare Befehle stehen im Prototypdokument. Die bisherigen Arbeiter-Messungen bleiben historische Befunde und sind keine Krieger-Abnahme.
+
+
+## Performance-Folgephase D-054, 25. Oktober 2026
+
+Der nach dem Einheitenprototyp ausdrücklich beauftragte nächste Schritt ist lokal umgesetzt: optionaler nativer Armee-Rechenpfad mit taktweise geprüfter GDScript-Referenz und effizienterer pixelgleicher Kriegerdarstellung. Im offenen 10.000er-Marschfall sinkt die Taktzeit von 95,63 auf 2,61 ms. Verbleibende lange Grafikframes sind noch nicht nach Ursache isoliert. Aktuelle Messungen, Tests, Bibliothekswechsel und Grenzen stehen in [ARMY_PERFORMANCE.md](ARMY_PERFORMANCE.md); frühere gegenteilige Leistungsbefunde sind historische Messungen vor diesem Folgeschritt, keine aktuellen Taktzeiten. Weitere Spielsysteme wurden nicht begonnen.
+
+
+## Stabilitätsauftrag 1–3, 25. Oktober 2026
+
+Die ausdrücklich beauftragten Punkte sind geprüft und gezielt korrigiert. [STABILITY_VALIDATION.md](STABILITY_VALIDATION.md) enthält die vollständigen Nachweise: Windows-Gerätebaum-Meldungen als Frame-Ursache und Filter im eigenen Spielfenster; exakte Viele-Ziele-Wege mit begrenztem Terrain-Cache/Sichtgraph; 30 simulierte Minuten Attrition sowie 15 Minuten mit großen Reservearmeen, Wirtschaft und Kampf; additives Resume gegen abweichende Fortsetzung nach dem Laden. Die 60-s-Grafikprüfung mit 100 Arbeitern und rund 10.000 Kriegern erreicht rund 60 FPS und 20 Takte/s ohne Frame über 50 ms. Einzelne CPU-Spitzen der Headless-Langtests und synchrones Speichern bleiben ausdrücklich als Grenzen ausgewiesen. Feste Taktung und Spielregeln bleiben gleich; keine neuen Welt-/Bau-/Sicht-/Forschungs-/Netzwerksysteme begonnen.

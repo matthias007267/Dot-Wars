@@ -62,7 +62,7 @@ func test_pixels_use_the_material_colors() -> void:
 func test_core_plaza_is_tinted_and_the_pit_stays_bright() -> void:
 	var config := TestHelpers.default_config()
 	config.world_size = 32
-	var sim := Simulation.create(config)
+	var sim := TestHelpers.legacy_core_sim(config)
 	sim.upgrades.energy = 40
 	check(sim.buy(Upgrades.KIND_CORE), "Kernkauf")
 	var palette := WorldRenderer.palette_bytes()

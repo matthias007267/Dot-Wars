@@ -27,6 +27,7 @@ func _ready() -> void:
 
 
 func show_energy() -> void:
+	energy.ensure_tracks()
 	for c in _previous:
 		var i := c * 4
 		_bytes[i] = 0
@@ -34,13 +35,18 @@ func show_energy() -> void:
 		_bytes[i + 2] = 0
 		_bytes[i + 3] = 0
 	_previous.clear()
-	for c in energy.cells:
+	for token in energy.cells.size():
+		var c := energy.cells[token]
 		if c < 0 or c >= world.cell_count():
 			continue
 		var i := c * 4
-		_bytes[i] = 0x53
-		_bytes[i + 1] = 0xC7
-		_bytes[i + 2] = 0xFF
+		var tint := EnergyStore.COLOR
+		if energy.owner[token] == EnergyStore.NEUTRAL: tint = Color8(180, 180, 180)
+		elif energy.held_by[token] >= 0: tint = Color8(255, 176, 74)
+		elif energy.owner[token] > 0 and energy.owner[token] < MatchRules.FACTION_COLORS.size(): tint = MatchRules.FACTION_COLORS[energy.owner[token]]
+		_bytes[i] = int(tint.r * 255.0)
+		_bytes[i + 1] = int(tint.g * 255.0)
+		_bytes[i + 2] = int(tint.b * 255.0)
 		_bytes[i + 3] = 255
 		_previous.append(c)
 	var img := Image.create_from_data(world.width, world.height, false, Image.FORMAT_RGBA8, _bytes)

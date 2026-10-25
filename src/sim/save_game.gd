@@ -3,13 +3,15 @@ extends RefCounted
 ## Versionierter Speicherstand. Beschädigte Daten ergeben null, keinen Absturz.
 
 const VERSION := 2
+const Resume = preload("res://src/sim/resume_state.gd")
 
 
 static func snapshot(sim: Simulation) -> Dictionary:
+	sim.energy_dots.ensure_tracks()
 	var units: Array[Dictionary] = []
 	for id in sim.workers.count:
 		units.append({
-			"cell": sim.workers.cell[id],
+			"build_mode": sim.workers.build_mode[id], "build_site": sim.workers.build_site[id], "aim_step": sim.workers.aim_step[id], "aim_watch": sim.workers.aim_watch[id], "move_credit": sim.workers.move_credit[id], "cell": sim.workers.cell[id], "health": sim.workers.health[id],
 			"group": sim.workers.group[id],
 			"faction": sim.workers.faction[id],
 			"size": sim.workers.size[id],
@@ -37,18 +39,18 @@ static func snapshot(sim: Simulation) -> Dictionary:
 			"mask": (sim.areas.masks[g] as PackedByteArray).duplicate(),
 		})
 	return {
-		"version": VERSION,
+		"construction": sim.construction.snapshot(sim), "resume": Resume.snapshot(sim), "version": VERSION, "army": sim.army.snapshot(), "worker_losses": sim.worker_losses,
 		"seed": sim.config.world_seed,
 		"mode": sim.config.mode,
 		"ai_count": sim.config.ai_count,
 		"victory_mask": sim.config.victory_mask,
 		"difficulty": sim.config.difficulty,
-		"size": sim.world.width,
+		"size": sim.world.width, "chunk_size": sim.world.chunk_size,
 		"tick": sim.tick_count,
 		"initial_mass": sim.initial_mass,
 		"sacrificed": sim.sacrificed_mass,
 		"purchased_workers": sim.purchased_workers,
-		"energy_cells": sim.energy_dots.cells.duplicate(),
+		"energy_transport": sim.energy_dots.transport_snapshot(), "energy_cells": sim.energy_dots.cells.duplicate(),
 		"energy_birth": sim.energy_dots.birth.duplicate(),
 		"energy_owner": sim.energy_dots.owner.duplicate(),
 		"energy_delivered_to": sim.energy_dots.delivered_to.duplicate(),
@@ -155,6 +157,7 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 		live_quotas.append(int(group.get("quota", 0)))
 	var config := SimConfig.new()
 	config.world_size = width
+	config.chunk_size = int(data.get("chunk_size", 32))
 	config.world_seed = int(data.get("seed", 1))
 	config.initial_workers = 1
 	config.move_period_ticks = int(data.get("move_period", 2))
@@ -183,6 +186,7 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 	if sim == null:
 		return null
 	sim.initial_mass = int(data.get("initial_mass", 0))
+	sim.worker_losses = int(data.get("worker_losses", 0))
 	sim.sacrificed_mass = int(data.get("sacrificed", 0))
 	sim.purchased_workers = int(data.get("purchased_workers", 0))
 	sim.energy_dots.cells = data.get("energy_cells", PackedInt32Array()).duplicate()
@@ -201,8 +205,8 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 		return null
 	sim.peak_mass = int(data.get("peak_mass", 0))
 	sim.max_units = int(data.get("max_units", 0))
-	sim.won = bool(data.get("won", false))
-	sim.win_tick = int(data.get("win_tick", -1))
+	sim.won = bool(data.get("won", false)) if config.mode == SimConfig.MODE_MATCH else false
+	sim.win_tick = int(data.get("win_tick", -1)) if sim.won else -1
 	sim.tick_count = int(data.get("tick", 0))
 	if groups.size() != sim.quotas.size():
 		return null
@@ -212,7 +216,7 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 		sim.group_colors[g] = group.get("color", sim.group_colors[g])
 		sim.quotas[g] = int(group.get("quota", 0))
 		sim.group_open[g] = int(group.get("open", 1))
-		sim.desired_size[g] = int(group.get("desired", 1))
+		sim.desired_size[g] = 1
 		sim.sacrifice_on[g] = 0
 		var rects: Array = group.get("rects", [])
 		for rect in rects:
@@ -243,10 +247,26 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 		if unit_size <= 1:
 			id = sim.workers.add(int(unit["cell"]), int(unit["group"]), int(unit.get("faction", 0)))
 		else:
-			id = sim.workers.add_sized(int(unit["cell"]), int(unit["group"]), int(unit.get("faction", 0)), unit_size)
+			if unit_size < 2 or unit_size > 3: return null
+			var anchor := int(unit["cell"])
+			for dy in unit_size:
+				for dx in unit_size:
+					var cell := anchor + dy * width + dx
+					if cell < 0 or cell >= world.cell_count() or anchor % width + dx >= width or not sim.workers.is_free(cell) or world.cells[cell] != Materials.EMPTY: return null
+					sim.workers.add(cell, int(unit["group"]), int(unit.get("faction", 0)))
+			continue
+		sim.workers.health[id] = int(unit.get("health", WorkerStore.DEFAULT_HEALTH))
+		if sim.workers.health[id] <= 0 or sim.workers.health[id] > WorkerStore.DEFAULT_HEALTH: return null
 		sim.workers.state[id] = int(unit.get("state", 0))
+		sim.workers.build_site[id] = int(unit.get("build_site", -1))
+		sim.workers.build_mode[id] = int(unit.get("build_mode", 0))
+		if int(unit.get("build_mode", 0)) < 0 or int(unit.get("build_mode", 0)) > 1: return null
 		sim.workers.target[id] = int(unit.get("target", -1))
 		sim.workers.aim[id] = int(unit.get("aim", -1))
+		sim.workers.aim_step[id] = int(unit.get("aim_step", -1))
+		sim.workers.aim_watch[id] = int(unit.get("aim_watch", 0))
+		sim.workers.move_credit[id] = int(unit.get("move_credit", 0))
+		if sim.workers.aim_step[id] < -1 or sim.workers.aim_step[id] >= world.cell_count() or sim.workers.move_credit[id] < 0: return null
 		sim.workers.idle_ticks[id] = int(unit.get("idle", 0))
 		sim.workers.idle_cell[id] = int(unit.get("idle_cell", -1))
 		sim.workers.last_move_tick[id] = int(unit.get("moved", -1))
@@ -256,16 +276,34 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 	sim.upgrades.speed_level = int(data.get("speed_level", 0))
 	sim.upgrades.energy_speed_level = int(data.get("energy_speed", 0))
 	sim.upgrades.dig_level = int(data.get("dig_level", 0))
-	sim.upgrades.fusion2 = bool(data.get("fusion2", false))
-	sim.upgrades.fusion3 = bool(data.get("fusion3", false))
+	sim.upgrades.fusion2 = false
+	sim.upgrades.fusion3 = false
 	sim.upgrades.purchased = int(data.get("purchased", 0))
 	sim.upgrades.research_level = int(data.get("research_level", 0))
 	sim.upgrades.swarm_level = int(data.get("swarm_level", 0))
 	sim.upgrades.core_level = int(data.get("core_level", 0))
 	if sim.config.mode == SimConfig.MODE_MATCH and not sim.rules.restore(data.get("match", {})):
 		return null
+	var army_data: Variant = data.get("army", {})
+	if not army_data is Dictionary or not sim.army.restore(army_data, world, sim.workers): return null
 	if sim.upgrades.core_level > 0 and not sim._bind_core(sim.upgrades.core_level, false):
 		return null
+	if data.has("construction"):
+		if not data.construction is Dictionary or not sim.construction.restore(sim, data.construction): return null
+	else:
+		# Old Version-2 cores retain their one-cell geometry; no units are displaced.
+		if sim._match_live():
+			for owner in sim.rules.faction_count:
+				if sim.rules.alive[owner] == 0: continue
+				var site: int = sim.construction.initial(sim, sim.rules.cores[owner], owner, true)
+				if site < 0: return null
+				sim.construction.sites.records[site].max_hp = maxi(160, sim.rules.core_hp[owner])
+				sim.construction.sites.records[site].hp = sim.rules.core_hp[owner]
+		else:
+			var pit := sim.pit_index()
+			if pit >= 0 and world.cells[pit] == Materials.INDESTRUCTIBLE: sim.construction.initial(sim, pit, 0, true)
+	if data.has("resume") and not Resume.restore(sim, data.resume): return null
+	if data.has("energy_transport") and not sim.energy_dots.restore_transport(data.energy_transport, sim): return null
 	if not sim.check_invariants().is_empty():
 		return null
 	return sim

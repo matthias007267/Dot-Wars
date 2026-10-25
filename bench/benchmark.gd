@@ -60,6 +60,7 @@ func _parse_args(args: PackedStringArray) -> void:
 
 func _run_scenario(worker_count: int) -> Dictionary:
 	var config := SimConfig.new()
+	config.population_test_mode = true
 	config.world_size = _size
 	config.world_seed = _seed
 	config.initial_workers = worker_count

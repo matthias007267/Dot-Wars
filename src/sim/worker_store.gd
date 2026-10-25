@@ -9,14 +9,20 @@ const STATE_MOVING := 1
 const STATE_MINING := 2
 ## Nächster Schritt ist durch einen anderen Arbeiter versperrt.
 const STATE_BLOCKED := 3
-const STATE_COUNT := 4
+const STATE_BUILDING := 4
+const STATE_COUNT := 5
 
+const DEFAULT_HEALTH := 5
 const NO_WORKER := -1
 const NO_TARGET := -1
 
 const SIZE_MASS: Array[int] = [0, 1, 4, 9]
 const SIZE_POWER: Array[int] = [0, 1, 6, 15]
 
+var build_site := PackedInt32Array()
+## 0 = construction, 1 = explicitly assigned repair. Both use state 4.
+var build_mode := PackedByteArray()
+var health := PackedInt32Array()
 var count: int = 0
 var cell := PackedInt32Array()
 var group := PackedByteArray()
@@ -28,9 +34,9 @@ var target := PackedInt32Array()
 ## Eigener Fels der Schwarm-Intelligenz. -1 heißt: das gemeinsame Wegfeld gilt.
 var aim := PackedInt32Array()
 ## Nächster Schritt zum eigenen Fels. Bleibt, solange Ziel, Standplatz und Nachbarn gleich sind.
-## Wird nicht gespeichert.
+## Wird für exaktes Fortsetzen additiv in Version 2 gespeichert.
 var aim_step := PackedInt32Array()
-## Signatur der letzten Schrittsuche. Nicht im Hash und nicht im Speicherstand.
+## Signatur der letzten Schrittsuche. Nicht im Hash; Teil des Resume-Zustands.
 var aim_watch := PackedInt32Array()
 ## Takte auf derselben Zelle ohne Abbau.
 var idle_ticks := PackedInt32Array()
@@ -184,7 +190,7 @@ func count_in_state(group_id: int, wanted_state: int) -> int:
 func state_hash() -> int:
 	return hash([
 		count,
-		hash(cell),
+		hash(cell), hash(health), hash(build_site), hash(build_mode),
 		hash(group),
 		hash(faction),
 		hash(state),
@@ -201,6 +207,9 @@ func state_hash() -> int:
 func _append(anchor: int, group_id: int, faction_id: int, unit_size: int, unit_mass: int) -> int:
 	var id := count
 	count += 1
+	build_site.append(-1)
+	build_mode.append(0)
+	health.append(DEFAULT_HEALTH)
 	cell.append(anchor)
 	group.append(group_id)
 	faction.append(faction_id)
@@ -232,6 +241,9 @@ func _fill_footprint(id: int, anchor: int, unit_size: int, value: int) -> void:
 
 
 func _copy_slot(src: int, dst: int) -> void:
+	build_site[dst] = build_site[src]
+	build_mode[dst] = build_mode[src]
+	health[dst] = health[src]
 	cell[dst] = cell[src]
 	group[dst] = group[src]
 	faction[dst] = faction[src]
@@ -249,6 +261,9 @@ func _copy_slot(src: int, dst: int) -> void:
 
 
 func _shrink() -> void:
+	build_site.resize(count)
+	build_mode.resize(count)
+	health.resize(count)
 	cell.resize(count)
 	group.resize(count)
 	faction.resize(count)

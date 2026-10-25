@@ -9,10 +9,15 @@ enum SearchStage { GUIDANCE, ANCHORS, FIELDS, SWARM }
 
 var config: SimConfig
 var world: WorldState
+const Army = preload("res://src/sim/army_state.gd")
+var army: ArmyState = Army.new()
+var worker_losses := 0
 var workers: WorkerStore
 var areas: DigAreas
 var spawner: SpawnSystem
 var energy_dots := EnergyStore.new()
+const Construction = preload("res://src/sim/construction_system.gd")
+var construction: Construction = Construction.new()
 var buildings := Buildings.new()
 var rules := MatchRules.new()
 var purchased_workers: int = 0
@@ -97,6 +102,7 @@ var approach_text := ""
 
 func tick_once() -> void:
 	var t0 := Time.get_ticks_usec()
+	construction.step(self)
 	_guide_digging()
 	var search_guidance := Time.get_ticks_usec()
 	_refresh_flow_anchors()
@@ -110,10 +116,10 @@ func tick_once() -> void:
 	search_usec[SearchStage.ANCHORS] += search_anchors - search_guidance
 	search_usec[SearchStage.FIELDS] += search_fields - search_anchors
 	search_usec[SearchStage.SWARM] += t1 - search_fields
-	var move_forbidden := core_mask
+	var move_forbidden := army.blockers(core_mask)
 	var move_periods := PackedByteArray()
 	if _match_live():
-		move_forbidden = PackedByteArray()
+		move_forbidden = army.blockers(PackedByteArray())
 		move_periods = rules.worker_periods(self)
 	MovementSystem.step(
 		tick_count, workers, world, areas, fields,
@@ -134,9 +140,9 @@ func tick_once() -> void:
 			workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power, upgrades.dig_level
 		)
 	var t3 := Time.get_ticks_usec()
-	spawner.process(world, workers, quotas, core_mask)
-	FusionSystem.step(workers, world, desired_size)
-	buildings.grow(world, workers, energy_dots, core_mask)
+	spawner.process(world, workers, quotas, army.blockers(core_mask), self)
+	# Fusion ist aus dem Spiel entfernt.
+	buildings.grow(world, workers, energy_dots, army.blockers(core_mask))
 	buildings.refine(energy_dots, world, tick_count)
 	if _match_live():
 		var route: Dictionary = rules.gates(self)
@@ -144,16 +150,17 @@ func tick_once() -> void:
 		var gate_owners: PackedByteArray = route.owners
 		var before := energy_dots.delivered_to.duplicate()
 		energy_dots.step(
-			world, workers, gate_cells, tick_count, upgrades.energy_period(), gate_owners, rules.energy_periods(self)
+			world, workers, gate_cells, tick_count, upgrades.energy_period(), gate_owners, rules.energy_periods(self), self
 		)
 		rules.credit_energy(self, before)
 	else:
-		upgrades.energy += energy_dots.step(world, workers, energy_exits(), tick_count, upgrades.energy_period())
+		upgrades.energy += energy_dots.step(world, workers, energy_exits(), tick_count, upgrades.energy_period(), PackedByteArray(), PackedByteArray(), self)
 	var mass_now := total_mass()
 	if mass_now > peak_mass:
 		peak_mass = mass_now
 	if workers.count > max_units:
 		max_units = workers.count
+	army.step(self)
 	var t4 := Time.get_ticks_usec()
 	stage_usec[Stage.TARGET_SEARCH] += t1 - t0
 	stage_usec[Stage.MOVEMENT] += t2 - t1
@@ -348,6 +355,7 @@ func take_party(ids: PackedInt32Array) -> int:
 				workers.reassign_group(member, home)
 		member += 1
 	for id in keep:
+		construction.release(self, int(id))
 		workers.reassign_group(int(id), group_id)
 	clear_area(group_id)
 	clear_move_goal(group_id)
@@ -400,7 +408,7 @@ func opponent_mass() -> int:
 
 
 func expected_mass() -> int:
-	return initial_mass + purchased_workers + rules.match_bought - rules.removed_mass
+	return initial_mass + purchased_workers + rules.match_bought - rules.removed_mass - worker_losses
 
 
 ## Zeilen der Sieganzeige. Die Zeit ist die Simulationszeit bis zum Sieg, 20 Takte je Sekunde.
@@ -435,7 +443,7 @@ func stats() -> Dictionary:
 		"pending_spawns": spawner.pending(),
 		"energy_in_transit": energy_dots.pending(),
 		"energy_generated": energy_dots.generated,
-		"energy_delivered": energy_dots.delivered,
+		"energy_delivered": energy_dots.delivered, "energy_expired": energy_dots.expired, "energy_ledger": energy_dots.ledger(),
 		"energy_refined": energy_dots.refined_delivered,
 		"workers_purchased": purchased_workers,
 		"group_counts": workers.group_counts.duplicate(),
@@ -455,12 +463,21 @@ func check_invariants() -> PackedStringArray:
 	energy_dots.ensure_tracks()
 	if total_mass() != expected_mass():
 		errors.append("Massenbilanz verletzt: %d != %d" % [total_mass(), expected_mass()])
-	if energy_dots.generated != energy_dots.delivered + energy_dots.pending():
+	if energy_dots.generated != energy_dots.delivered + energy_dots.expired + energy_dots.pending():
 		errors.append("Energiebilanz verletzt")
 	if energy_dots.birth.size() != energy_dots.cells.size() or energy_dots.refined.size() != energy_dots.cells.size():
 		errors.append("Energie-Dots ohne Herkunft")
 	if energy_dots.owner.size() != energy_dots.cells.size():
 		errors.append("Energie-Dots ohne Besitzer")
+	if energy_dots.generated < 0 or energy_dots.delivered < 0 or energy_dots.expired < 0 or energy_dots.captured < 0 or energy_dots.neutralized < 0:
+		errors.append("Negative Energiezähler")
+	for i in energy_dots.cells.size():
+		if energy_dots.owner[i] != EnergyStore.NEUTRAL and energy_dots.owner[i] >= (rules.faction_count if _match_live() else 1): errors.append("Energie ohne gültigen Besitzer")
+		if energy_dots.cells[i] < 0 or energy_dots.cells[i] >= world.cell_count() or energy_dots.no_route[i] < 0 or energy_dots.no_route[i] >= 1200: errors.append("Ungültiger Energieort/Verfallstimer")
+		var holder := energy_dots.held_by[i]
+		if holder >= 0:
+			if not construction.sites.valid(holder) or construction.sites.records[holder].kind != 2 or not construction.sites.records[holder].ready or construction.sites.records[holder].owner != int(energy_dots.owner[i]): errors.append("Energiepuffer ohne fertige eigene Station")
+		elif holder < -1 or energy_dots.release_at[i] != 0: errors.append("Ungültige Energiepufferbindung")
 	if energy_dots.refined_delivered > energy_dots.delivered:
 		errors.append("Veredelte Energie übersteigt die Lieferung")
 	errors.append_array(_building_errors())
@@ -489,13 +506,22 @@ func check_invariants() -> PackedStringArray:
 		errors.append("Belegte Zellen (%d) != Fußabdruck (%d)" % [occupied, footprint_cells])
 	if recount != workers.group_counts:
 		errors.append("Gruppenzähler inkonsistent")
+	if army.purchased - army.lost != army.count + army.queue.size(): errors.append("Kriegerbilanz verletzt")
+	var factions := rules.faction_count if config.mode == SimConfig.MODE_MATCH else 1
+	for item in army.queue:
+		if int(item.owner) >= factions: errors.append("Kriegerproduktion ohne Fraktion")
+	for index in army.count:
+		if army.owners[index] >= factions or army.hp[index] <= 0 or army.hp[index] > Army.HEALTH: errors.append("Ungültiger Kriegerzustand")
+		var cell := army.cells[index]
+		if cell < 0 or cell >= world.cell_count() or army.occupant[cell] != army.ids[index] or world.cells[cell] != Materials.EMPTY or workers.occupant[cell] >= 0:
+			errors.append("Ungültige Kriegerbelegung")
 	return errors
 
 
 func state_hash() -> int:
 	return hash([
 		tick_count,
-		world.state_hash(),
+		world.state_hash(), army.state_hash(), worker_losses, construction.sites.state_hash(), hash(spawner.site_queue()),
 		workers.state_hash(),
 		areas.state_hash(),
 		spawner.pending(),
@@ -521,11 +547,15 @@ func _setup(
 	p_config: SimConfig, p_world: WorldState, start_cells: PackedInt32Array, place_workers: bool = true
 ) -> bool:
 	config = p_config
+	debug_mode = config.population_test_mode
+	debug_modified = config.population_test_mode
+	army.setup(p_world.cell_count())
 	world = p_world
 	quotas = config.group_quotas.duplicate()
 	areas = DigAreas.new(world.width, world.height, quotas.size())
 	workers = WorkerStore.new(world.cell_count(), quotas.size(), world.width)
 	spawner = SpawnSystem.new(world.cell_count(), config.spawn_search_limit)
+	construction.setup(world, 1 + config.ai_count if config.mode == SimConfig.MODE_MATCH else 1)
 	for g in quotas.size():
 		fields.append(FlowField.new(world, areas, g))
 		_append_group_meta(g)
@@ -533,8 +563,11 @@ func _setup(
 		if config.mode == SimConfig.MODE_MATCH:
 			if not rules.install(self):
 				return false
-		elif not _place_initial_workers(start_cells):
-			return false
+		else:
+			var pit := pit_index()
+			if start_cells.is_empty() and pit >= 0 and world.cells[pit] == Materials.INDESTRUCTIBLE:
+				construction.initial(self, pit, 0)
+			if not _place_initial_workers(start_cells): return false
 	initial_mass = workers.mass_sum()
 	peak_mass = initial_mass
 	max_units = workers.count
@@ -624,7 +657,7 @@ func set_group_color(group_id: int, color: Color) -> bool:
 
 
 func set_desired_size(group_id: int, unit_size: int) -> bool:
-	if not _group_is_open(group_id) or unit_size < 1 or unit_size > upgrades.max_size():
+	if not _group_is_open(group_id) or unit_size < 1 or unit_size != 1:
 		return false
 	desired_size[group_id] = unit_size
 	return true
@@ -654,19 +687,13 @@ func debug_adjust_upgrade(kind: int, delta: int) -> bool:
 		Upgrades.KIND_RESEARCH:
 			u.research_level = clampi(u.research_level + delta, 0, Upgrades.RESEARCH_MAX)
 		Upgrades.KIND_CORE:
+			if not legacy_core_upgrades(): return false
 			var next := clampi(u.core_level + delta, 0, Upgrades.CORE_MAX)
 			if next == u.core_level:
 				return false
 			if not _bind_core(next, next > u.core_level):
 				return false
 			u.core_level = next
-		Upgrades.KIND_FUSION2, Upgrades.KIND_FUSION3:
-			var level := (2 if u.fusion3 else 1 if u.fusion2 else 0)
-			level = clampi(level + delta, 0, 2)
-			u.fusion2 = level >= 1
-			u.fusion3 = level >= 2
-			for g in desired_size.size():
-				desired_size[g] = mini(int(desired_size[g]), u.max_size())
 		_:
 			return false
 	debug_modified = true
@@ -691,11 +718,12 @@ func debug_adjust_building(kind: int, delta: int) -> bool:
 func debug_spawn_workers(want: int) -> int:
 	if not debug_mode or want <= 0:
 		return 0
-	var origin := _worker_origin()
+	var site: int = construction.production_site(0)
+	var origin: int = construction.origin(self, site)
 	if origin < 0:
 		return 0
 	var available := spawner.find_free_cells(
-		world, workers, origin, mini(want, 2000), world.cell_count(), core_mask
+		world, workers, origin, mini(want, 2000), world.cell_count(), army.blockers(core_mask)
 	)
 	for cell in available:
 		workers.add(cell, GroupQuotas.pick_group(workers.group_mass, quotas))
@@ -708,6 +736,8 @@ func debug_spawn_workers(want: int) -> int:
 
 
 func buy(kind: int) -> bool:
+	if kind in [Upgrades.KIND_FUSION2, Upgrades.KIND_FUSION3]:
+		return false
 	if kind == Upgrades.KIND_RESEARCH:
 		if config.mode != SimConfig.MODE_MATCH or (config.victory_mask & MatchRules.VICTORY_RESEARCH) == 0:
 			return false
@@ -752,15 +782,16 @@ func upgrade_building(kind: int) -> bool:
 	return true
 
 
-func buy_worker() -> bool:
-	if upgrades.energy < WORKER_COST:
+func buy_worker(site: int = -1) -> bool:
+	if not can_buy_worker() or upgrades.energy < WORKER_COST:
 		return false
-	var origin := _worker_origin()
+	site = construction.production_site(0, site)
+	var origin: int = construction.origin(self, site)
 	if origin < 0:
 		return false
 	upgrades.energy -= WORKER_COST
 	purchased_workers += 1
-	spawner.enqueue(origin)
+	spawner.enqueue(origin, site)
 	return true
 
 
@@ -774,6 +805,7 @@ func open_group_count() -> int:
 ## Ablage der Energie. Ohne Kern-Upgrade sind das die leeren Nachbarn des Kerns.
 ## Danach ist die ganze freie Fläche um den Kern die Ablage.
 func energy_exits() -> PackedInt32Array:
+	if not construction.sites.records.is_empty() and (upgrades.core_level <= 0 or construction.sites.records[0].rect.size != Vector2i.ONE): return construction.receivers(self, 0)
 	if upgrades.core_level <= 0 or core_mask.is_empty():
 		return _delivery_cells()
 	var exits := PackedInt32Array()
@@ -860,15 +892,8 @@ func _worker_origin() -> int:
 
 
 func _goals_met() -> bool:
-	if config.mode == SimConfig.MODE_MATCH:
-		return false
-	match config.mode:
-		SimConfig.MODE_EXTRACTION:
-			return energy_dots.delivered >= SimConfig.EXTRACTION_GOAL
-		SimConfig.MODE_REFINING:
-			return energy_dots.refined_delivered >= SimConfig.REFINING_GOAL
-		_:
-			return total_mass() >= 100 and upgrades.purchased >= 2 and world.mined_fraction() >= 0.9
+	# Alte Solo-Siegziele sind auf Nutzerwunsch deaktiviert.
+	return false
 
 
 func _cell_accepts_building(idx: int) -> bool:
@@ -908,6 +933,7 @@ func _in_core(idx: int) -> bool:
 ## Räumt die nächste Kernfläche, legt den Ring frei und sperrt sie für Arbeiter.
 ## Schlägt die Räumung fehl, bleibt Welt und Guthaben unverändert.
 func _buy_core() -> bool:
+	if not legacy_core_upgrades(): return false
 	var cost := upgrades.core_cost()
 	if cost < 0 or upgrades.energy < cost:
 		return false
@@ -967,6 +993,7 @@ func _evict_workers(mask: PackedByteArray, carve: PackedInt32Array) -> bool:
 		will_open[idx] = 1
 	var reserved := PackedByteArray()
 	reserved.resize(count)
+	for cell in army.cells: reserved[cell] = 1
 	var movers: Array[int] = []
 	for id in workers.count:
 		if _footprint_hits_mask(id, mask):
@@ -1063,3 +1090,48 @@ func _reserve_anchor(anchor: int, unit_size: int, reserved: PackedByteArray) -> 
 	for dy in unit_size:
 		for dx in unit_size:
 			reserved[anchor + dy * width + dx] = 1
+
+
+func worker_population(faction: int = 0) -> int:
+	var total := spawner.pending() if faction == 0 else 0
+	for id in workers.count:
+		if int(workers.faction[id]) == faction: total += workers.mass[id]
+	return total
+
+
+func can_buy_worker(faction: int = 0) -> bool:
+	return worker_population(faction) < SimConfig.MAX_WORKERS_PER_PLAYER
+
+
+func buy_warrior(faction: int = 0, site: int = -1) -> bool:
+	if faction < 0 or faction >= (rules.faction_count if _match_live() else 1): return false
+	if _match_live() and rules.alive[faction] == 0: return false
+	var wallet := rules.wallet(self, faction)
+	if wallet.energy < Army.COST: return false
+	site = construction.production_site(faction, site)
+	var origin: int = construction.origin(self, site)
+	if origin < 0: return false
+	wallet.energy -= Army.COST
+	army.queue.append({"origin": origin, "owner": faction, "ready": tick_count + Army.PRODUCTION_TICKS, "site": site})
+	army.purchased += 1
+	return true
+
+
+func unit_cell(id: int) -> int:
+	if id >= Army.TAG:
+		var uid := id - Army.TAG
+		return army.cells[army.slots[uid]] if army.slots.has(uid) else -1
+	return workers.cell[id] if id >= 0 and id < workers.count else -1
+
+
+func unit_owner(id: int) -> int:
+	if id >= Army.TAG:
+		var uid := id - Army.TAG
+		return army.owners[army.slots[uid]] if army.slots.has(uid) else -1
+	return int(workers.faction[id]) if id >= 0 and id < workers.count else -1
+
+func legacy_core_upgrades() -> bool:
+	for row in construction.sites.records:
+		if not row.destroyed and row.owner == 0 and row.kind == 0:
+			return row.rect.size == Vector2i.ONE
+	return construction.sites.records.is_empty()

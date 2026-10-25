@@ -83,7 +83,7 @@ static func step(
 			if workers.move_credit[id] < 100:
 				continue
 			workers.move_credit[id] -= 100
-		if state[id] == WorkerStore.STATE_MINING:
+		if state[id] == WorkerStore.STATE_MINING or state[id] == WorkerStore.STATE_BUILDING:
 			continue
 		if workers.size[id] > 1:
 			_step_large(tick, workers, world, areas, fields, dirs, id, forbidden)
@@ -268,7 +268,7 @@ static func _try_swap(
 	cell_count: int,
 ) -> bool:
 	var other := workers.occupant[n]
-	if workers.state[other] == WorkerStore.STATE_MINING or workers.last_move_tick[other] == tick:
+	if workers.state[other] == WorkerStore.STATE_MINING or workers.state[other] == WorkerStore.STATE_BUILDING or workers.last_move_tick[other] == tick:
 		return false
 	var other_dir := dirs[workers.group[other]][n]
 	if neighbor(n, other_dir, width, cell_count) != workers.cell[id]:

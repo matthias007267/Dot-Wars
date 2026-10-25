@@ -1,9 +1,12 @@
 extends Node
 ## Menü, Welt, Arbeiter und Aufträge. Die Simulation bleibt headless testbar.
 
+var device_guard: Node
 var sim: Simulation
 var world: WorldState
 var renderer: WorldRenderer
+const ArmyView = preload("res://src/render/army_renderer.gd")
+var army_view
 var workers_view: WorkerRenderer
 var energy_view: EnergyRenderer
 var camera: CameraController
@@ -30,6 +33,8 @@ var _autosave_tick := 0
 
 
 func _ready() -> void:
+	device_guard = preload("res://src/window_event_guard.gd").new()
+	add_child(device_guard)
 	_read_launch_flags()
 	if _autostart():
 		var config := SimConfig.from_cmdline(OS.get_cmdline_user_args())
@@ -122,6 +127,9 @@ func _attach(next: Simulation) -> void:
 	add_child(renderer)
 	add_child(energy_view)
 	add_child(workers_view)
+	army_view = ArmyView.new()
+	army_view.sim = sim
+	add_child(army_view)
 	orders = OrderOverlay.new()
 	orders.sim = sim
 	add_child(orders)
@@ -139,15 +147,17 @@ func _attach(next: Simulation) -> void:
 		var core := sim.rules.cores[0]
 		camera.position = Vector2(core % world.width, core / world.width)
 	workers_view.show_tick(sim.tick_count)
+	army_view.show_tick(sim.tick_count)
 	_prepare_tone()
 
 
 func _clear_playfield() -> void:
-	for node in [renderer, energy_view, workers_view, orders, camera, hud, _tone]:
+	for node in [renderer, energy_view, workers_view, army_view, orders, camera, hud, _tone]:
 		if node != null and is_instance_valid(node):
 			node.queue_free()
 	renderer = null
 	workers_view = null
+	army_view = null
 	energy_view = null
 	orders = null
 	camera = null
@@ -210,6 +220,7 @@ func _process(delta: float) -> void:
 	if ticks > 0:
 		sim.run_ticks(ticks)
 		workers_view.show_tick(sim.tick_count)
+		army_view.show_tick(sim.tick_count)
 		energy_view.show_energy()
 		if world.mined_count != _last_mined:
 			_last_mined = world.mined_count

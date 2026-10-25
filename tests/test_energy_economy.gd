@@ -114,7 +114,7 @@ func test_core_upgrade_clears_the_gate_and_grows() -> void:
 	var config := TestHelpers.default_config()
 	config.world_size = 32
 	config.initial_workers = 5
-	var sim := Simulation.create(config)
+	var sim := TestHelpers.legacy_core_sim(config)
 	check(sim != null, "Welt entsteht")
 	if sim == null:
 		return

@@ -62,7 +62,7 @@ static void movement_call(void *data,void *instance,const void *const *args,int6
     for(int64_t id=first;id<count;id+=stride) {
         if(pn) { int p=faction[id]<pn?period[faction[id]]:(int)pace; if(p>1 && (tick+id)%p) continue; }
         if(speed>0) { credit[id]+=(int32_t)speed; if(credit[id]<100) continue; credit[id]-=100; }
-        if(state[id]==2) continue;
+        if(state[id]==2 || state[id]==4) continue;
         int32_t c=positions[id]; int direction=dirs[group[id]][c],personal=aim[id];
         if(personal>=0) {
             int32_t dest=step[id];
@@ -86,7 +86,7 @@ static void movement_call(void *data,void *instance,const void *const *args,int6
         if(next<0 || cells[next]!=0 || forbidden_cell(next,block,bn)) { state[id]=0; continue; }
         int32_t other=occ[next];
         if(other==-1) { move_worker((int32_t)id,next,tick,positions,occ,state,last); continue; }
-        if(state[other]!=2 && last[other]!=tick && move_neighbor(next,dirs[group[other]][next],(int32_t)width,(int32_t)n)==c) {
+        if(state[other]!=2 && state[other]!=4 && last[other]!=tick && move_neighbor(next,dirs[group[other]][next],(int32_t)width,(int32_t)n)==c) {
             positions[id]=next; positions[other]=c; occ[next]=(int32_t)id; occ[c]=other;
             state[id]=1; state[other]=1; last[id]=(int32_t)tick; last[other]=(int32_t)tick;
             continue;

@@ -56,7 +56,11 @@ var _perf_overlay: Label
 var _volume: HSlider
 var _dock_row: HBoxContainer
 var selection := PackedInt32Array()
+var _buy_warrior_button: Button
 var _buy_worker_button: Button
+var _repair_button: Button
+var _cancel_build_button: Button
+var _interceptor_button: Button
 var _pause_button: Button
 var _speed_button: Button
 var _swarm_ids: Array[int] = []
@@ -70,6 +74,7 @@ var _refinery_place_button: Button
 var _refinery_tier_button: Button
 var _build_caption: Label
 var _build_kind := Buildings.KIND_SOURCE
+var _settlement_kind := -1
 var _size_buttons: Array[Button] = []
 var _map: WorldMinimap
 
@@ -105,7 +110,11 @@ func select_in_rect(rect: Rect2i) -> void:
 			continue
 		ids.append(id)
 		kinds.append(DotOrder.kind_of(sim, id))
-	_set_selection(DotOrder.filter_highest(ids, kinds))
+	for index in sim.army.count:
+		var cell := sim.army.cells[index]
+		if sim.army.owners[index] == 0 and clipped.has_point(Vector2i(cell % sim.world.width, cell / sim.world.width)):
+			ids.append(ArmyState.TAG + sim.army.ids[index])
+	_set_selection(ids)
 
 
 func select_at(cell: int) -> void:
@@ -114,13 +123,22 @@ func select_at(cell: int) -> void:
 	if cell < 0 or cell >= sim.world.cell_count():
 		_set_selection(PackedInt32Array())
 		return
+	var site: int = sim.construction.at(cell)
+	if site >= 0 and sim.construction.sites.records[site].owner == 0:
+		sim.construction.selected = site
+		_notice("Standort gewählt. Rechtsklick mit Arbeitern: bauen bzw. reparieren. Abbruch nur bei Baustellen.")
+		return
+	var warrior := sim.army.occupant[cell]
+	if warrior >= 0 and sim.army.owners[sim.army.slots[warrior]] == 0:
+		_set_selection(PackedInt32Array([ArmyState.TAG + warrior]))
+		return
 	var occ := sim.workers.occupant[cell]
 	if occ == WorkerStore.NO_WORKER or int(sim.workers.faction[occ]) != 0:
 		_set_selection(PackedInt32Array())
 		return
 	var ids := PackedInt32Array([occ])
 	var kinds := PackedByteArray([DotOrder.kind_of(sim, occ)])
-	_set_selection(DotOrder.filter_highest(ids, kinds))
+	_set_selection(ids)
 
 
 ## Rechte Taste allein verschiebt die Karte. Mit Strg setzt ein Zug das Gebiet, ein Klick schickt Krieger.
@@ -142,7 +160,25 @@ static func pointer_gesture(button: int, ctrl: bool, dragged: bool) -> int:
 func issue_march(cell: int) -> bool:
 	if sim == null or cell < 0 or cell >= sim.world.cell_count():
 		return false
+	var site: int = sim.construction.at(cell)
+	if site >= 0 and sim.construction.assign_repair(sim, site, selection) > 0:
+		_notice("Arbeiter reparieren: bis zu 2 HP für 1 Energie je 4 Takte (Testwerte).")
+		return true
+	if site >= 0 and sim.construction.assign(sim, site, selection) > 0:
+		_notice("Arbeiter zum Bau zugewiesen.")
+		return true
+	var armies := PackedInt32Array()
+	for id in selection:
+		if id >= ArmyState.TAG: armies.append(id)
+	var army_goal := cell
+	if site >= 0:
+		var perimeter := sim.construction.receivers_for(sim, site)
+		if not perimeter.is_empty(): army_goal = perimeter[0]
+	var army_order := sim.army.command(armies, army_goal)
 	var party := _party_for(cell, Rect2i())
+	if party.is_empty() and army_order:
+		_notice("Krieger marschieren.")
+		return true
 	if party.is_empty():
 		_notice("Wähle zuerst Arbeiter.")
 		return false
@@ -185,11 +221,10 @@ func issue_war(cell: int) -> bool:
 	if sim == null or cell < 0 or cell >= sim.world.cell_count():
 		return false
 	var warriors := PackedInt32Array()
-	for id in sim.workers.count:
-		if int(sim.workers.faction[id]) == 0 and DotOrder.kind_of(sim, id) == DotOrder.KIND_WARRIOR:
-			warriors.append(id)
+	for id in selection:
+		if id >= ArmyState.TAG and sim.unit_owner(id) == 0: warriors.append(id)
 	if warriors.is_empty():
-		_notice("Krieger folgen später.")
+		_notice("Wähle zuerst Krieger.")
 		return false
 	_set_selection(warriors)
 	return issue_march(cell)
@@ -198,6 +233,15 @@ func issue_war(cell: int) -> bool:
 func issue_build(cell: int) -> bool:
 	if sim == null:
 		return false
+	if _settlement_kind >= 0:
+		var id: int = sim.construction.place(sim, _settlement_kind, cell, selection)
+		if id < 0:
+			_notice("Bau gesperrt: freier Baugrund, Energie, Forschung und Kernlimit prüfen.")
+			return false
+		_settlement_kind = -1
+		command_mode = Command.MINE
+		_notice("Baustelle bezahlt. Bau beginnt erst beim ersten Arbeiterbeitrag.")
+		return true
 	if sim.place_building(_build_kind, cell):
 		var placed := "Quelle gesetzt." if _build_kind == Buildings.KIND_SOURCE else "Veredler gesetzt."
 		_notice(placed)
@@ -211,8 +255,8 @@ func issue_build(cell: int) -> bool:
 
 
 func _buy_worker() -> void:
-	if sim.buy_worker():
-		_notice("Arbeiter gekauft. Er startet am Energiekern.")
+	if sim.buy_worker(_production_site()):
+		_notice("Arbeiter gekauft. Er startet am gewählten fertigen Standort.")
 	else:
 		_notice("Zu wenig Energie oder kein freier Starttunnel.")
 	refresh()
@@ -243,6 +287,8 @@ func refresh() -> void:
 
 	_mass_value.text = str(mass)
 	_energy_value.text = "%d (+%d)" % [energy, transit]
+	var ledger := sim.energy_dots.ledger()
+	_energy_value.tooltip_text = "Erzeugt %d = geliefert %d + verfallen %d + unterwegs %d. Davon Puffer %d, neutral %d; Abfangvorgänge %d." % [ledger.generated, ledger.delivered, ledger.expired, ledger.pending, ledger.buffered, ledger.neutral, ledger.captures]
 	if _opponent_value != null:
 		_opponent_value.visible = _match_live()
 		_opponent_value.text = "Gegner  %d" % sim.opponent_mass()
@@ -255,6 +301,17 @@ func refresh() -> void:
 	_energy_bar.value = minf(250.0, float(energy))
 	_mined_bar.value = float(percent)
 	_kern_bar.value = sim.upgrades.core_level
+	var site: int = _production_site()
+	if site < 0: site = sim.construction.production_site(0)
+	if sim.construction.sites.valid(site):
+		var row: Dictionary = sim.construction.sites.records[site]
+		var title := "Kern" if row.kind == 0 else "Abfangstation" if row.kind == 2 else "Außenposten"
+		_kern_bar.max_value = 100
+		_kern_bar.value = 100.0 * float(row.hp) / row.max_hp if row.ready else 100.0 * float(row.work) / row.required
+		_kern_value.text = "%s %d/%d HP" % [title, row.hp, row.max_hp] if row.ready else "%s Bau %d %%" % [title, 100 * row.work / row.required]
+	elif not sim.construction.sites.records.is_empty():
+		_kern_value.text = "Kein fertiger Standort"
+		_kern_bar.value = 0
 
 	_refresh_goals(mass, mined)
 	_victory.visible = sim.won
@@ -267,16 +324,25 @@ func refresh() -> void:
 	if _pause_button != null:
 		_pause_button.text = "WEITER" if clock.paused else "PAUSE"
 	_speed_button.text = "%d×" % clock.speed
-	_buy_worker_button.disabled = sim.upgrades.energy < Simulation.WORKER_COST
+	_buy_worker_button.disabled = not sim.can_buy_worker() or sim.upgrades.energy < Simulation.WORKER_COST or sim.construction.production_site(0, _production_site()) < 0
+	_buy_worker_button.text = "ARBEITER %d/50  ·  10" % sim.worker_population()
+	if _buy_warrior_button != null:
+		_buy_warrior_button.disabled = sim.upgrades.energy < ArmyState.COST or sim.construction.production_site(0, _production_site()) < 0
+		_buy_warrior_button.text = "KRIEGER %d  ·  %d" % [sim.army.population(0), ArmyState.COST]
 
+	_refresh_build_actions()
 	_refresh_selection()
 	_refresh_upgrades()
+	for i in _upgrade_kinds.size():
+		if _upgrade_kinds[i] == Upgrades.KIND_CORE and not sim.legacy_core_upgrades():
+			_upgrade_buttons[i].disabled = true
+			_upgrade_buttons[i].tooltip_text = "Historischer Kernflächenausbau gilt nur für alte Ein-Zellen-Kerne."
 	_refresh_test_lab()
 	if _perf_overlay != null:
 		_perf_overlay.visible = sim.debug_mode
 		if sim.debug_mode:
-			_perf_overlay.text = "TESTLABOR  |  %d Arbeiter  |  %.1f FPS\nLetzter Tick: %.2f ms  |  Ziel Ø: %.2f ms\nBewegung Ø: %.2f ms  |  Abbau Ø: %.2f ms\nSuchaufträge: %d  |  Pfadaufträge: %d" % [
-				sim.workers.count, Engine.get_frames_per_second(),
+			_perf_overlay.text = "TESTLABOR  |  %d Arbeiter · %d Krieger  |  %.1f FPS\nLetzter Tick: %.2f ms  |  Ziel Ø: %.2f ms\nBewegung Ø: %.2f ms  |  Abbau Ø: %.2f ms\nSuchaufträge: %d  |  Pfadaufträge: %d" % [
+				sim.workers.count, sim.army.count, Engine.get_frames_per_second(),
 				float(sim.last_tick_usec) / 1000.0,
 				float(sim.stage_usec[Simulation.Stage.TARGET_SEARCH]) / maxi(1, sim.profiled_ticks) / 1000.0,
 				float(sim.stage_usec[Simulation.Stage.MOVEMENT]) / maxi(1, sim.profiled_ticks) / 1000.0,
@@ -389,14 +455,19 @@ func _build_dock(layer: Control) -> void:
 	_dock_row = buttons
 
 	_buy_worker_button = _button(buttons, "ARBEITER +10", _buy_worker)
-	_buy_worker_button.tooltip_text = "Kauft einen Arbeiter für 10 Energie. Start am Energiekern."
+	_buy_worker_button.focus_mode = Control.FOCUS_NONE
+	_buy_worker_button.tooltip_text = "10 Energie. Start am gewählten fertigen eigenen Kern/Außenposten; gemeinsame Grenze 50."
 
 	_divider(buttons)
-	for size in [1, 2, 3]:
-		var button := _button(buttons, "%d×%d" % [size, size], set_size_all.bind(size))
-		_size_buttons.append(button)
+	_buy_warrior_button = _button(buttons, "KRIEGER · 20", func() -> void: sim.buy_warrior(0, _production_site()); refresh())
+	_buy_warrior_button.focus_mode = Control.FOCUS_NONE
+	_buy_warrior_button.tooltip_text = "20 Energie, 1 Sekunde (vorläufig). Produktion am gewählten fertigen eigenen Kern/Außenposten."
 
 	_divider(buttons)
+	_button(buttons, "KERN BAUEN", _begin_settlement.bind(0))
+	_button(buttons, "AUSSENPOSTEN", _begin_settlement.bind(1))
+	_repair_button = _button(buttons, "REPARIEREN", _repair_selected)
+	_cancel_build_button = _button(buttons, "BAU ABBRECHEN", _cancel_selected)
 	var upgrades := _button(buttons, "FÄHIGKEITEN", _toggle_upgrades)
 	upgrades.tooltip_text = "Fähigkeiten kaufen. Weitere Zweige bleiben in diesem Fenster."
 	_speed_button = _button(buttons, "1×", _cycle_speed)
@@ -430,12 +501,12 @@ func _build_upgrade_panel(layer: Control) -> void:
 	_label(content, "SCHWARM", 12, UiTheme.MUTED)
 	_add_upgrade_button(content, Upgrades.KIND_DIG, 0)
 	_add_upgrade_button(content, Upgrades.KIND_SWARM, 0)
-	_add_upgrade_button(content, Upgrades.KIND_FUSION2, 0)
-	_add_upgrade_button(content, Upgrades.KIND_FUSION3, 22)
 	_research_caption = _label(content, "FORSCHUNG", 12, UiTheme.MUTED)
 	_research_button = _button(content, "FORSCHUNG", func() -> void: _buy(Upgrades.KIND_RESEARCH))
 	_research_button.custom_minimum_size = Vector2(310, 34)
 	_research_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_label(content, "ENERGIETRANSPORT", 12, UiTheme.MUTED)
+	_interceptor_button = _button(content, "ABFANGSTATION BAUEN · 250", _begin_settlement.bind(2))
 	_build_caption = _label(content, "BAUEN", 12, UiTheme.MUTED)
 	_source_place_button = _build_button(content, _arm_source)
 	_source_tier_button = _build_button(content, _raise_source)
@@ -696,41 +767,14 @@ func _refresh_upgrades() -> void:
 	_refresh_research()
 
 
-func _refresh_goals(mass: int, mined: float) -> void:
-	if _goal_names.size() < 3 or _goal_sections.size() < 3:
-		return
+func _refresh_goals(_mass: int, _mined: float) -> void:
+	if _goal_names.size() < 3 or _goal_sections.size() < 3: return
 	if sim.config.mode == SimConfig.MODE_MATCH:
 		_refresh_match_goals()
 		return
-	if _goal_sections.size() > 3:
-		_goal_sections[3].visible = false
-	var percent := clampi(int(round(mined * 100.0)), 0, 100)
-	if sim.config.mode == SimConfig.MODE_EXTRACTION:
-		_goal_heading.text = "FÖRDERUNG"
-		_show_single_goal("1.000 Energie liefern", sim.energy_dots.delivered, SimConfig.EXTRACTION_GOAL)
-		_victory.text = "FÖRDERZIEL ERREICHT – WEITERSPIELEN MÖGLICH"
-	elif sim.config.mode == SimConfig.MODE_REFINING:
-		_goal_heading.text = "VEREDELUNG"
-		_show_single_goal("400 veredelte Energie", sim.energy_dots.refined_delivered, SimConfig.REFINING_GOAL)
-		_victory.text = "VEREDLUNG ERREICHT – WEITERSPIELEN MÖGLICH"
-	else:
-		_goal_heading.text = "RÄUMUNG"
-		for section in _goal_sections:
-			section.visible = true
-		_goal_names[0].text = "100 Masse"
-		_goal_names[1].text = "2 Fähigkeiten"
-		_goal_names[2].text = "90 % Welt abbauen"
-		_goal_mass.max_value = 100.0
-		_goal_upgrade.max_value = 2.0
-		_goal_mining.max_value = 90.0
-		_goal_mass.value = minf(100.0, float(mass))
-		_goal_upgrade.value = mini(sim.upgrades.purchased, 2)
-		_goal_mining.value = minf(90.0, mined * 100.0)
-		_goal_mass_value.text = "%d / 100" % mass
-		_goal_upgrade_value.text = "%d / 2" % sim.upgrades.purchased
-		_goal_mining_value.text = "%d / 90 %%" % percent
-		_victory.text = "WELT EROBERT – WEITERSPIELEN MÖGLICH"
-
+	_goal_heading.text = "FREIES SPIEL"
+	_show_single_goal("Arbeiterlimit", sim.worker_population(), SimConfig.MAX_WORKERS_PER_PLAYER)
+	_victory.visible = false
 
 func _refresh_match_goals() -> void:
 	_goal_heading.text = "MEHRSPIELER"
@@ -879,6 +923,7 @@ func _arm_build(kind: int) -> void:
 		_notice("Zu wenig Energie.")
 		return
 	_build_kind = kind
+	_settlement_kind = -1
 	command_mode = Command.BUILD
 	_notice("Freien Tunnel anklicken.")
 	refresh()
@@ -922,6 +967,7 @@ func _grouped(value: int) -> String:
 
 
 func _refresh_selection() -> void:
+	selection = sim.picked
 	var unit_size := 1
 	for group_id in sim.group_open.size():
 		if _available_for_work(group_id):
@@ -1081,13 +1127,15 @@ func _build_test_lab(parent: Node) -> void:
 	_test_lab.add_theme_constant_override("separation", 4)
 	_test_scroll.add_child(_test_lab)
 	_label(_test_lab, "TESTLABOR – OHNE KOSTEN", 12, UiTheme.ACCENT)
+	_button(_test_lab, "Außenposten freischalten (Test)", _unlock_outposts)
+	_button(_test_lab, "Abfangstationen freischalten (Test)", _unlock_interceptors)
+	_button(_test_lab, "+1000 Bauenergie (Test)", _test_construction_energy)
 	for item in [
 		["Arbeiter-Tempo", Upgrades.KIND_SPEED],
 		["Energie-Tempo", Upgrades.KIND_ENERGY_SPEED],
 		["Abbau", Upgrades.KIND_DIG],
 		["Intelligenz", Upgrades.KIND_SWARM],
 		["Kern", Upgrades.KIND_CORE],
-		["Fusion", Upgrades.KIND_FUSION2],
 		["Forschung", Upgrades.KIND_RESEARCH],
 		["Quellenstufe", -1],
 		["Veredlerstufe", -2],
@@ -1181,6 +1229,10 @@ func _refresh_test_lab() -> void:
 			SwarmMind.seeks_last_tick, SwarmMind.paths_last_tick,
 		]
 
+	if _test_stats != null:
+		var ledger := sim.energy_dots.ledger()
+		_test_stats.text += "\nEnergie: geliefert %d | verfallen %d | Puffer %d | neutral %d | Abfangen %d" % [ledger.delivered, ledger.expired, ledger.buffered, ledger.neutral, ledger.captures]
+
 
 func _open_pause_menu() -> void:
 	if _pause_layer == null:
@@ -1209,3 +1261,73 @@ func _set_volume(value: float) -> void:
 func _notice(message: String) -> void:
 	if _message != null:
 		_message.text = message
+
+
+func _production_site() -> int:
+	var site: int = sim.construction.selected
+	return site if sim.construction.sites.valid(site) and sim.construction.sites.records[site].owner == 0 else -1
+
+func _begin_settlement(kind: int) -> void:
+	if kind == 2 and not sim.construction.interceptors_unlocked:
+		_notice("Abfangstationen benötigen Forschung. Vorläufig nur im Testlabor freischaltbar.")
+		return
+	if kind == 1 and not sim.construction.outposts_unlocked:
+		_notice("Außenposten benötigen Forschung. Vorläufig nur im Testlabor freischaltbar.")
+		return
+	_settlement_kind = kind
+	command_mode = Command.BUILD
+	_notice("Bauplatz anklicken (linke obere Ecke): %d×%d. Freier Boden erforderlich; gewählte Arbeiter bauen." % [5 if kind == 0 else 3, 5 if kind == 0 else 3])
+
+func _unlock_outposts() -> void:
+	if not sim.debug_mode: return
+	sim.debug_modified = true
+	sim.construction.outposts_unlocked = true
+	_notice("Außenposten zum Testen freigeschaltet. Dieser Teststand wird nicht regulär gespeichert.")
+
+func _test_construction_energy() -> void:
+	if not sim.debug_mode: return
+	sim.debug_modified = true
+	sim.upgrades.energy += 1000
+	refresh()
+
+
+func _repair_selected() -> void:
+	var site: int = _production_site()
+	var assigned := sim.construction.assign_repair(sim, site, selection)
+	_notice("%d Arbeiter zum Reparieren zugewiesen." % assigned if assigned > 0 else "Eigene Arbeiter und ein beschädigtes fertiges Gebäude auswählen.")
+	refresh()
+
+func _cancel_selected() -> void:
+	var site: int = _production_site()
+	var refund := sim.construction.cancel_refund(site)
+	if sim.construction.cancel(sim, site):
+		_notice("Baustelle abgebrochen. %d Energie erstattet. Ohne verbleibenden Schutz folgt die Niederlage." % refund)
+	else:
+		_notice("Nur eigene unfertige Baustellen können abgebrochen werden.")
+	refresh()
+
+func _refresh_build_actions() -> void:
+	if _interceptor_button != null:
+		_interceptor_button.disabled = not sim.construction.interceptors_unlocked or sim.upgrades.energy < 250
+		_interceptor_button.tooltip_text = "Test: 3×3, 150 HP, 250 Energie, 300 Arbeitertakte. Abfangen am freien Rand; Freischaltung derzeit nur im Testlabor."
+	if _repair_button == null or _cancel_build_button == null: return
+	var site: int = _production_site()
+	_repair_button.disabled = true
+	_cancel_build_button.disabled = true
+	_cancel_build_button.text = "BAU ABBRECHEN"
+	if not sim.construction.sites.valid(site): return
+	var row: Dictionary = sim.construction.sites.records[site]
+	_repair_button.disabled = not row.ready or row.hp >= row.max_hp or selection.is_empty()
+	_repair_button.tooltip_text = "Ausgewählte eigene Arbeiter reparieren am Gebäuderand. Test: bis zu 2 HP für 1 Energie alle 4 Takte je Arbeiter. Ohne Energie wartet der Auftrag."
+	_cancel_build_button.disabled = row.ready
+	if not row.ready:
+		var refund := sim.construction.cancel_refund(site)
+		_cancel_build_button.text = "ABBRUCH +%d" % refund
+		_cancel_build_button.tooltip_text = "Unbegonnen und unbeschädigt: Baupreis zurück; sonst keine Erstattung. Abbruch des letzten begonnenen Kerns kann die Niederlage auslösen."
+
+
+func _unlock_interceptors() -> void:
+	if not sim.debug_mode: return
+	sim.debug_modified = true
+	sim.construction.interceptors_unlocked = true
+	_notice("Abfangstationen im Testlabor freigeschaltet. Bau unter Fähigkeiten → Energietransport.")

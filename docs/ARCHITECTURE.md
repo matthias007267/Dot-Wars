@@ -1,12 +1,22 @@
-# Architektur
+# Architektur – Ist-Stand und Konzeptabgleich
 
-Engine ist Godot 4.3 mit GDScript und dem Renderer `gl_compatibility`. Zielplattform ist Windows. Linux wird für headless Tests genutzt.
+Energiephase D-062: `EnergyStore` enthält parallele Routenverlust-/Puffer-/Freigabefelder und Bilanzzähler; `energy_transport.gd` verbindet exakte gemeinsame Terrainfelder mit stabilen Stationskontakten und gemeinsamer Array-Kompaktion. Gebäudetyp 2 ist Abfangstation und wird aus Produktion/Empfang/Schutz ausgeschlossen. Additive SaveGame-V2-Daten validieren Besitz, Frist, Ort und Station. Details: [ENERGY_PHASE.md](ENERGY_PHASE.md).
+
+Folgephase D-060: `WorkerStore.build_mode` unterscheidet Bau/Reparatur innerhalb des bestehenden Zustands 4; `SettlementStore.paid` erhält den tatsächlich gezahlten Preis für Abbrüche. `ConstructionSystem` enthält Reparatur/Abbruch und die gemeinsame Platzierungs-/Wegeprüfung. `construction_ai.gd` plant deterministisch über gespeicherten Takt und vorhandene Zustände, mit begrenzter Kandidatensuche und ohne neue Nodes/Threads. Additive Version-2-Speicherung; Details in [MAINTENANCE_PHASE.md](MAINTENANCE_PHASE.md).
+
+Bauphase D-059: `SettlementStore` hält stabile Gebäude-/Baustellen-IDs und Flächen; `ConstructionSystem` verbindet Zahlung, gemeinsame Arbeiter-Randarbeit, Produktionsorte, Empfangsränder und Schutzprüfung. Arbeiterzuweisungen liegen swapfest in `WorkerStore.build_site`. Weltzellen sperren Bauflächen für bestehende native Wege; SaveGame V2 enthält additive Bau-/Produktionsbindungen. `MatchRules.cores/core_hp` sind Kompatibilitätsspiegel. Details und Altstandgrenzen: [CONSTRUCTION_PHASE.md](CONSTRUCTION_PHASE.md).
+
+Stand des Abgleichs: 25. Oktober 2026. **Einheitenphase umgesetzt, weitere Zielsysteme bleiben offen.** Aktuelle Details in [UNIT_PROTOTYPE.md](UNIT_PROTOTYPE.md). Die beschlossenen Zielregeln stehen in [GAME_DESIGN.md](GAME_DESIGN.md), konkrete Abweichungen und spätere Pakete in [CONCEPT_SYNC.md](CONCEPT_SYNC.md). Die folgenden Bestandsabschnitte beschreiben den Prototyp; der letzte Abschnitt nennt erforderliche Entwurfsentscheidungen, keine bereits gewählte neue Architektur.
+
+## Ist-Architektur des Prototyps
+
+Engine ist Godot 4.3 mit GDScript, optionalem C-GDExtension-Rechenkern und dem Renderer `gl_compatibility`. Zielplattform ist Windows. Linux wird für headless Tests genutzt.
 
 ## Grundsatz
 
 Die Simulation kennt keine Szene. Alles unter `src/sim/` sind `RefCounted`-Klassen ohne Nodes, Eingabe oder Zeichenbefehle. Darstellung und UI lesen den Zustand und schreiben nur über die API von `Simulation`.
 
-Es gibt keine Node pro Zelle und keine pro Arbeiter. Welt und Arbeiter liegen in Packed-Arrays. Systeme sind zustandslose Funktionen über diese Daten, damit sie später durch eine GDExtension mit gleicher Signatur ersetzt werden können.
+Es gibt keine Node pro Zelle und keine pro Arbeiter. Welt und Arbeiter liegen in Packed-Arrays. Die Daten bleiben in der Simulation. Native Rasteroperationen sind bereits optional vorhanden; GDScript bleibt ausführbare Referenz und Fallback. Bauanleitung und unterstützte Operationen stehen in [native/README.md](../native/README.md).
 
 Die Simulation läuft mit 20 Takten pro Sekunde. Spielregeln rechnen mit ganzen Zahlen. Gleicher Seed und gleiche Befehle ergeben denselben `state_hash()`.
 
@@ -35,24 +45,24 @@ docs/             verbindliche Dokumentation
 | `OrderOverlay` | Rahmen der Abbaugebiete und Markierung der Sammelpunkte |
 | `CameraController` | Zoom, Verschieben, Grenzen, Minimap-Sprung |
 | `WorldState` | Zellen, Fortschritt, Chunk-Dirty-Flags |
-| `WorldGenerator` | reproduzierbare Welt und Starttunnel |
+| `WorldGenerator` | reproduzierbarer Materialkörper und kompakte Startlichtungen |
 | `WorkerStore` | Einheiten als Struct-of-Arrays, Zelle, Gruppe, Fraktion, Größe, Masse |
 | `DigAreas` | Rechtecke und Masken je Gruppe |
 | `FlowField` | gemeinsame, budgetierte Zielsuche je Gruppe, plus Laufziel |
-| `MovementSystem` | orthogonale Schritte |
+| `MovementSystem` | orthogonale Schritte, native Bewegung normaler Arbeiter und Referenz für größere Einheiten |
 | `MiningSystem` | Zielwahl und Fortschritt an der Zelle; Abschluss erzeugt Energie-Dots nach Härte |
 | `EnergyStore` | Energie-Dots auf dem Weg zum Kern, Arbeiter haben Vorrang |
 | `CoreZone` | freie Fläche um den Kern, Maske und Aushub ohne Abbau |
-| `FusionSystem` | Wunschgröße, Masse bleibt erhalten |
+| `ArmyState` | Dichte Kriegerdaten, stabile IDs, Produktion, Bewegung, Nahkampf und Verluste |
 | `SacrificeSystem` | leere Nachbarzellen des Energiekerns als Ablage |
-| `Upgrades` | Energie, Kosten, Tempo, Abbau, Verschmelzung, Kernfläche |
+| `Upgrades` | Energie, Kosten, Tempo, Abbau, Kernfläche; alte Fusionsflags nur als Ladebestand |
 | `SaveGame` | Speicherstand Version 2; Version 1 wird abgelehnt |
 | `SpawnSystem` | gekaufte Arbeiter, Warteschlange am Kern |
 | `GroupQuotas` | Quotenprüfung und Defizitverfahren |
 | `TickClock` | feste Takte, Pause ohne Nachholen |
 | `Simulation` | Reihenfolge der Systeme, Statistik, Invarianten |
 
-Verschmelzung, Opferloch, Upgrades, Siegbedingungen und Speicherstände hängen an `Simulation.tick_once`. Leere Platzhalterklassen werden nicht angelegt.
+Armee, Energiekern, Upgrades, Match-Siegbedingungen und Speicherstände hängen an `Simulation.tick_once`. Leere Platzhalterklassen werden nicht angelegt.
 
 ## Welt und Arbeiter
 
@@ -62,9 +72,9 @@ Ein Basis-Arbeiter hat Zelle, Gruppe, Fraktion, Zustand, Ziel und den Tick der l
 
 ## Takt
 
-`Simulation.tick_once` macht in dieser Reihenfolge: Abbauhilfe, Zielsuche, Bewegung, Abbau, Entstehung, Verschmelzung, Nachwuchs der Quellen, Veredelung, Energietransport, im Mehrspieler danach KI, Kernschaden, Reliquien und Hügel, danach die Siegprüfung des gewählten Modus. Die Abbauhilfe ergänzt einen Pfad oder die nächste Ressource, sobald das veröffentlichte Wegfeld fertig ist und kein Arbeiter es erreicht. Die KI folgt dabei ihrer Schwierigkeit: Leicht bleibt an der Basis, Mittel gräbt die Karte, Schwer gräbt einen Korridor zum Ziel. Innerhalb eines Systems gilt aufsteigende ID. Das ist die Konfliktauflösung und hält den Takt deterministisch.
+`Simulation.tick_once` macht in dieser Reihenfolge: Abbauhilfe, Zielsuche, Bewegung, Abbau, Arbeiterplatzierung, Nachwuchs der Quellen, Veredelung, Energietransport, Kriegerproduktion/-bewegung und gesammelte Nahkampftreffer, im Mehrspieler danach KI, Kernschaden, Reliquien und Hügel, danach die Siegprüfung des gewählten Modus. Die Abbauhilfe ergänzt einen Pfad oder die nächste Ressource, sobald das veröffentlichte Wegfeld fertig ist und kein Arbeiter es erreicht. Die KI folgt dabei ihrer Schwierigkeit: Leicht bleibt an der Basis, Mittel gräbt die Karte, Schwer gräbt einen Korridor zum Ziel. Innerhalb eines Systems gilt aufsteigende ID. Das ist die Konfliktauflösung und hält den Takt deterministisch.
 
-`TickClock` wandelt Frame-Zeit in Takte um, 50 ms pro Takt, höchstens fünf Takte pro Frame. In der Pause vergeht keine Simulationszeit.
+`TickClock` wandelt monoton gemessene Echtzeit in Takte um, 50 ms pro Takt, höchstens fünf Takte pro Frame. Die eigene Aufholgrenze kann Überhang verwerfen; das ist keine garantierte reale Taktfrequenz. In der Pause vergeht keine Simulationszeit.
 
 ## Abbauzeit
 
@@ -84,7 +94,7 @@ Abbau schreibt keine Arbeiter in die Warteschlange. Ein gekaufter Arbeiter ist e
 
 Ein abgebautes Feld der Härte 1, 3 oder 8 legt ebenso viele Energie-Dots auf diese Zelle. Sie laufen über ein gemeinsames Distanzfeld zu den leeren Nachbarn des Kerns und zählen erst dort. Ohne Fähigkeit ist das ein Schritt alle 8 Takte, danach die Stufen aus D-028. Ab Kernstufe 1 ist die ganze freie Kernfläche die Ablage. Mehrere Energie-Dots teilen eine Zelle. Ein Energie-Dot betritt keine Zelle, auf der ein Arbeiter steht. Das Distanzfeld wird bei Tunneländerungen höchstens alle zehn Takte neu gerechnet. `CoreZone.plan` beschreibt Maske und Aushub. `Simulation._buy_core` setzt Arbeiter vorher nach außen, legt den Ring mit `open_without_mining` leer und sperrt die Maske in Zielsuche, Bewegung und Entstehung.
 
-Masseninvariante: lebende Masse plus wartende Käufe = Startmasse plus gekaufte Arbeiter. Energieinvariante: erzeugt = geliefert + unterwegs. `Simulation.check_invariants()` prüft beides zusammen mit der Belegung.
+Masseninvariante des Prototyps: lebende Arbeitermasse plus wartende Käufe = Startmasse plus Spieler- und KI-Käufe minus entfernte Fraktionsmasse. Dies ist keine vollständige künftige Krieger-/Todesbilanz. Energieinvariante des Prototyps: erzeugt = geliefert + unterwegs. Verfall, neutrale Energie und Abfangpuffer sind darin noch nicht modelliert. `Simulation.check_invariants()` prüft beides zusammen mit der Belegung.
 
 ## Darstellung
 
@@ -106,5 +116,64 @@ Die Hauptszene erzeugt die Simulation, zeichnet Welt und Arbeiter und treibt `Ti
 
 | Späteres System | Anknüpfung |
 |---|---|
-| Mehrere Fraktionen | `WorkerStore.faction` ist vorhanden. Die Ansicht setzt immer 0. |
-| GDExtension | `MovementSystem`, `MiningSystem`, `FlowField` haben datenorientierte Signaturen |
+| Mehrere Fraktionen | Lokaler Spieler und 1–3 KI-Fraktionen mit eigenen Konten sind vorhanden; Bündnisse und Netzwerk fehlen. |
+| GDExtension | Bewegung normaler Arbeiter, Raster-/Wegsuche und Teile des Energietransports sind nativ beschleunigt; Referenz bleibt GDScript. |
+
+## Auswirkungen des Zielkonzepts – Planung, keine gewählte neue Architektur
+
+Die folgenden Punkte sind aus den Regeln abgeleitete Anforderungen und mögliche Lösungsrichtungen. Es werden keine neuen Klassen, Threads, Speicherformate oder Netzwerkprotokolle eingeführt.
+
+### Welt und Nachbarschaft
+
+Die heutige Welt besitzt globale Indizes und weltweite Arrays. Dirty-Chunks begrenzen Zeichenarbeit, nicht die resident gehaltene Welt. Nahezu endlose Welten benötigen eine Entscheidung über Koordinaten, Bereichsgrenzen, Generierung, Persistenz und aktive Daten. Nachladbare Weltbereiche mit begrenzter aktiver Fläche sind eine Möglichkeit, nicht eine bereits ausgewählte Architektur. Eine bloße Erhöhung von `world_size` reicht nicht als Nachweis.
+
+Diagonaler Abbau betrifft mehr als `MiningSystem`: Nachbarschaft, Frontlisten, Pfadkosten, Eckregeln, Wegfelder, Eingaben, native Kerne und Referenztests müssen zusammenpassen. Ob auch jede Bewegung diagonal ist, wird vor einer Codeänderung entschieden.
+
+### Einheiten, Belegung und deterministische Befehle
+
+Die einzelne `occupant`-Arbeiter-ID pro Zelle bildet die neue typabhängige Durchquerung nicht vollständig ab. Getrennte Arbeiter-/Kriegerbelegungen oder eine äquivalente Struktur sind Entwurfsoptionen. Keine davon wird hier festgeschrieben. Kriegerblockade, erlaubtes Durchqueren eigener Arbeiter und mögliche gemeinsame Endpositionen müssen vor der Auswahl einer Struktur eindeutig sein.
+
+Lebenspunkte, Angriffs- und Todeszustände sowie räumlich begrenzte Gegnerabfragen fehlen. Für mehrere Tausend Krieger ist eine lokale Nachbarschaftsabfrage naheliegend; ein globaler Vergleich aller Paare wäre ein Skalierungsrisiko. Die bestehenden nativen Kerne dürfen nicht mit neuen GDScript-Regeln auseinanderlaufen.
+
+Swap-Entfernung hält interne Slots dicht, macht einen Slot aber nicht automatisch zu einer dauerhaften Identität. Für lang laufende Aufträge, Bauzuweisungen, Sichtgedächtnis und Netzwerkbefehle ist eine bewusste Identitätsentscheidung nötig. Stabile Entity-IDs mit Slot-Zuordnung sind ein Vorschlag, keine bereits eingeführte API.
+
+### Gebäude, Produktion, Forschung und Niederlage
+
+Allgemeine Gebäudezustände müssten Bauplan, ersten tatsächlichen Arbeiterbeitrag, Baufortschritt, Fertigstellung, Schaden, Reparatur und Zerstörung unterscheiden. Ein solcher Zustand darf die neue Niederlagebedingung nicht durch bloßes Vorhandensein eines Bauauftrags erfüllen. Hauptkerne und Außenposten teilen Produktionsgrundfunktionen; konkrete Gebäudeformen, Warteschlangen und Kosten sind vorab zu entscheiden.
+
+Globale Forschungsaufträge benötigen eigene Zahlung-, Laufzeit- und Abschlusszustände. Sofortige Upgrade-Käufe und `research_level` des alten Siegmodus können das nicht vollständig darstellen. Forschungsfreischaltung ist eine Abhängigkeit produktiv verfügbarer Außenposten und sonstiger neuer Gebäude; die Reihenfolge späterer Pakete muss diese Schnittstelle berücksichtigen.
+
+### Energie und Bilanzen
+
+Die heutige Energie hat Position, Herkunft, Veredelungsmerkmal und Besitzer. Neu benötigt werden ein beschlossener Routen-Timer sowie eine Darstellung von Stationspuffern und neutraler Energie. Das alte Veredelungsmerkmal ist kein Diebstahlschutz. Transport, Besitzwechsel, Lieferung und Verfall müssen eindeutig verbucht werden; ob Puffer in „unterwegs“ enthalten sind oder getrennt zählen, ist vor der Implementierung festzulegen.
+
+Die heutige Formel `generated = delivered + pending` ist eine Prototypinvariante. Im Zielmodell müssen mindestens Verfall und neutral/gepuffert gehaltene Energie berücksichtigt werden. Eine endgültige Bilanz oder Speichermigration wird hier nicht erfunden. Kriegerproduktion und Kampftode verlangen zudem getrennte Einheitenbilanzen; die alte Arbeitermasse allein genügt nicht.
+
+### Spielerwissen und Netzwerk
+
+Aktueller Weltzustand, aktuelle Sicht, erkundetes Gelände und letzte bekannte Gebäudezustände sind verschiedene Daten. Verbündete teilen das Wissen, nicht die Energiekonten. Die Minimap darf den unbekannten Teil nicht aus der bisherigen Originaltextur nachreichen. Dasselbe gilt für Auswahl, Vorschau, Feindstatistiken und Fehlermeldungen.
+
+Ein späteres Autoritäts-/Synchronisationskonzept muss diese Wissensgrenzen berücksichtigen. Welche Daten ein Client erhält und wann Sichtwissen aktualisiert wird, ist eine offene Netzwerkentscheidung. Eine echte Lobby und entfernte menschliche Spieler sind im Prototyp nicht vorhanden.
+
+### Speichern, Replays und Leistung
+
+Speicherformat 2 bleibt unverändert. Ob spätere Felder versioniert ergänzt werden, ein neues Format nötig wird oder alte Solo-Stände als eigener Modus lesbar bleiben, ist vor einer Migration zu entscheiden. Wissen, Baustellen, Produktion, Forschungszeiten, Eigentümerwechsel und Routen-Timer müssten in einer zukünftigen Speicher-/Replay-Spezifikation berücksichtigt werden.
+
+Große Arbeiterbenchmarks bleiben technische Stress- und Regressionstests. Das neue Skalierungsziel verlangt gemischte Populationen mit wenigen Arbeitern und mehreren Tausend Kriegern je Spieler, Kontaktkämpfen, Engstellen, Sichtblockaden und Energieverkehr. FPS, reale Takte/s, Frame-Spitzen, Speicher und deterministische Ergebnisse werden getrennt bewertet. Die heute unveränderten 20 Hz und die Aufholgrenze sind kein Nachweis, dass ein zukünftiger Kampf diese Ziele erreicht.
+
+Konkrete Abhängigkeiten, offene Spielregeln und vorgeschlagene Abnahmefälle stehen in [CONCEPT_SYNC.md](CONCEPT_SYNC.md). Eine Umsetzung benötigt einen neuen ausdrücklichen Auftrag.
+
+## Einheitenphase vom 25. Oktober 2026
+
+`ArmyState` hält separate Packed-Arrays mit stabilen Krieger-IDs und dichter Slot-Zuordnung. `ArmyRenderer` aktualisiert eine gemeinsame Textur, keine Nodes je Krieger. Arbeitermoves und Spawn-/Kernevakuierungsziele berücksichtigen die Kriegerbelegung. Eigene Arbeiter werden nur während Kriegerdurchquerung übersprungen; die Endzelle bleibt exklusiv. Armee- und Arbeiterverluste werden getrennt bilanziert. Die UI akzeptiert gemischte Auswahl, Version-2-Saves enthalten additive Armeedaten. Alte geometrische Arbeiter-Hilfen dienen noch der Altstand-Kompatibilität; der aktive Fusionsschritt und seine UI sind entfernt.
+
+Die Profilgruppe SPAWN umfasst derzeit auch Energie und Armee; ihr Name ist keine isolierte Spawnzeit. Marschfelder werden geteilt, lokale Verteidigung nutzt begrenzte Terrain-Suche. Weltänderungen invalidieren die Marschfelder; höchstens 16 Zielzellen bleiben gecacht. Budgetierung beliebig vieler individueller Marschziele, Stauauflösung und die vollständige 10.000-Krieger-Abnahme sind offen. Kein neues Threading, kein Weltstreaming, keine Netzwerkimplementierung.
+
+## Performance-Folgephase D-054, 25. Oktober 2026
+
+Der nach dem Einheitenprototyp ausdrücklich beauftragte nächste Schritt ist lokal umgesetzt: optionaler nativer Armee-Rechenpfad mit taktweise geprüfter GDScript-Referenz und effizienterer pixelgleicher Kriegerdarstellung. Im offenen 10.000er-Marschfall sinkt die Taktzeit von 95,63 auf 2,61 ms. Verbleibende lange Grafikframes sind noch nicht nach Ursache isoliert. Aktuelle Messungen, Tests, Bibliothekswechsel und Grenzen stehen in [ARMY_PERFORMANCE.md](ARMY_PERFORMANCE.md); frühere gegenteilige Leistungsbefunde sind historische Messungen vor diesem Folgeschritt, keine aktuellen Taktzeiten. Weitere Spielsysteme wurden nicht begonnen.
+
+
+## Stabilitätsauftrag 1–3, 25. Oktober 2026
+
+Die ausdrücklich beauftragten Punkte sind geprüft und gezielt korrigiert. [STABILITY_VALIDATION.md](STABILITY_VALIDATION.md) enthält die vollständigen Nachweise: Windows-Gerätebaum-Meldungen als Frame-Ursache und Filter im eigenen Spielfenster; exakte Viele-Ziele-Wege mit begrenztem Terrain-Cache/Sichtgraph; 30 simulierte Minuten Attrition sowie 15 Minuten mit großen Reservearmeen, Wirtschaft und Kampf; additives Resume gegen abweichende Fortsetzung nach dem Laden. Die 60-s-Grafikprüfung mit 100 Arbeitern und rund 10.000 Kriegern erreicht rund 60 FPS und 20 Takte/s ohne Frame über 50 ms. Einzelne CPU-Spitzen der Headless-Langtests und synchrones Speichern bleiben ausdrücklich als Grenzen ausgewiesen. Feste Taktung und Spielregeln bleiben gleich; keine neuen Welt-/Bau-/Sicht-/Forschungs-/Netzwerksysteme begonnen.

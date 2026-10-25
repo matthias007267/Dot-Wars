@@ -6,6 +6,17 @@ const NATIVE_SEARCH = preload("res://src/sim/native_search.gd")
 ## nächsten Zelle zum Kern hält sie auf. Für den Weg wird ein gemeinsames Distanzfeld
 ## verwendet. Jeder Punkt ist genau eine Energieeinheit. Keine Nodes je Punkt.
 
+const Transport = preload("res://src/sim/energy_transport.gd")
+const NEUTRAL := 255
+var no_route := PackedInt32Array()
+var held_by := PackedInt32Array()
+var release_at := PackedInt32Array()
+var expired := 0
+var captured := 0
+var neutralized := 0
+var _capture_stamp := -1
+var _capture_cells := {}
+
 const COLOR := Color8(0x53, 0xC7, 0xFF)
 ## Langsamer Start, solange kein Aufrufer eine Stufe übergibt.
 const MOVE_PERIOD := 8
@@ -49,11 +60,15 @@ func enqueue(origin: int, count: int, faction_id: int = 0) -> void:
 		birth.append(origin)
 		refined.append(0)
 		owner.append(faction_id)
+		no_route.append(0)
+		held_by.append(-1)
+		release_at.append(0)
 	generated += count
 
 
 ## Ältere Stände haben nur die Positionen. Fehlende Herkunft bleibt unveredelbar.
 func ensure_tracks() -> void:
+	_fit_transport()
 	if birth.size() == cells.size() and refined.size() == cells.size():
 		_fit_owner()
 		return
@@ -74,55 +89,11 @@ func ensure_tracks() -> void:
 
 
 func step(
-	world: WorldState,
-	workers: WorkerStore,
-	gate: PackedInt32Array,
-	tick: int,
-	period: int = MOVE_PERIOD,
-	gate_owner: PackedByteArray = PackedByteArray(),
-	faction_period: PackedByteArray = PackedByteArray(),
+	world: WorldState, workers: WorkerStore, gate: PackedInt32Array, tick: int,
+	period: int = MOVE_PERIOD, gate_owner: PackedByteArray = PackedByteArray(),
+	faction_period: PackedByteArray = PackedByteArray(), sim: Simulation = null,
 ) -> int:
-	ensure_tracks()
-	if cells.is_empty():
-		return 0
-	if gate_owner.size() == gate.size() and not gate_owner.is_empty():
-		return _step_routed(world, workers, gate, gate_owner, tick, period, faction_period)
-	var pace := MOVE_PERIOD if period < 1 else period
-	if tick % pace != 0:
-		return 0
-	var stamp := hash(gate)
-	if stamp != _exit_stamp or _width != world.width or (_revision != world.revision and tick - _last_rebuild_tick >= 10):
-		_rebuild(world, gate)
-		_exit_stamp = stamp
-		_last_rebuild_tick = tick
-	var moved := PackedInt32Array()
-	var native := NATIVE_SEARCH.backend()
-	if native != null:
-		var result: Variant = native.energy_next(cells, world.cells, workers.occupant, _dist, world.width)
-		if result is PackedInt32Array:
-			moved = result
-	var exits := {}
-	for c in gate:
-		exits[c] = true
-	var gained := 0
-	var next := PackedInt32Array()
-	var next_birth := PackedInt32Array()
-	var next_refined := PackedByteArray()
-	for i in cells.size():
-		var c := cells[i]
-		if exits.has(c):
-			gained += 1
-			if refined[i] != 0:
-				refined_delivered += 1
-			continue
-		next.append(moved[i] if moved.size() == cells.size() else _next_cell(c, world, workers))
-		next_birth.append(birth[i])
-		next_refined.append(refined[i])
-	cells = next
-	birth = next_birth
-	refined = next_refined
-	delivered += gained
-	return gained
+	return Transport.step(self, world, workers, gate, tick, period, gate_owner, faction_period, sim)
 
 
 func _next_cell(c: int, world: WorldState, workers: WorkerStore) -> int:
@@ -190,7 +161,7 @@ func state_hash() -> int:
 	ensure_tracks()
 	return hash([
 		hash(cells), hash(birth), hash(refined), hash(owner), hash(delivered_to),
-		generated, delivered, refined_delivered,
+		generated, delivered, refined_delivered, expired, captured, neutralized, hash(no_route), hash(held_by), hash(release_at),
 	])
 
 
@@ -205,61 +176,6 @@ func _fit_owner() -> void:
 	owner = next_owner
 
 
-func _step_routed(
-	world: WorldState,
-	workers: WorkerStore,
-	gate: PackedInt32Array,
-	gate_owner: PackedByteArray,
-	tick: int,
-	period: int,
-	faction_period: PackedByteArray,
-) -> int:
-	var due := false
-	for i in cells.size():
-		if tick % _pace_of(int(owner[i]), period, faction_period) == 0:
-			due = true
-			break
-	if not due:
-		return 0
-	var stamp := hash([hash(gate), hash(gate_owner)])
-	if stamp != _exit_stamp or _width != world.width or (_revision != world.revision and tick - _last_rebuild_tick >= 10):
-		_rebuild_routed(world, gate, gate_owner)
-		_exit_stamp = stamp
-		_last_rebuild_tick = tick
-	var gained := 0
-	var next := PackedInt32Array()
-	var next_birth := PackedInt32Array()
-	var next_refined := PackedByteArray()
-	var next_owner := PackedByteArray()
-	for i in cells.size():
-		var faction := int(owner[i])
-		var cell := cells[i]
-		if tick % _pace_of(faction, period, faction_period) != 0:
-			next.append(cell)
-			next_birth.append(birth[i])
-			next_refined.append(refined[i])
-			next_owner.append(faction)
-			continue
-		if _owned_gate(cell, faction, gate, gate_owner):
-			gained += 1
-			while delivered_to.size() <= faction:
-				delivered_to.append(0)
-			delivered_to[faction] += 1
-			if refined[i] != 0:
-				refined_delivered += 1
-			continue
-		if faction < _routed.size():
-			_dist = _routed[faction]
-		next.append(_next_cell(cell, world, workers))
-		next_birth.append(birth[i])
-		next_refined.append(refined[i])
-		next_owner.append(faction)
-	cells = next
-	birth = next_birth
-	refined = next_refined
-	owner = next_owner
-	delivered += gained
-	return gained
 
 
 func _pace_of(faction: int, period: int, faction_period: PackedByteArray) -> int:
@@ -276,8 +192,8 @@ func _owned_gate(cell: int, faction: int, gate: PackedInt32Array, gate_owner: Pa
 	return false
 
 
-func _rebuild_routed(world: WorldState, gate: PackedInt32Array, gate_owner: PackedByteArray) -> void:
-	var factions := 1
+func _rebuild_routed(world: WorldState, gate: PackedInt32Array, gate_owner: PackedByteArray, min_factions: int = 1) -> void:
+	var factions := min_factions
 	for owner_id in gate_owner:
 		factions = maxi(factions, int(owner_id) + 1)
 	_routed = []
@@ -288,3 +204,66 @@ func _rebuild_routed(world: WorldState, gate: PackedInt32Array, gate_owner: Pack
 				mine.append(gate[index])
 		_rebuild(world, mine)
 		_routed.append(_dist.duplicate())
+
+
+func _fit_transport() -> void:
+	var previous := held_by.size()
+	no_route.resize(cells.size())
+	held_by.resize(cells.size())
+	release_at.resize(cells.size())
+	for i in range(previous, cells.size()): held_by[i] = -1
+
+func neutralize_station(site: int) -> void:
+	ensure_tracks()
+	for i in cells.size():
+		if held_by[i] != site: continue
+		owner[i] = NEUTRAL
+		held_by[i] = -1
+		release_at[i] = 0
+		neutralized += 1
+
+func ledger() -> Dictionary:
+	ensure_tracks()
+	var buffered := 0
+	var neutral := 0
+	for i in cells.size():
+		if held_by[i] >= 0: buffered += 1
+		elif owner[i] == NEUTRAL: neutral += 1
+	return {"generated": generated, "delivered": delivered, "expired": expired,
+		"pending": cells.size(), "buffered": buffered, "neutral": neutral,
+		"free_owned": cells.size() - buffered - neutral, "captures": captured, "neutralizations": neutralized}
+
+func transport_snapshot() -> Dictionary:
+	ensure_tracks()
+	return {"no_route": no_route.duplicate(), "held_by": held_by.duplicate(), "release_at": release_at.duplicate(),
+		"expired": expired, "captured": captured, "neutralized": neutralized}
+
+func restore_transport(data: Variant, sim: Simulation) -> bool:
+	if not data is Dictionary: return false
+	for key in ["no_route", "held_by", "release_at"]:
+		if not data.get(key) is PackedInt32Array or data[key].size() != cells.size(): return false
+	for key in ["expired", "captured", "neutralized"]:
+		if typeof(data.get(key)) != TYPE_INT or data[key] < 0: return false
+	var counts := {}
+	var factions := sim.rules.faction_count if sim._match_live() else 1
+	for i in cells.size():
+		if owner[i] != NEUTRAL and owner[i] >= factions: return false
+		if cells[i] < 0 or cells[i] >= sim.world.cell_count() or data.no_route[i] < 0 or data.no_route[i] >= Transport.NO_ROUTE_TICKS: return false
+		var holder: int = data.held_by[i]
+		if holder < -1: return false
+		if holder == -1:
+			if data.release_at[i] != 0: return false
+		else:
+			if not sim.construction.sites.valid(holder): return false
+			var row: Dictionary = sim.construction.sites.records[holder]
+			if row.kind != 2 or not row.ready or owner[i] != row.owner or not sim.construction.receivers_for(sim, holder).has(cells[i]): return false
+			if data.release_at[i] < sim.tick_count or data.release_at[i] > sim.tick_count + Transport.HOLD_TICKS: return false
+			counts[holder] = int(counts.get(holder, 0)) + 1
+			if counts[holder] > Transport.CAPACITY: return false
+	no_route = data.no_route.duplicate()
+	held_by = data.held_by.duplicate()
+	release_at = data.release_at.duplicate()
+	expired = data.expired
+	captured = data.captured
+	neutralized = data.neutralized
+	return true

@@ -20,25 +20,20 @@ func _large_match() -> Simulation:
 	return sim
 
 
-func test_ten_thousand_combat_matches_full_scan_reference() -> void:
+func test_ten_thousand_workers_do_not_deal_core_damage() -> void:
 	var sim := _large_match()
-	check_eq(sim.workers.count, 10000, "10.000 Einheiten auf vier Fraktionen")
+	check_eq(sim.workers.count, 10000, "Legacy-Stresspopulation")
 	sim.rules.core_hp.fill(100000)
-	var damage := PackedInt32Array([0, 0, 0, 0])
-	for id in sim.workers.count:
-		for other in sim.rules.faction_count:
-			if int(sim.workers.faction[id]) != other and sim.rules._touches_core(sim, id, sim.rules.cores[other], sim.world.width):
-				damage[other] += 1
 	sim.rules._combat(sim)
 	for faction in sim.rules.faction_count:
-		check_eq(sim.rules.core_hp[faction], 100000 - damage[faction], "identischer Kernschaden")
-	check_no_errors(sim.check_invariants(), "Belegung und Massenbilanz")
-
+		check_eq(sim.rules.core_hp[faction], 100000, "nur Krieger verursachen Kernschaden")
+	check_no_errors(sim.check_invariants(), "Masse und Belegung")
 
 func test_elimination_keeps_original_swap_order_at_ten_thousand() -> void:
 	var sim := _large_match()
 	var expected := SaveGame.from_snapshot(SaveGame.snapshot(sim))
 	expected.rules.alive[2] = 0
+	expected.construction.damage(expected, 2, 600)
 	while true:
 		var found := -1
 		for id in expected.workers.count:

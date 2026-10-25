@@ -5,6 +5,7 @@ extends SceneTree
 class BenchApp:
 	extends "res://src/main.gd"
 	var last_app_process_usec: int = 0
+	var frame_probe: Node
 
 	func _process(delta: float) -> void:
 		var started := Time.get_ticks_usec()
@@ -29,16 +30,19 @@ class Sampler:
 	var sample_tick: int
 	var sample_frames: int = 0
 	var initial_workers: int
+	var initial_warriors: int
 	var last_frame_usec: int
 	var engine_delta_seconds: float = 0.0
 	var caps_start: int
 	var discarded_start: int
 	var max_app_process_ms: float = 0.0
+	var max_title_update_ms := 0.0
 	var stall_frames: Array[Dictionary] = []
 
 	func _ready() -> void:
 		process_priority = 100
 		started = Time.get_ticks_usec()
+		initial_warriors = sim.army.count
 
 	func _process(delta: float) -> void:
 		var now := Time.get_ticks_usec()
@@ -71,12 +75,14 @@ class Sampler:
 			samples.append({
 				"elapsed_s": (now - measured_from) / 1000000.0,
 				"fps": fps, "actual_ticks_per_s": tps,
-				"workers": sim.workers.count, "energy_dots": sim.energy_dots.cells.size(),
+				"workers": sim.workers.count, "warriors": sim.army.count, "energy_dots": sim.energy_dots.cells.size(),
 				"last_tick_ms": sim.last_tick_usec / 1000.0,
 				"seek_requests_last_tick": SwarmMind.seeks_last_tick,
 				"path_requests_last_tick": SwarmMind.paths_last_tick,
 			})
+			var title_start := Time.get_ticks_usec()
 			DisplayServer.window_set_title("DOT WARS Benchmark | %.1f FPS | %.1f Takte/s | %d Arbeiter" % [fps, tps, sim.workers.count])
+			max_title_update_ms = maxf(max_title_update_ms, (Time.get_ticks_usec() - title_start) / 1000.0)
 			sample_from = now
 			sample_tick = sim.tick_count
 			sample_frames = 0
@@ -98,16 +104,16 @@ class Sampler:
 		frame_ms.sort()
 		var errors := sim.check_invariants()
 		var result := {
-			"godot": Engine.get_version_info()["string"],
+			"frame_phases": app.frame_probe.summary() if app.frame_probe != null else {}, "godot": Engine.get_version_info()["string"],
 			"cpu": OS.get_processor_name(), "os": OS.get_name(),
 			"gpu": RenderingServer.get_video_adapter_name(),
-			"configured_renderer": ProjectSettings.get_setting("rendering/renderer/rendering_method"),
+			"fps_cap": Engine.max_fps, "native_army_steps": sim.army.native_steps, "configured_renderer": ProjectSettings.get_setting("rendering/renderer/rendering_method"),
 			"viewport": [get_viewport().get_visible_rect().size.x, get_viewport().get_visible_rect().size.y],
 			"vsync_mode": DisplayServer.window_get_vsync_mode(),
 			"world_size": sim.world.width, "seed": sim.config.world_seed,
 			"move_period": sim.config.move_period_ticks,
 			"swarm_level": sim.upgrades.swarm_level,
-			"workers_requested": initial_workers, "workers_end": sim.workers.count,
+			"warriors_initial": initial_warriors, "warriors_end": sim.army.count, "warrior_losses": sim.army.lost, "workers_requested": initial_workers, "workers_end": sim.workers.count,
 			"pending_spawns_end": sim.spawner.pending(),
 			"energy_dots_end": sim.energy_dots.cells.size(), "mass_end": sim.total_mass(),
 			"warmup_seconds": warmup_seconds, "measured_seconds": elapsed,
@@ -118,7 +124,7 @@ class Sampler:
 			"fps": frames / elapsed, "frames": frames,
 			"p95_frame_ms": frame_ms[mini(frame_ms.size() - 1, int(ceil(frame_ms.size() * 0.95)) - 1)],
 			"max_frame_ms": frame_ms[-1],
-			"max_app_process_ms": max_app_process_ms, "stall_frames_over_50ms": stall_frames,
+			"max_title_update_ms": max_title_update_ms, "max_app_process_ms": max_app_process_ms, "stall_frames_over_50ms": stall_frames,
 			"stage_avg_ms": stages, "worker_states_end": states,
 			"state_hash_end": sim.state_hash(),
 			"invariants_ok": errors.is_empty(), "invariant_errors": Array(errors),
@@ -152,6 +158,7 @@ func _start() -> void:
 		quit(2)
 		return
 	var config := SimConfig.from_cmdline(OS.get_cmdline_user_args())
+	config.population_test_mode = true
 	var seconds := 10.0
 	var warmup := 5.0
 	var out_path := ""

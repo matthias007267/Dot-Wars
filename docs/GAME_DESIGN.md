@@ -1,155 +1,125 @@
-# Spielregeln
+# DOT WARS – verbindliches Zielkonzept
 
-Verbindliche Regeln stehen im Präsens. Vorläufige Balancingwerte und offene Punkte sind als solche markiert. Was der Code heute noch nicht kann, steht am Ende.
+Stand: 25. Oktober 2026. **Einheitenphase ausdrücklich freigegeben; Detailstand in [UNIT_PROTOTYPE.md](UNIT_PROTOTYPE.md). Weitere große Systeme bleiben Folgearbeit.**
+
+Dieses Dokument beschreibt das beschlossene Zielspiel. Es behauptet nicht, dass die Regeln bereits implementiert sind. Den geprüften Prototypstand, Abweichungen und die vorgeschlagene Reihenfolge späterer Arbeiten beschreibt [CONCEPT_SYNC.md](CONCEPT_SYNC.md). Die technische Einordnung steht in [ARCHITECTURE.md](ARCHITECTURE.md).
+
+Die aktuelle Zusammenfassung des Nutzers und seine abrufbaren Entscheidungen im Chat „Abbausystem überdenken“ sind die Grundlage. Neuere ausdrückliche Nutzerentscheidungen gehen widersprechenden älteren Prototypregeln vor. Die alten Regeln bleiben als [historischer Prototypentwurf](archive/GAME_DESIGN_PRE_2026-10-25.md) und in [DECISIONS.md](DECISIONS.md) nachvollziehbar. Widersprüche werden dokumentiert, nicht durch stille Codeänderungen aufgelöst.
+
+## Statusbegriffe
+
+- **Verbindlich:** beschlossenes Verhalten des Zielspiels.
+- **Vorläufig:** ausdrücklich veränderbarer Balancingwert.
+- **Skalierungsziel:** gewünschte Größenordnung, kein bestandener Leistungsnachweis.
+- **Vorschlag:** Diskussionsgrundlage ohne Freigabe.
+- **Offen:** noch nicht entschiedene Einzelheit; keine stillschweigende Standardregel.
 
 ## Spielidee
 
-DOT WARS ist ein minimalistisches Echtzeit-Strategiespiel. Die Welt ist ein quadratisches Raster aus farbigen Punkten. Der Spieler steuert keine einzelnen Arbeiter. Er vergibt globale Abbau- und Bewegungsaufträge; Farbgruppen und ihre Quoten bleiben interne Simulationsmechanismen. Arbeiter bewegen sich selbst und bauen angrenzendes Material ab. Jedes vollständig abgebaute Feld erzeugt Energie-Dots in Höhe seiner Härte. Neue Arbeiter entstehen ausschließlich durch Kauf am Energiekern.
+DOT WARS ist ein minimalistisches Echtzeit-Strategiespiel in einer prozeduralen Pixelwelt. Wenige Arbeiter erschließen Ressourcen, errichten und reparieren Gebäude. Große Kriegerarmeen kämpfen im Nahkampf. Spieler können einzelne Dots und frei gebildete Gruppen auswählen und befehligen. Energie wird physisch transportiert und steht erst nach Ankunft zum Ausgeben bereit. Erkundung bestimmt das Wissen über Gegner.
 
-Zielplattform ist Windows über Steam. Der erste verbindliche Umfang ist Singleplayer mit einer Fraktion und einer prozeduralen Welt pro Durchlauf. KI-Gegner, Kampf und Multiplayer gehören nicht zu den zehn Phasen, solange sie nicht ausdrücklich Teil einer Phase sind.
+Zielplattform bleibt Windows/Steam. Deterministische Simulation, Trennung von Simulation und Darstellung sowie datenorientierte Speicherung bleiben bestehende technische Projektgrundsätze. Die neue Konzeption ist keine automatische Freigabe von Netzwerkcode, einer neuen Weltarchitektur oder einem Release.
 
-## Spielfeld
+## Welt und Multiplayer
 
-Die Welt ist quadratisch und die Kantenlänge ist konfigurierbar.
+- **W01 – Verbindlich:** Die Welt wird prozedural erzeugt und soll nahezu endlos sein. Das ist keine Zusage mathematischer Unendlichkeit oder unbegrenzten Arbeitsspeichers. Konkrete räumliche Grenzen und eine technische Realisierung sind offen.
+- **W02 – Verbindlich:** Die Multiplayer-Kartengröße ist in der Lobby frei einstellbar. Konkrete Eingabeform, erlaubte Grenzen, Kartenform und Zusammenspiel mit der nahezu endlosen Welt sind offen. Die heutige 4096er-Codegrenze ist keine neue Konzeptentscheidung.
+- **W03 – Verbindlich:** Ressourcen werden pixelweise abgebaut. Diagonale Abbauwege sind möglich. Das frühere ausschließlich orthogonale Abbaumodell wird dadurch als Zielregel abgelöst. Details zur diagonalen Bewegung und zu geschlossenen Ecken sind offen.
+- **W04 – Verbindlich:** Es gibt unzerstörbare Felsen und natürliche Höhlen.
+- **W05 – Verbindlich:** Versteckte gegnerische Außenposten werden ausschließlich durch Erkundung gefunden. Eine globale Gegner- oder Gebäudeliste darf ihren Standort nicht vorweg verraten.
+- **W06 – Verbindlich:** Verbündete teilen aktuelle Sicht und Erkundung vollständig. Ihre Energiekonten bleiben getrennt. Kontozusammenlegung folgt nicht aus geteilter Sicht.
 
-| Profil | Kantenlänge | Rolle |
-|---|---:|---|
-| Entwicklung | 256 | Standard im aktuellen Projekt |
-| Standard | 500 | vorgesehene Spielwelt |
-| Ziel | 1.000 | eine Million Zellen |
+## Dots und Kampf
 
-Jede Zelle ist leer, weiches Material, mittleres Material, hartes Material, unzerstörbar oder ein Sonderobjekt wie das Opferloch. Unzerstörbare Objekte dürfen getrennt von der Materialkarte liegen.
+- **D01 – Vorläufig:** Maximal **50 Arbeiter pro Spieler**. Im Einheitenprototyp umgesetzt: lebende Arbeiter plus bezahlte wartende Käufe je Spieler. Fusion ist auf ausdrücklichen Wunsch entfernt. Alte größere Populationen dürfen weitergeladen werden; neue Käufe warten bis unter 50. Markierte Diagnosefixtures sind ausgenommen und dürfen keine regulären Spielstände schreiben.
+- **D02 – Skalierungsziel:** Mehrere Tausend **Krieger pro Spieler**. Die bisherigen 10.000-Arbeiter-Benchmarks sind keine Nachweise für diese neue Mischpopulation oder deren Kampfverhalten.
+- **D03 – Verbindlich:** Einzelne Dots und Gruppen sind frei auswählbar. Eine Auswahl darf nicht zwangsläufig die übrigen Einheiten umbefehlen.
+- **D04 – Verbindlich:** Arbeiter blockieren sich gegenseitig.
+- **D05 – Verbindlich:** Alle Krieger blockieren sich gegenseitig, auch verbündete Krieger.
+- **D06 – Verbindlich:** Eigene Krieger dürfen eigene Arbeiter durchqueren. Eine gemeinsame Endposition ist ausdrücklich verboten; das Ziel muss frei sein. Arbeiter dürfen Krieger nicht durchqueren. Für verbündete Krieger gegenüber fremden verbündeten Arbeitern ist keine zusätzliche Durchquerungserlaubnis beschlossen.
+- **D07 – Verbindlich:** Feindliche Krieger greifen Arbeiter bei Kontakt automatisch an.
+- **D08 – Verbindlich:** Krieger greifen Gegner innerhalb eines kleinen Verteidigungsradius selbstständig an. Radius, Zielpriorität, Verfolgungsweite und Rückkehrverhalten sind offen.
+- **D09 – Verbindlich:** Angegriffene Arbeiter arbeiten weiter, bis sie sterben oder einen neuen Befehl erhalten. Automatische Flucht oder automatische Arbeitsunterbrechung ist nicht beschlossen.
+- **D10 – Verbindlich:** Krieger kämpfen ausschließlich im Nahkampf. Fernkampf wird nicht als zusätzliche Variante eingeführt.
 
-## Materialien
+Endgültige Kampf- und Produktionswerte bleiben offen. Der ausdrücklich genehmigte spielbare Prototyp nutzt vorläufige Werte und gleichzeitige Trefferauswertung gemäß D-052. Kernschaden kommt nun von Kriegern, nicht von Arbeitern.
 
-Härte ist der Arbeitsaufwand in Arbeitseinheiten und zugleich die Zahl der Energie-Dots, die das Feld beim Abbau erzeugt. Ein Basis-Arbeiter leistet eine Arbeitseinheit pro Simulationssekunde. Mehrere Arbeiter an gültigen Nachbarzellen addieren ihre Leistung. Ein Feld verschwindet erst, wenn der Aufwand vollständig geleistet ist. Abbau erzeugt keine Arbeiter.
+## Hauptkern und Außenposten
 
-| Material | Härte | Farbe | Arbeitseinheiten | Dauer, ein Basis-Arbeiter |
-|---|---:|---|---:|---:|
-| Weich | 1 | `#57C96D` | 1 | 1 Sekunde |
-| Mittel | 3 | `#D3822C` | 3 | 3 Sekunden |
-| Hart | 8 | `#5C86DB` | 8 | 8 Sekunden |
-| Unzerstörbar | — | `#393F49` | nicht abbaubar | — |
-| Tunnel | — | `#161C24` | — | — |
-| Energiekern | — | `#C77AFF`, nur gezeichnet | nicht abbaubar | — |
+- **K01 – Verbindlich:** Ausschließlich Hauptkerne und Außenposten produzieren Arbeiter und Krieger. Separate Dot-Fabriken gibt es nicht.
+- **K02 – Verbindlich:** Der Hauptkern ist größer und widerstandsfähiger als ein Außenposten. Beide haben ansonsten dieselben Grundfunktionen; daraus folgen noch keine identischen Produktionsraten oder konkreten Zahlenwerte.
+- **K03 – Verbindlich:** Außenposten sind kleiner und haben eine feste Größe. Ihre Baukosten steigen mit ihrer Anzahl. Im genehmigten Bauprototyp zählen aktuelle eigene Außenposten einschließlich bezahlter reservierter Baustellen; zerstörte zählen nicht (D-059).
+- **K04 – Verbindlich:** Ein Hauptkern kann auf einem normalen Bauplatz für einen festen Energiepreis neu gebaut werden. Genehmigte vorläufige Testwerte: 500 Energie, 600 Arbeiter-Takte, 5×5 Zellen und 600 HP; höchstens ein eigener fertiger oder reservierter/begonnener Kern (D-059).
+- **K05 – Verbindlich:** Ein Kernbau zählt als begonnen, sobald mindestens ein Arbeiter daran gearbeitet hat. Ein bloßer Plan, ein Baubefehl oder eine Zahlungsreservierung genügt dafür nicht.
+- **K06 – Verbindlich:** Ein begonnener Kernbau verhindert die Niederlage auch dann, wenn der Spieler keine Arbeiter und keinen fertigen Kern mehr besitzt.
 
-Die Farben liegen später in einer zentralen Konfiguration. Die Dauer ist beschlossen (`docs/DECISIONS.md`). Im Code entsprechen 20 Fortschrittspunkte einer Arbeitseinheit, bei 20 Simulationstakten pro Sekunde und einem Punkt pro Tick.
+Es wird weder ein automatischer Ablauf unfertiger Kernbauten noch eine automatische Niederlage bei Stillstand erfunden. Beschlossen ist jetzt: Niederlage erst, wenn kein fertiger eigener Kern/Außenposten und kein tatsächlich begonnener Hauptkernbau mehr existiert. Ein fertiger Außenposten erhält die Fraktion nach Kernverlust; ein unbegonnener Plan oder unfertiger Außenposten nicht. Abbruch-/Erstattungsdetails bleiben offen. Die frühere sofortige Fraktionsentfernung bei Kernverlust ist abgelöst (D-059).
 
-## Weltgenerierung
+## Energie
 
-Dieselbe Konfiguration und derselbe Seed erzeugen dieselbe Welt. Ein anderer Seed erzeugt eine andere Welt. Die abbaubare Masse hängt zusammen. Es gibt einen erkennbaren Startbereich mit Platz für die ersten Arbeiter. Es gibt keine unerreichbaren Pflichtgebiete. Leerer Raum um einen Materialkörper ist zulässig.
+- **E01 – Verbindlich:** Abgebaute Energie bewegt sich physisch über freie Wege zu einem eigenen Kern. Fertige eigene Außenposten sind ausdrücklich ebenfalls Empfänger (D-059). Der Bauprototyp routet über freie Wege zu einem nächstgelegenen erreichbaren eigenen Empfangsrand. Endgültige Routingprioritäten bleiben offen.
+- **E02 – Verbindlich:** Gutschrift erfolgt erst bei Ankunft. Abbau oder Abfangen schreibt nicht unmittelbar auf das Energiekonto gut.
+- **E03 – Verbindlich:** Ohne erreichbaren Empfänger verschwindet Energie nach **60 Sekunden ohne Route**. Der Prototyp nach D-062 konkretisiert dies vorläufig als 1.200 aufeinanderfolgende Simulationstakte ohne Terrainroute zum eigenen Empfänger. Einheitenstau zählt nicht; wieder verfügbare Route setzt zurück. Die angebotenen Timerregeln sind durch D-063 ausdrücklich für die Testfassung bestätigt; endgültiges Balancing bleibt offen. Details in ENERGY_PHASE.md.
+- **E04 – Verbindlich:** Nur Abfanggebäude können gegnerische Energie stehlen. Kontakt mit Dots oder gewöhnlichen Gebäuden genügt nicht.
+- **E05 – Verbindlich:** Energie kann unbegrenzt oft erneut abgefangen werden. Ein einmaliger Diebstahlschutz oder ein maximales Abfanglimit ist nicht beschlossen.
+- **E06 – Verbindlich:** Gestohlene Energie muss physisch zu einem Kern ihres neuen Besitzers gelangen, bevor sie gutgeschrieben wird.
+- **E07 – Verbindlich:** Wird ein Abfanggebäude zerstört, wird seine noch nicht weitertransportierte Energie neutral und kann erneut abgefangen werden. Bereits weitertransportierte Energie wird dadurch nicht rückwirkend freigegeben.
 
-## Arbeiter
+Neutralisierung, Eigentumswechsel und Pufferung erzeugen keine zusätzliche Energie. Die implementierte Bilanz nach D-062 lautet erzeugt = geliefert + verfallen + unterwegs; gepufferte und neutrale Punkte sind Teil von unterwegs. Neutrale Position, Routenfrist und die angebotenen Stationswerte sind durch D-063 für die Testfassung bestätigt. Die ergänzende Konkurrenzpriorität ist in ENERGY_PHASE.md als vorläufige Implementierungsfestlegung dokumentiert; endgültige Werte bleiben offen.
 
-Ein Basis-Arbeiter hat eine ID, eine Fraktion, eine Farbgruppe, eine Position, Masse 1, Größe 1×1, eine Abbauleistung, eine Bewegungsgeschwindigkeit und einen Auftrag. Fraktion und Farbgruppe sind unabhängig: die Fraktion ist der Besitzer, die Gruppe ist der Auftrag.
+## Fog of War
 
-Zustände bleiben wenige und klar, zum Beispiel Warten, Bewegen, Abbauen, Blockiert. Die Simulation ist deterministisch.
+- **F01 – Verbindlich:** Solide Pixel und Gebäude blockieren die Sicht.
+- **F02 – Verbindlich:** Gegnerische Dots verschwinden sofort aus der Darstellung, sobald sie außerhalb der aktuellen Sicht liegen. Sie bleiben nicht als letzte bekannte Einheitenposition stehen.
+- **F03 – Verbindlich:** Entdeckte gegnerische Gebäude bleiben im zuletzt bekannten Zustand sichtbar.
+- **F04 – Verbindlich:** Veränderungen außerhalb der Sicht werden erst bei erneuter Erkundung aktualisiert. Dazu gehören insbesondere Gebäudeänderungen und Veränderungen des bekannten Geländes.
 
-## Bewegung und Abbau
+Der aktuelle vollständige Weltzustand und das Wissen eines Spielers sind daher getrennte Begriffe. Auch Minimap, Auswahl, Auftragsvorschau, Meldungen und Gegneranzeigen dürfen außerhalb der Sicht kein neues Wissen verraten. Sichtweiten, genaue Sichtlinien, Aktualisierungstakte und Bündniswechsel sind offen.
 
-* Bewegung nur orthogonal durch leere Zellen innerhalb der Welt.
-* Kein Weg durch Material. Tunnel entstehen durch Abbau.
-* Ein Marsch merkt sich den gewünschten Punkt und gilt nur für die ausgewählten Arbeiter. Die Wegsuche läuft zum nächstmöglichen erreichbaren Punkt. Ist der Punkt selbst erreichbar, ist er das Ziel. Sonst sammelt sich die Auswahl an der nächsten Zelle. Danach suchen sich diese Arbeiter wieder selbst Arbeit.
-* Abbau nur von einer orthogonal benachbarten, begehbaren Zelle.
-* Größere Dots brauchen entsprechend breite, freie Durchgänge.
-* Gekaufte Arbeiter entstehen nur auf freien Tunnelzellen in der Nähe des Energiekerns.
-* Der Spieler setzt Auftrag und Zielgebiet nur für die aktuelle Auswahl. Ohne Auswahl bleibt der automatische Abbau.
+## Gebäude, Bau und Reparatur
 
-Die Wegfindung gilt für den Schwarm gemeinsam: Distanzfelder oder Flow-Fields, zwischengespeichert, bei Tunneländerungen gezielt aktualisiert, über mehrere Takte verteilt. Bis zu 32 geänderte Zellen korrigieren das bestehende Feld. Ein neues Gebiet, ein neues Laufziel oder eine größere Änderung berechnet es neu. Die automatische Arbeit sucht Fels zuerst im Umkreis von 16 Zellen und weitet die Suche nur, wenn dort nichts liegt. Die Grenzen stehen in D-020 und D-038.
+- **G01 – Verbindlich:** Zu Spielbeginn ist ausschließlich der Hauptkern als Gebäude verfügbar. Alle weiteren Gebäude müssen erforscht werden.
+- **G02 – Verbindlicher Planungskatalog:** Außenposten, Mauern, Energiefarmen, Energie-Abfangstationen und Aufklärungssensoren sind vorgesehen. Konkrete Werte und noch nicht beschriebene Funktionsdetails dieses Katalogs sind offen. Aufklärungssensoren besitzen einen größeren Sichtbereich.
+- **G03 – Verbindliche Ausschlüsse:** Keine separaten Dot-Fabriken, keine Forschungslabore und keine automatischen Verteidigungstürme. Verteidigung erfolgt durch Mauern und Krieger.
+- **G04 – Verbindlich:** Mauern werden durch Ziehen einer Linie angelegt und in einzelne Segmente aufgeteilt. Kosten, Baustellen und Reparaturverhalten je Segment sind zu konkretisieren.
+- **G05 – Verbindlich:** Gebäude benötigen freien Baugrund und werden von Arbeitern errichtet. Sofortige Platzierung eines fertigen Gebäudes genügt dem Zielkonzept nicht.
+- **G06 – Verbindlich:** Reparaturen kosten Energie und erfordern manuell zugewiesene Arbeiter. Es gibt keine automatische Reparaturzuweisung. Die Folgephase D-060 setzt dies für fertige Kerne/Außenposten um; die Reparatur-/Abbruchwerte sind durch D-061 ausdrücklich als vorläufige Testregeln bestätigt und in MAINTENANCE_PHASE.md beschrieben.
 
-Ein unerreichbarer Wunschpunkt schickt den Schwarm an die nächste erreichbare Zelle. Es wird kein Weg durch Material erfunden. Ein Feld wird nur einmal abgebaut. Gleichzeitige Versuche erzeugen die Ressource nicht doppelt. Fortschritt liegt an der Zelle. Abgebaute Zellen werden begehbar.
+Die heutigen Prototypgebäude „Quelle“ und „Veredler“ sind nicht automatisch mit Energiefarmen oder Abfangstationen gleichzusetzen. Ihre Übernahme, Umgestaltung oder Ablösung ist nicht entschieden. Die Arbeiter-Fusion ist dagegen ausdrücklich entfernt; alte Solo-Siegziele sind vollständig deaktiviert. Diese beiden Fragen sind entschieden.
 
-## Energie, Transport und Wachstum
+## Forschung
 
-Es gibt vorerst genau zwei bewegliche Dot-Arten: **gelbe Arbeiter-Dots** und **cyanfarbene Energie-Dots**. Rote Krieger-Dots sind eine spätere Erweiterung und derzeit nicht Bestandteil der Simulation.
+- **R01 – Verbindlich:** Forschung erfolgt global pro Spieler ohne Forschungsgebäude.
+- **R02 – Verbindlich:** Beim Forschungsstart wird der vollständige Energiepreis bezahlt. Danach läuft die Forschungszeit; die Wirkung wird nicht als sofortiger Kauf vorausgesetzt.
+- **R03 – Verbindlich:** Mehrere Technologien können parallel erforscht werden.
+- **R04 – Verbindlich:** Forschung schaltet Gebäude und Verbesserungen frei.
+- **R05 – Verbindlich:** Mehrstufige Upgrades haben steigende Kosten und feste Maximallevel. Die konkreten Levelgrenzen sind noch nicht festgelegt.
 
-Ein vollständig abgebautes Feld der Härte 1, 3 oder 8 erzeugt genau 1, 3 oder 8 Energie-Dots. Sie bewegen sich orthogonal durch bestehende Tunnel zum zentralen **Energiekern** (vormals Opferloch). Erst bei Ankunft zählt ihre Energie als verfügbares Guthaben. Der Energiekern erzeugt für **10 Energie** einen neuen Basis-Arbeiter im Starttunnel; wenn dort kein Platz ist, wartet der gekaufte Arbeiter in der Spawn-Warteschlange. Arbeiter werden niemals durch Abbau automatisch erzeugt.
+**Vorschlag, nicht beschlossen:** Forschungszweige Wirtschaft, Militär, Infrastruktur und Energietechnik.
 
-Arbeiter haben bei Bewegungskonflikten Vorrang. Energie-Dots teilen eine Tunnelzelle und blockieren einander nicht. Steht ein Arbeiter auf der nächsten Zelle zum Kern, warten sie, bis die Zelle frei ist. Sie werden als separate Texturebene unter den Arbeitern gezeichnet. Transport erfolgt deterministisch über ein gemeinsames Distanzfeld.
+**Offen:** Einzeltechnologien, Forschungsstufen, Kosten, Zeiten, Abhängigkeiten, Freischaltungsreihenfolge, Abbruch/Rückzahlung, Wiederaufnahme sowie Forschungszustand bei Kernverlust. Es wird in der Planungspause kein ausformulierter Forschungsbaum mit vermeintlich verbindlichen Zahlen erfunden.
 
-**Arbeitermasse = Startmasse + gekaufte Arbeiter**. Noch nicht platzierte, aber bezahlte Arbeiter zählen mit. **Erzeugte Energie = zugestellte Energie + unterwegs befindliche Energie**. Guthaben und für Upgrades/Arbeiter ausgegebene Energie sind getrennt zu bilanzieren.
+## Noch nicht beschlossene Anschlussfragen
 
+Die folgenden Fragen blockieren spätere Detailimplementierungen, nicht die Dokumentation dieser Entscheidungen:
 
-## Farbgruppen
+1. Wie hängen nahezu endlose Welt, Lobbygröße, Kartenrand und Siegbedingungen zusammen? Welche Spielerzahl und Bündniswechsel sind vorgesehen?
+2. Sind diagonale Bewegung und diagonales Abbauen beide erlaubt? Welche Regeln gelten an geschlossenen Ecken, für Wegkosten und für Sichtlinien?
+3. Entschieden: maximal 50 einzelne Arbeiter einschließlich bezahlter Warteschlange; keine Fusion. Künftige Bau-/Produktionsorte müssen dasselbe Spielerlimit einhalten.
+4. Eigene Krieger dürfen eigene Arbeiter passieren, niemals auf ihnen stoppen. Arbeiter passieren keine Krieger. Offen bleiben weitergehende Bündnisdetails. Bleibt der heutige frontale Arbeitertausch unter der Blockaderegel erlaubt?
+5. Welche Kampfwerte, Zielprioritäten, Befehlsprioritäten und Regeln gleichzeitiger Treffer gelten?
+6. Baugrößen, HP, Kosten und Arbeit sind vorläufig nach D-059 bestätigt; endgültiges Balancing und endgültige Produktions-/Warteschlangenregeln bleiben offen.
+7. Vorläufig entschieden nach D-059: aktuelle eigene Außenposten samt Reservierungen zählen; höchstens ein eigener Hauptkern samt reserviertem Bau.
+8. Niederlagebedingung nach D-059 entschieden; Abbruchsteuerung, Erstattungen und Baustellen-HP-Kurve bleiben offen.
+9. Fertige Außenposten empfangen Energie. Routenverfall ist nach D-062 testweise umgesetzt; endgültige Routing-/Timerpolitik bleibt Balancing-/Konzeptthema.
+10. Abfangen, Puffer, Neutralisierung und erneutes Abfangen sind nach D-062 mit vorläufigen Kontakt-/Durchsatzwerten umgesetzt. Endgültiges Balancing und Forschungsintegration bleiben offen.
+11. Wie funktionieren Energiefarmen, und was geschieht mit Quelle und Veredler aus dem Prototyp?
+12. Welche Sichtweiten und welche Kenntnisregeln gelten bei Bündniswechseln oder gemeinsam entdeckten, später getrennten Gebäudeständen?
+13. Bau, manuelle Reparatur und Baustellenabbruch sind im Prototyp nach D-059/D-060 konkretisiert. Endgültiges Reparaturbalancing und Erstattungen sowie lineare/diagonale Mauerregeln bleiben offen.
+14. Wie sieht der Forschungsbaum aus? Welche Maximallevel, Kosten, Zeiten, Abhängigkeiten und Abbruchregeln gelten?
+15. Entschieden: alte Solo-Siegziele ganz deaktivieren. Weitere Altmechaniken wie Quelle/Veredler und endgültiges Balancing bleiben offen.
+16. Version 2 bleibt lesbar; Kriegerdaten und Arbeiter-Lebenspunkte werden additiv gespeichert. Alte fusionierte Arbeiter werden massenerhaltend vereinzelt, alte Solo-Siege zurückgesetzt. Der ursprüngliche Dateislot wird beim bloßen Laden nicht überschrieben.
 
-Eine interne Gruppe hat ID, Farbe, optionalen Namen, Zielquote, Auftrag, optionales Zielgebiet, Verschmelzungseinstellung und aktuelle Masse. Gruppen werden im Standard-HUD nicht angezeigt und nicht einzeln verwaltet. Sichtbar sind alle Arbeiter gelb. Die Aktionsleiste bedient den arbeitenden Schwarm gemeinsam. Gekaufte Arbeiter gehen an die interne Gruppe mit dem größten relativen Defizit gegenüber ihrer Zielquote. Das Verfahren ist deterministisch. Gleichstände haben eine feste Reihenfolge. Gruppen mit 0 % bekommen keine neuen Arbeiter. Die Summe der Quoten ist 100 %. Bestehende Arbeiter wechseln bei einer Quotenänderung nicht die Gruppe. Verschmolzene Einheiten zählen mit ihrer vollen Masse.
+## Umsetzung und Freigabe
 
-Im Prototyp gilt bei Gleichstand: die größere Quote gewinnt, danach der kleinere Gruppenindex. Eine Summe ungleich 100 % wird abgelehnt und nicht normalisiert. Ob eine Eingabe später auf 100 % normalisiert werden darf, ist offen.
-
-## Verschmelzung, Energiekern, Upgrades, Sieg
-
-Verschmelzung, der Energiekern, Upgrades und die Siegbedingungen sind im Spiel. Arbeiter können nicht geopfert werden.
-
-| Stufe | Größe | Masse | Abbauleistung | Stand der Werte |
-|---|---|---:|---:|---|
-| 1 | 1×1 | 1 | 1 | vorläufig |
-| 2 | 2×2 | 4 | 6 | vorläufig |
-| 3 | 3×3 | 9 | 15 | vorläufig |
-
-Verschmelzung erhält die Masse, bleibt in Fraktion und Gruppe und braucht den Platz. Große Dots können mehrere erreichbare Felder gleichzeitig bearbeiten, erzeugen beim Abbau nur Energie entsprechend der Härte der entfernten Felder. Sie lassen sich wieder zerlegen. Der Spieler setzt pro Gruppe eine Wunschgröße.
-
-Der Energiekern steht im Startbereich und ist unzerstörbar. Ankommende Energie-Dots werden eingelagert. Arbeiter können nicht mehr geopfert werden. Ohne die Fähigkeit Kern dürfen Arbeiter auf den beiden Zugängen stehen. Jede Stufe räumt eine größere Fläche um den Kern, die Arbeiter nicht betreten und auf der Energie ankommt. Der Außenring bleibt begehbar, damit die Tunnel verbunden bleiben. Die Fläche wächst bis Radius 4.
-
-| Fähigkeit | Startkosten | Effekt | Wiederholung |
-|---|---:|---|---|
-| Kern | 40 | Fläche um den Kern, Radius +1 bis 4 | ja, Kosten steigen |
-| Arbeiter-Tempo | 25 | Schritt alle 8, 6, 4, 3, 2, dann 1 Takt | ja, fünf Stufen, Kosten steigen |
-| Energie-Tempo | 30 | dieselbe Stufenleiter für Energie-Dots | ja, fünf Stufen, Kosten steigen |
-| Abbauleistung | 50 | +25 % | ja, Kosten steigen |
-| Verschmelzung | 100 | schaltet 2×2 frei | einmal |
-| Erweiterte Verschmelzung | 250 | schaltet 3×3 frei | einmal |
-
-Kostenformeln sind zentral und testbar. Effekte gelten global und konsistent. Jede Abbaustufe multipliziert die Leistung mit 5/4, ohne Rundung, auch bei hohen Stufen.
-
-Die Ziele hängen am Modus und sind vorläufig. In der Räumung ist die Runde gewonnen, wenn alle drei Prüfungen erfüllt sind: mindestens 100 gekaufte und vorhandene Arbeitermasse, mindestens zwei Käufe, mindestens 90 % des ursprünglich abbaubaren Materials. Leer und unzerstörbar zählen nicht zur Bezugsmenge. Förderung endet bei 1.000 gelieferten Energieeinheiten. Veredelung endet bei 400 veredelten Einheiten am Kern. Nach dem Sieg kann weitergespielt werden. Die Statistik zeigt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades, die maximale Zahl Einheiten und die veredelte Menge. 20 bis 40 Minuten auf der Standardwelt sind das Balancingziel der Räumung. Ein skriptierter Lauf mit Seed 1337 hat die drei Räumungsziele auf der 256er-Welt nach 37:28 erreicht, noch mit dem alten Zwei-Takt-Tempo. Ein menschliches Spiel ist damit nicht gemessen.
-
-## Modi und Gebäude
-
-Der Modus wird vor dem Start gewählt.
-
-| Modus | Ziel | Gebäude |
-|---|---|---|
-| Räumung | Masse 100, zwei Käufe, 90 % Abbau | Veredler, nur als Wirtschaft |
-| Förderung | 1.000 gelieferte Energie | Quelle |
-| Veredelung | 400 veredelte Energie am Kern | Veredler |
-| Mehrspieler | Auslöschen, Forschungssieg, Reliquien, König des Hügels, jedes Ziel einzeln schaltbar | keines |
-
-Eine Quelle oder ein Veredler ist eine leere, begehbare Zelle. Der Kauf liegt unter Bauen im Fähigkeiten-Fenster. Der nächste Klick auf einen freien Tunnel setzt das Gebäude. Kern und Kernfläche bleiben frei.
-
-Die Quelle lässt orthogonal benachbartes, leeres Gelände wieder zu echtem Material werden. Stufe 0: alle 8 Sekunden eine weiche Zelle, höchstens 4. Stufe 1: alle 6 Sekunden, höchstens 6. Stufe 2: jede dritte neue Zelle ist mittel. Stufe 3: jede sechste ist hart. Die erste Quelle kostet 80, die zweite 160, die dritte 240. Die Stufen kosten 40, 80 und 120.
-
-Der Veredler verdoppelt einen Energie-Dot aus seinem Umkreis, einmal je Dot. Stufe 0 schafft einen Dot je Sekunde im Umkreis von 16 Zellen, Stufe 1 zwei Dots und 24 Zellen, Stufe 2 vier Dots und 32 Zellen. Der erste kostet 120, der zweite 240. Die Stufen kosten 60 und 120. Das Guthaben zählt weiterhin eine Einheit je ankommendem Dot.
-
-Mehrspieler startet mit einer bis drei KI. Andere Spieler sind vorgesehen und noch nicht verbunden. Der Spieler bleibt gelb. Die KI ist koralle, himmelblau oder minze. Jede Basis liegt auf einem Ring und trägt ihren Namen. Die eigene Basis hat einen gelben Rahmen, die Kamera startet dort. Einen gemeinsamen Mittelkern gibt es in diesem Modus nicht. Der Hügel ist die einzelne freie Zelle in der Mitte, die fünf Reliquien liegen darum. Auslöschen räumt den gegnerischen Kern. Forschungssieg ist Stufe 5. Drei von fünf Reliquien oder 30 Sekunden allein auf dem Hügel gewinnen ebenfalls. Die Zahlen sind vorläufig. Die Einzelspieler-Ziele gelten in diesem Modus nicht.
-
-Das Menü trennt zuerst Einzelspieler und Mehrspieler. Im Einzelspieler folgt der Modus. Im Mehrspieler folgen Ziele, Schwierigkeit und die Zahl der KI. Leicht bleibt an der Basis und spart. Mittel gräbt die ganze Karte und kauft Arbeiter und Forschung. Schwer gräbt auf das gewählte Ziel zu und kauft Abbau und Tempo. Gemischt gibt jeder KI einen anderen Plan. Eine einzelne KI auf Gemischt spielt Mittel.
-
-## Simulation
-
-20 Simulationstakte sind eine Simulationssekunde. Die Bildrate ändert die Abbaugeschwindigkeit nicht. Pause, Fortsetzen, die Stufen 1×, 2× und 4× und reproduzierbare Läufe gehören zum Spiel.
-
-## Was der Stand heute bereits tut
-
-* Quadratische Welt in 256, 500 und 1.000, gleicher Seed, drei abbaubare Materialien mit Härte 1, 3 und 8.
-* Premium-Pixel-Farben: Grün, Orange, Blau, dunkles Grau. Der Tunnel ist `#161C24`, der Hintergrund `#0D1015`. Der Energiekern wird magenta `#C77AFF` gezeichnet und bleibt unzerstörbar. Die freie Kernfläche ist dunkelmagenta `#5A3D78`. Die Statuskarte zeigt die Kernstufe.
-* Gelbe Dots sind Arbeiter. Cyanfarbene Dots sind Energie auf dem Weg zum Kern. Rote Dots sind für spätere Krieger reserviert und nicht im Spiel.
-* Die Welt wird als eine Textur gezeichnet. Teilweise abgebaute Zellen dunkeln ab. Kamera, Zoom und Debug-Raster sind im Fenster.
-* Arbeiter werden als zweite Textur gezeichnet, große Einheiten über ihr Quadrat.
-* Das Startmenü fragt zuerst Einzelspieler oder Mehrspieler und zeigt danach nur die passenden Einstellungen. Ein neues Spiel startet mit drei Gruppen (40/30/30) oder lädt einen Speicherstand.
-* Die linke Taste wählt Arbeiter. Ein Rechtsklick schickt nur diese Auswahl, unterwegs werden die Ressourcen auf dem Weg abgebaut. Ist der Auftrag erledigt, suchen sich dieselben Arbeiter wieder selbst die nächste Arbeitsfront. Die übrigen arbeiten dabei weiter. Ohne Auswahl bleibt alles beim automatischen Abbau. Liegen mehrere Dot-Fraktionen in der Auswahl, bleibt die mit der höchsten Priorität. Gebiete und Sammelpunkte tragen die Farbe der Fraktion. Ein unerreichbares Gebiet nennt den Hinweis und die Auswahl gräbt sich dorthin. Die gehaltene rechte Taste verschiebt die Karte. Zusammen mit Strg markiert der Zug ein Gebiet. „Arbeiter +10“ kauft einen Arbeiter für 10 gelieferte Energie. Die Energiezeile nennt das eigene Guthaben und die eigenen Dots unterwegs. Im Mehrspieler steht die gegnerische Masse in einer eigenen Zeile. Quotenregler gibt es nicht.
-* Die Gruppenverwaltung existiert weiterhin als interne API. Die Quoten bleiben in der Simulation exakt 100 %, aber die Standardoberfläche zeigt keine Quotenregler und keine Gruppenliste.
-* Verschmelzung auf 2×2 und 3×3 ist nach dem passenden Upgrade die Wunschgröße der Gruppe. Masse bleibt erhalten, enge Tunnel sind nicht passierbar.
-* Die Leiste öffnet ein Fähigkeiten-Fenster. Darin liegen Kern, Bewegung (Arbeiter- und Energie-Tempo), Schwarm (Abbau, Intelligenz, 2×2, 3×3) und Bauen. Intelligenz lässt jeden Dot einen noch freien Fels suchen. Stufe 0 läuft gemeinsam und blockiert sich. Höhere Stufen wechseln das Ziel schneller, wenn ein Dot zu lange ohne Abbau auf einer Zelle steht. Sind alle Nachbarzellen von eigenen Arbeitern belegt, wartet er mit der neuen Suche. Der Modus entscheidet, ob dort die Quelle oder der Veredler steht. Weitere Zweige kommen in dieses Fenster, nicht in die Leiste. Die Kosten stehen in `docs/DECISIONS.md`.
-* Der Modus steht im Einzelspieler. Räumung gewinnt mit Arbeitermasse, zwei Käufen und 90 % Abbau. Förderung gewinnt mit 1.000 gelieferter Energie, Veredelung mit 400 veredelter Energie. Mehrspieler gewinnt über die gewählten Ziele gegen KI. Die Schwierigkeit steht nur dort und ändert den Plan der KI. Danach läuft das Spiel weiter. Die Auswertung nennt Spielzeit, abgebaute Zellen, höchste Masse, gekaufte Arbeiter, gelieferte Energie, Upgrades, die höchste Zahl gleichzeitiger Einheiten und die veredelte Menge. Die Masse wächst durch Käufe. Im Mehrspieler zieht das Entfernen einer Fraktion die entfernte Masse wieder ab.
-* Escape öffnet das Pausenmenü mit Weiter, Speichern, Laden, Neu starten, Lautstärke und Beenden. Die untere Leiste behält Arbeiter, Größe, Fähigkeiten und die Stufen 1×, 2× und 4×. Die Kamera folgt der rechten Taste, der mittleren Taste, WASD und den Pfeiltasten. Ein Gebietsauftrag braucht zusätzlich Strg.
-* Kleine Tunneländerungen korrigieren die Zielsuche lokal. Ab 33 Zellen, bei einem neuen Gebiet oder einem neuen Laufziel wird das Feld neu aufgebaut. Eine geöffnete Zelle setzt eine laufende vollständige Berechnung nicht zurück.
-* Die Fraktions-ID liegt am Arbeiter. Einzelspieler bleibt bei 0. Mehrspieler vergibt je KI eine eigene Fraktion, ein eigenes Guthaben und einen eigenen Kern.
-
-## Was noch nicht da ist
-
-* Rote Krieger-Dots.
-* Eine Verbindung zu anderen menschlichen Spielern. Der Platz dafür ist da, das Netz nicht.
-* Ein geprüfter Windows-Release-Build und eine Steam-Veröffentlichung. Die Vorbereitung steht in `docs/RELEASE.md` und `docs/STEAM.md`.
-* Hintergrundmusik. Es liegt kein lizenziertes Stück bei. Abgeschlossener Abbau spielt einen kurzen erzeugten Ton, wenn ein Audiogerät vorhanden ist.
-
-Speicherstände der Version 1 passen nicht zur neuen Massen- und Energiebilanz und werden abgelehnt. Gültig ist Version 2.
+Die priorisierte Abweichungsliste steht in [CONCEPT_SYNC.md](CONCEPT_SYNC.md) und [ROADMAP.md](ROADMAP.md). Nach der Planungspause wurde die oben abgegrenzte Einheitenphase ausdrücklich beauftragt. [UNIT_PROTOTYPE.md](UNIT_PROTOTYPE.md) trennt implementierte Regeln, vorläufige Werte, Messungen und verbleibende Grenzen. Weitere Pakete beginnen nicht automatisch; Commits und Veröffentlichung wurden nicht beauftragt.

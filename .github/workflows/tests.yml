@@ -13,7 +13,7 @@ concurrency:
 jobs:
   headless:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
 
@@ -28,13 +28,21 @@ jobs:
         run: bash native/build.sh
 
       - name: Projekt importieren
-        run: timeout 60s godot --headless --path . --import
+        run: timeout 120s godot --headless --path . --import
 
       - name: Tests
-        run: timeout 180s godot --headless --path . -s tests/run_tests.gd -- --require-native
+        run: |
+          timeout 300s godot --headless --path . -s tests/run_tests.gd -- --require-native 2>&1 | tee /tmp/tests-native.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" /tmp/tests-native.log; then
+            exit 1
+          fi
 
       - name: GDScript-Fallback testen
-        run: timeout 180s godot --headless --path . -s tests/run_tests.gd -- --no-native
+        run: |
+          timeout 600s godot --headless --path . -s tests/run_tests.gd -- --no-native 2>&1 | tee /tmp/tests-reference.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" /tmp/tests-reference.log; then
+            exit 1
+          fi
 
       - name: Hauptszene startet
         run: |

@@ -66,3 +66,14 @@ static func reachable_empty_cells(world: WorldState, start: int) -> int:
 				seen[n] = true
 				stack.append(n)
 	return seen.size()
+
+
+static func legacy_core_sim(config: SimConfig) -> Simulation:
+	var world := WorldGenerator.generate(config)
+	var sim := Simulation.from_world(config, world, PackedInt32Array(), false)
+	sim.construction.initial(sim, sim.pit_index(), 0, true)
+	sim._place_initial_workers(PackedInt32Array())
+	sim.initial_mass = sim.workers.mass_sum()
+	sim.peak_mass = sim.initial_mass
+	sim.max_units = sim.workers.count
+	return sim

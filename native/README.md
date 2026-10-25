@@ -2,7 +2,7 @@
 
 Optionaler GDExtension-Rechenkern für deterministische Rasteroperationen:
 individuelle BFS, Wegfeld-Ausbreitung, nächstmöglicher Marschstandpunkt und
-gebündelte Nachbarschaftsprüfungen, Bewegung normaler Arbeiter und Energie-Dots.
+gebündelte Nachbarschaftsprüfungen, Bewegung normaler Arbeiter und Energie-Dots sowie sequentielle Armee-Arithmetik mit lokaler Zielsuche.
 GDScript bleibt die ausführbare Referenz; Budgets und Entscheidungsreihenfolgen
 bleiben identisch. Zustandsführung und Taktsteuerung bleiben in GDScript. Es gibt keine Nodes pro Dot.
 
@@ -68,3 +68,18 @@ https://github.com/godotengine/godot/blob/4.3/core/extension/gdextension_interfa
 Der MIT-Lizenz- und Copyright-Hinweis bleibt im Header erhalten. Die
 Schnittstelle entspricht der offiziellen Godot-4.3-GDExtension-C-ABI. Es wird
 kein godot-cpp und keine zusätzliche Laufzeitbibliothek installiert.
+
+
+## Armee-Kern v4
+
+Windows verwendet jetzt dot_wars_native.windows.x86_64.v4.dll. Bereits geladene v3-Bibliotheken bleiben erhalten; das Spiel für den neuen Kern vollständig neu starten. army_step validiert Eingabeformen, Belegung, stabile IDs, Parameter und Feldgrößen, verarbeitet stabile IDs sequentiell und gibt veränderte Packed-Arrays sowie gesammelte Treffer explizit zurück. Der GDScript-Adapter hält Zustandsführung und Produktion. Bei mehr als 16 verschiedenen Marschzielen oder fehlender Methode bleibt die Referenz aktiv. --army-reference schaltet nur die native Armee ab; --no-native alle nativen Operationen. --profile-army misst die Armee-Referenzunterphasen. Nachweise und reproduzierbare Befehle in [ARMY_PERFORMANCE.md](../docs/ARMY_PERFORMANCE.md). Linux wurde in dieser Windows-Phase nicht gebaut oder ausgeführt.
+
+
+## Stabilitätsstand v7
+
+Der Stabilitätslauf verwendete dot_wars_native.windows.x86_64.v7.dll. Vollständiger Neustart erforderlich. army_step_cached verarbeitet beliebig viele gültige Ziele über exakte Freiraum-Nachweise, begrenzte Terrain-Felder und bei kleinen Hinderniseckenmengen einen Sichtgraphen. Ohne passenden Graphen bleibt die volle BFS aktiv. Der auf das eigene Windows-Fenster begrenzte Gerätebaum-Filter umgeht die gemessene wiederholte Controller-Neusuche nur bei unveränderter Eingabegeräteliste; Ankunft/Entfernung und Fehler werden weitergereicht. --no-device-change-guard deaktiviert ihn, --trace-window aktiviert explizites Diagnose-Tracing, --validate-device-guard prüft synthetisch Weiterleitung und Wiederherstellung. Kein System-Hook für fremde Fenster, keine Treiberänderung. [STABILITY_VALIDATION.md](../docs/STABILITY_VALIDATION.md) enthält Testbefehle und Grenzen. Ein physischer Controller-Stecktest und ein Linux-Build wurden hier nicht ausgeführt.
+
+
+## Bauphase v8
+
+Aktuell baut Windows `dot_wars_native.windows.x86_64.v8.dll`; Descriptor und Fallbackpfad sind gemeinsam umgestellt. Neu ist der Arbeiterzustand 4 (Bau-/Reparaturauftrag): normale Bewegung und frontaler Arbeitertausch überspringen ihn genau wie die GDScript-Referenz. Native Armee-/Fensterstabilitätsfunktionen aus v7 bleiben erhalten. Ein vollständig neu gestarteter Godot-Prozess ist zum Laden der neuen DLL erforderlich. Bauvalidierung: [CONSTRUCTION_PHASE.md](../docs/CONSTRUCTION_PHASE.md).

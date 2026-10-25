@@ -77,6 +77,7 @@ func test_set_quotas_rejects_invalid_and_applies_valid() -> void:
 	check(not sim.set_quotas(PackedInt32Array([100])), "falsche Gruppenzahl abgelehnt")
 	check_eq(sim.quotas, PackedInt32Array([100, 0]), "unverändert")
 	check(sim.set_quotas(PackedInt32Array([0, 100])), "gültig")
+	sim.construction.initial(sim, sim.world.index(2, 2), 0, true)
 	sim.upgrades.energy = 2 * Simulation.WORKER_COST
 	check(sim.buy_worker(), "erster Kauf")
 	check(sim.buy_worker(), "zweiter Kauf")
@@ -93,13 +94,15 @@ func test_new_workers_follow_quotas_in_simulation() -> void:
 	config.group_quotas = PackedInt32Array([70, 30])
 	var world := WorldState.new(32, 32, 8, Materials.EMPTY)
 	var sim := Simulation.from_world(config, world, PackedInt32Array([world.index(16, 16)]))
+	sim.world.set_material(world.index(17, 17), Materials.INDESTRUCTIBLE)
+	sim.construction.initial(sim, world.index(17, 17), 0, true)
 	sim.upgrades.energy = 100 * Simulation.WORKER_COST
-	for i in 100:
+	for i in 49:
 		check(sim.buy_worker(), "Kauf %d" % i)
 	sim.run_ticks(5)
 	check_eq(sim.spawner.pending(), 0, "alle platziert")
 	var total := sim.workers.count
-	check_eq(total, 101, "Startarbeiter plus Käufe")
+	check_eq(total, 50, "Startarbeiter plus Käufe")
 	check(absi(sim.workers.group_counts[0] * 100 - 70 * total) <= 100, "Gruppe 0 ≈ 70 %% (%d)" % sim.workers.group_counts[0])
 	check_eq(sim.workers.group_counts[0] + sim.workers.group_counts[1], total, "Zähler passen")
 	check_no_errors(sim.check_invariants(), "Bilanzen")

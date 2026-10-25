@@ -2,7 +2,11 @@
 
 Beschlossene Punkte stehen fest, bis sie ausdrücklich geändert werden. Offene Punkte werden nicht still entschieden.
 
-## Beschlossen
+## Quellenvorrang ab 25. Oktober 2026
+
+Die Nutzerentscheidungen D-043 bis D-050 und [GAME_DESIGN.md](GAME_DESIGN.md) bestimmen das neue Zielkonzept. Widersprechende Aussagen älterer Einträge sind historischer Prototypstand, nicht aktuelle Zielregeln. Unberührte bestehende Regeln werden nicht still geändert. Offene Balancingwerte werden nicht durch historische Preislisten als neue Forschungswerte festgelegt. Dokumentation ist keine Implementierungsfreigabe.
+
+## Bisherige Entscheidungen und Prototypgeschichte
 
 ### D-001 Abbauzeit
 
@@ -401,3 +405,148 @@ Energie-Dots im Einzelspieler erhalten eine gebündelte native Schrittsuche. Rei
 SwarmMind verwendet lokale Referenzen auf dieselben gepackten Arbeiterdaten und einmal pro Takt gelesene Gruppenziele. Weder Such-/Pfadbudgets noch Zustandsaktualisierungen werden ausgelassen. Alle fünf 60-Takte-Endhashes der 8.700-Arbeiter-Kopie bleiben identisch. Vollständige Tests laufen mit nativer Bibliothek und mit --no-native; zusätzliche Vergleichstests prüfen Bewegung bei Fraktionstempi und Beschleunigung, Energiebewegung, ungültige Positionen und Distanzfelder nach Weltänderungen.
 
 Zusätzliche nicht gespeicherte Profilzähler teilen die Zielsuche in Führung, Anker, Wegfelder und Schwarmverwaltung auf. Die feste 20-Hz-Taktung und die bestehende Aufholgrenze bleiben unverändert. Die Optimierung löst damit noch keine außerhalb des Spielcallbacks gemessenen langen Frame-Pausen. Einbau oder Freigabe einer anderen Takt-/Thread-Architektur ist nicht Bestandteil dieser Änderung.
+## Neue Konzeptentscheidungen vom 25. Oktober 2026
+
+Die folgenden Einträge dokumentieren Nutzerentscheidungen. Ihr Status ist Zielkonzept, nicht Implementierungsnachweis. Der vollständige Wortlaut und die offenen Präzisierungen stehen in [GAME_DESIGN.md](GAME_DESIGN.md), die Abweichungen in [CONCEPT_SYNC.md](CONCEPT_SYNC.md).
+
+### D-043 Welt, Erkundung und Lobby
+
+Die prozedurale Welt soll nahezu endlos sein; die Multiplayer-Kartengröße ist in der Lobby frei einstellbar. Pixelweiser Abbau einschließlich diagonaler Abbauwege, unzerstörbare Felsen und natürliche Höhlen gehören zum Ziel. Versteckte gegnerische Außenposten werden ausschließlich durch Erkundung gefunden. Weltgrenzen, Lobbygrenzen, Kartenform, Höhlengenerierung und diagonale Eck-/Bewegungsregeln sind noch zu präzisieren. Die heutige endliche quadratische Karte und ihre vier Nachbarn sind Implementierungsbestand, keine Beschränkung dieses neuen Ziels.
+
+### D-044 Arbeiter, Krieger und Kollision
+
+Vorläufig maximal 50 Arbeiter pro Spieler; mehrere Tausend Krieger pro Spieler sind das Skalierungsziel. Einzelne Dots und Gruppen bleiben frei auswählbar. Arbeiter blockieren sich gegenseitig. Alle Krieger blockieren sich gegenseitig, einschließlich verbündeter Krieger. Eigene Krieger dürfen eigene Arbeiter durchqueren. Weitere Durchquerungs- oder gemeinsame Endpositionsregeln werden nicht hinzuinterpretiert.
+
+Feindliche Krieger greifen Arbeiter bei Kontakt automatisch an. Krieger reagieren selbstständig auf Gegner in einem kleinen Verteidigungsradius und kämpfen ausschließlich im Nahkampf. Angegriffene Arbeiter arbeiten bis zu ihrem Tod oder einem neuen Befehl weiter. Kampfwerte und die noch fehlenden Randregeln sind offen. Die genaue Limitzählung einschließlich Produktion und Verschmelzung ist noch nicht entschieden. Alte Arbeiter-Massenbenchmarks weisen Kriegerskalierung nicht nach.
+
+### D-045 Produktionsgebäude, Kernbau und Überleben
+
+Nur Hauptkerne und Außenposten produzieren Arbeiter und Krieger. Der Hauptkern ist größer und widerstandsfähiger, ansonsten besitzen beide dieselben Grundfunktionen. Außenposten sind kleiner und von fester Größe; ihre Baukosten steigen mit ihrer Anzahl. Ein Hauptkern kann auf einem normalen Bauplatz für einen festen Energiepreis neu gebaut werden.
+
+Ein Kernbau zählt ab dem ersten tatsächlichen Arbeiterbeitrag als begonnen. Er verhindert die Niederlage auch ohne Arbeiter und ohne fertigen Kern. Ein bloßer Baubefehl reicht nicht. Größen, Preise, Bau- und Produktionszeiten, Zählweise der Außenposten und die vollständige Niederlagebedingung einschließlich fertiger Außenposten bleiben zu klären. Es wird kein automatischer Ablauf verlassener Kernbaustellen erfunden. Die heutige sofortige Fraktionsauslöschung bei Kernzerstörung erfüllt die neue Regel nicht.
+
+### D-046 Physische Energie, Verfall und Abfangen
+
+Energie bewegt sich physisch über freie Wege zu einem eigenen Kern; erst die Ankunft schreibt Guthaben gut. Ohne erreichbaren Empfänger verschwindet Energie nach 60 Sekunden ohne Route. Routenbegriff, Timerunterbrechung, Zeitbasis und Auswahl unter mehreren eigenen Empfängern sind noch festzulegen.
+
+Nur Abfanggebäude können gegnerische Energie stehlen. Sie kann unbegrenzt oft erneut abgefangen werden und muss jeweils physisch zu einem Kern des neuen Besitzers gelangen. Bei Zerstörung einer Abfangstation wird nur die noch nicht weitertransportierte Energie neutral und wieder abfangbar. Bereits weitertransportierte Energie bleibt davon unberührt. Die Detailmechanik von Puffern, neutraler Energie und konkurrierenden Stationen ist offen; Besitzwechsel darf nicht als zusätzliche Energieerzeugung verbucht werden.
+
+### D-047 Sichtwissen und Verbündete
+
+Solide Pixel und Gebäude blockieren die Sicht. Gegnerische Dots verschwinden unmittelbar bei Sichtverlust. Entdeckte gegnerische Gebäude bleiben im zuletzt bekannten Zustand sichtbar; Veränderungen außerhalb der Sicht werden erst bei erneuter Erkundung bekannt. Verbündete teilen Sicht und Erkundung vollständig, behalten jedoch getrennte Energiekonten.
+
+Weltzustand und Spielerwissen sind deshalb getrennt zu betrachten. Die Regel gilt auch für Minimap, Auswahl und sonstige Rückmeldungen. Algorithmus, Sichtweiten, Aktualisierung und Wissen bei Bündniswechseln sind noch nicht entschieden. Der heutige Zugriff der Minimap auf die unfiltrierte Welttextur ist lediglich Prototypbestand.
+
+### D-048 Gebäude, Forschungspflicht und manuelle Reparatur
+
+Am Spielbeginn ist als Gebäude nur der Hauptkern verfügbar. Alle anderen Gebäude müssen erforscht werden. Geplant sind Außenposten, Mauern, Energiefarmen, Energie-Abfangstationen und Aufklärungssensoren mit größerem Sichtbereich. Es gibt keine separaten Dot-Fabriken, Forschungslabore oder automatischen Verteidigungstürme; Verteidigung erfolgt durch Mauern und Krieger.
+
+Mauerlinien werden beim Ziehen in einzelne Segmente aufgeteilt. Gebäude brauchen freien Baugrund und werden von Arbeitern errichtet. Reparaturen kosten Energie und benötigen manuell zugewiesene Arbeiter; automatische Reparaturzuweisung ist nicht beschlossen. Mechanik und Zahlen der neuen Gebäude sind offen. Quelle/Veredler aus dem Prototyp werden weder still gelöscht noch ohne Entscheidung umbenannt.
+
+### D-049 Globale zeitbasierte Parallelforschung
+
+Forschung läuft global je Spieler ohne Forschungsgebäude. Beim Start wird der gesamte Energiepreis bezahlt; anschließend läuft die Forschungszeit. Mehrere Technologien können gleichzeitig erforscht werden. Forschung schaltet Gebäude und Verbesserungen frei. Mehrstufige Upgrades erhalten steigende Kosten und feste Maximallevel.
+
+Die Zweige Wirtschaft, Militär, Infrastruktur und Energietechnik sind Vorschläge. Konkrete Technologien, Level, Kosten, Zeiten, Abhängigkeiten und Abbruchregeln sind nicht beschlossen. Der heutige sofortige Upgrade-Kauf und der alte Forschungssieg sind kein implementiertes Parallelforschungssystem. Historische Preislisten werden nicht als neuer Forschungsbaum bestätigt.
+
+### D-050 Planungspause, Bestandsschutz und Prioritäten
+
+Der Auftrag vom 25. Oktober 2026 erlaubt den Abgleich und die Dokumentation, keine neuen Spielsysteme oder größeren Architekturänderungen. Frühere Performance-Aufträge sind keine fortdauernde Freigabe zur Umsetzung des neuen Konzepts. [ROADMAP.md](ROADMAP.md) und [CONCEPT_SYNC.md](CONCEPT_SYNC.md) enthalten nur vorgeschlagene spätere Pakete; jedes braucht einen ausdrücklichen Implementierungsauftrag.
+
+Bestehender Code, Native-Backend, Tests und Speicherstände bleiben in dieser Synchronisierung unverändert. Alte Modi, Verschmelzung, Quoten und Version-2-Spielstände werden nicht ohne Folgeentscheidung entfernt oder migriert. Historische Entscheidungen bleiben lesbar, widersprechende Zielregeln werden aber nicht mehr als aktuelles Konzept ausgegeben. Die Zielgrößen verschieben sich von Massenarbeitern zu wenigen Arbeitern und großen Kriegerarmeen. Endlose Welt, Sichtwissen, Kampf und Netzwerk gelten nicht aufgrund vorhandener Worker-Benchmarks als umgesetzt.
+
+
+### D-051 Einheitenphase und drei ausdrückliche Folgeentscheidungen
+
+25. Oktober 2026, nach der Planungspause ausdrücklich beauftragt. Fusion wird vollständig aus dem aktiven Spiel entfernt. Eigene Krieger dürfen eigene Arbeiter ausschließlich durchqueren; jede Endposition muss frei sein. Alle Krieger blockieren sich, auch Verbündete. Die alten Solo-Siegziele werden auf ausdrücklichen Wunsch ganz deaktiviert, nicht auf das neue Arbeiterlimit angepasst. Das vorläufige Limit von 50 Arbeitern pro Spieler reserviert bereits bezahlte Warteschlangenplätze; Krieger zählen nicht dazu.
+
+Die Phase liefert einen spielbaren Nahkampf-Prototyp mit ausdrücklich erlaubten vorläufigen Werten. Außenposten, Forschung und Weltumbau folgen später. Keine automatische Fortsetzung auf sämtliche neuen Konzeptpakete; kein Commit oder Shutdown aus der alten unbeaufsichtigten Planungssitzung.
+
+### D-052 Vorläufige Kampf-/Produktionsparameter und deterministischer Ablauf
+
+Krieger: 20 Energie bei Bestellung, 20 Takte bis frühester Platzierung, 12 HP, 1 Schaden, 10 Takte Angriffspause, 2 Takte je durchlaufener Zelle; Arbeiter 5 HP. 20 Takte entsprechen bei 1× einer Sekunde. Werte dienen dem Testen und sind kein endgültiges Balancing. Fällige Bestellungen warten bei fehlendem freien Platz. Mehrere Bestellungen dürfen parallel reifen; ein endgültiges Warteschlangen-/Kapazitätsmodell je Gebäude ist nicht beschlossen. Produktion erfolgt derzeit allein am vorhandenen Kern.
+
+Nach Arbeiterbewegung, Abbau und Energie folgen Kriegerproduktion, Bewegung, Kontaktangriffe und gemeinsame Trefferauswertung. Krieger handeln nach stabilen IDs; Treffer werden gesammelt, bevor Tote entfernt werden. Gegner im Manhattan-Radius 3 lösen gestaffelt alle fünf Takte eine lokale Verfolgung aus. Nahkampf gilt bei orthogonalem Kontakt; bei Gleichstand Krieger vor Arbeitern, dann Zeilen-/Spaltenfolge. Keine automatische Flucht angegriffener Arbeiter. Ein eigener Arbeiterkorridor kann in einem diskreten Schritt bis zur nächsten freien Zelle passiert werden; die Bewegungspause wächst um die gesamte Strecke. Eine gemeinsame stehende Belegung entsteht nie.
+
+Marschwege teilen deterministische Terrain-Wegfelder (bis 16 Zielzellen, Invalidierung bei Weltänderung). Die kurze Verteidigungssuche bleibt im Radius 3 um die aktuelle Zelle, statt pro Gegner die ganze Welt zu durchsuchen. Lange Umwege bei defensiver Verfolgung sind damit nicht abgedeckt. Dynamische Blockaden führen derzeit zum Warten; kein ausgereiftes Armee-Stau-/Formationssystem. Die bestehenden Match-Modi einschließlich Kernverlust bleiben Prototypbestand bis zur separaten Bau-/Überlebensphase. Interne Teamzuordnung ist keine fertige Bündnis-/Sichtfunktion.
+
+### D-053 Einheitenreferenzen und additive Version-2-Kompatibilität
+
+Krieger verwenden dichte Datenarrays und dauerhaft stabile, getrennt markierte Auswahl-IDs; ein Renderer zeichnet alle Krieger. Keine Node je Krieger. Speicherformat 2 erhält additive Kriegerdaten einschließlich Produktionswarteschlange, Lebenspunkten, Zielen und Abklingzeiten. Fehlende Kriegerdaten bedeuten eine leere Armee; alte Arbeiter erhalten 5 HP. Fusionierte Altarbeiter werden beim Laden entsprechend ihrem Fußabdruck in einzelne Arbeiter aufgeteilt, ohne Massenverlust; die aktiven Fusions-Upgrades bleiben gesperrt. Alte Populationen über 50 werden erhalten, aber weitere Käufe blockiert. Alte Solo-Siege werden zurückgesetzt. Reguläre Speicherdateien werden durch Diagnosefixtures nicht verändert.
+
+Gesonderte Bilanzen: Arbeitermasse einschließlich wartender Käufe = Anfangsmasse + Käufe − Fraktionsentfernung − Kampftode; Krieger bezahlt − verloren = lebend + wartend. Ungültige Armee-Daten, Belegungsüberlappungen und nicht vorhandene Besitzer werden beim Laden abgelehnt. Die ausführbaren Nachweise und verbleibende Leistungsgrenze stehen in UNIT_PROTOTYPE.md.
+
+### D-054 Gemessene Armee-Arithmetik nativ, Regeln unverändert
+
+25. Oktober 2026. Nach Abschluss des Einheitenprototyps mit „gehe jetzt den nächsten Schritt vor“ als nächster gemessener Engpass freigegeben. Kontaktabfragen, lokale Verteidigungs-BFS und sequentielle Bewegung erhalten einen optionalen nativen Ganzzahl-Rechenpfad. Parameter stammen aus dem bestehenden GDScript-Modell, Reihenfolge bleibt nach stabilen IDs und dynamische Belegung wird innerhalb des Takts weitergegeben. Gemeinsame Terrain-Felder bleiben im Adapter; bei mehr als 16 verschiedenen Marschzielen, alter/fehlender Bibliothek oder expliziter Referenzwahl läuft die GDScript-Armee. Das ist kein Befehlslimit. Treffer werden gesammelt zurückgegeben, HP/Tode/Bilanzen und Produktion bleiben in GDScript.
+
+Windows baut eine separate v4-Bibliothek; bereits geladene v3-Dateien werden nicht überschrieben. Keine Threads, keine Änderung an 20 Hz, Aufholgrenze, Geschwindigkeit, Angriffswerten, Saveformat oder Spielregeln. Die Farbpalette der gemeinsamen Kriegertextur wird pixelgleich effizienter geschrieben. Der Grafikbenchmark erhält einen expliziten FPS-Cap-Parameter, der normale Spielbetrieb keinen neuen Limiter.
+
+Taktweise Gleichheitstests, ungültige Eingaben, Renderer und beide vollständigen Test-Backends bestehen. 10.000 Krieger benötigen im bisherigen Marschfall im Mittel 2,61 statt 95,63 ms pro Takt; ein zusätzlicher Kontaktfall hält 10.000 tatsächlich lebende Krieger während aller 40 Takte. Grafisch werden bei 60-FPS-Grenze im isolierten Vergleich 53,84 FPS und 19,68 Takte/s (weiterer Lauf: 48,41 FPS / 19,26 Takte/s) erreicht, einzelne lange Frames sind noch nicht nach Ursache isoliert. Dies ist keine Gesamtfreigabe für Welt/Bau/Forschung/Sicht/Netzwerk und keine vollständige Langzeit-Skalierungsabnahme. Messungen und Grenzen in ARMY_PERFORMANCE.md.
+
+### D-055 Stabilitätsauftrag 1–3 und nachgewiesene Windows-Frame-Ursache
+
+25. Oktober 2026. Der Nutzer beauftragt ausdrücklich die drei vorgeschlagenen Prüfungen: lange Frames, schwierige Marsch-/Blockadesituationen und eine längere gemischte Partie. Dabei gefundene Fehler werden gezielt behoben. Keine Freigabe für Welt-/Bau-/Sicht-/Forschungs-/Netzwerk-Folgephasen oder Veröffentlichung.
+
+Die gemessenen 150–450-ms-Frames entstehen auch im leeren Windows-Fenster ohne Simulation/Render-Loop, nicht im identischen Headless-Lauf. Fensterprozedur-Tracing weist wiederholte WM_DEVICECHANGE / DBT_DEVNODES_CHANGED mit rund 149 ms je Aufruf nach; Godot 4.3 startet dabei synchron seine Controller-Suche. Ein auf das eigene Fenster beschränkter Filter überspringt ausschließlich allgemeine Meldungen bei identischer Raw-Input-Geräteliste. Ankunft/Entfernung, Eingabegeräteänderungen und Fehler werden weitergeleitet. HID-/XInput-Schnittstellenbenachrichtigungen bleiben angemeldet; die ursprüngliche Fensterprozedur wird beim Abschalten wiederhergestellt. Keine Geräte oder Treiber werden deaktiviert. Die Quelle der wiederholten Gerätebaumänderungen ist nicht bestimmt. Opt-out: --no-device-change-guard. Synthetische Weiterleitungs-/Wiederherstellungsprüfung und reale Grafikläufe bestehen; ein physischer Controller-Stecktest bleibt offen. Nachweise in STABILITY_VALIDATION.md.
+
+### D-056 Exakte Viele-Ziele-Wege mit begrenztem Cache
+
+Der v7-Rechenpfad ersetzt den alten Rückfall ab 17 Zielen durch Terrain-Cache, freie Rechteck-/L-Nachweise, sofortige Blockadeprüfung und vollständige BFS-Felder. Seltene Ziele nutzen bei bis zu 256 Hindernisecken einen exakten rechtwinkligen Sichtgraphen; andernfalls bleibt die vollständige BFS zuständig. Für seltene Ziele werden bei verfügbarem Graphpfad höchstens acht neue Vollfelder je Takt vorgewärmt, ohne Bewegung zu verschieben: Der Graph entscheidet sofort. Häufige gemeinsame Ziele erhalten weiterhin gemeinsame Vollfelder. Reguläres Feldbudget 32 MiB, höchstens 128 Felder; mindestens ein Feld auch bei größerer Einzelkarte. Keine Zusage für beliebige Weltgrößen.
+
+Jede Graphkante ist ein überprüfter freier Weg. Zielendpunkte und eigene Arbeiterkorridore werden in der bisherigen Richtungsfolge mit derselben Zeitbelastung geprüft. Keine Näherungswege, Stau-Teleports, neuen Durchquerungsrechte oder geänderten Kampfwerte. Cache-Kohärenz vergleicht tatsächliche Terrainbytes auch zwischen Welten mit gleicher Revision. Taktweise Referenztests und Graph-Einsatzzähler sichern den neuen Pfad ab. 10.000 Einzelziele in offener Welt erreichen rund 2,68 ms/Takt; der kombinierte Labyrinthfall im längeren Test 26,58 ms/Takt, p95 30,75 ms. Grenzen und Rohdaten im Prüfbericht.
+
+### D-057 Additiver Resume-Zustand für exaktes Fortsetzen
+
+Die gemischte Prüfung fand bei Takt 504 nach dem Laden einen anderen Arbeiterschritt, weil laufende/veröffentlichte Wegfelder sowie individuelle Wegschritte bisher neu aufgebaut wurden. Neue Version-2-Stände enthalten deshalb additive, streng validierte Resume-Daten für die inkrementellen Wegfelder, Weltänderungslog und Frontreihenfolge, Energierouten/Neuaufbautakt, Arbeitsfront, tatsächliche Chunkgröße und individuelle Arbeiterschritte/Bewegungsreste. Alte Stände ohne Resume-Block bleiben lesbar; ein ungültiger vorhandener Block wird abgelehnt.
+
+Snapshot- und Binär-Fortsetzungstests bleiben identisch. Normale Spielstände werden nicht durch Diagnosefixtures überschrieben. Synchrones Speichern eines großen Zustands kostet in der lokalen Messung rund 42 ms zuzüglich Datei-I/O; dies wird nicht durch speicherfreie Grafikfixtures als gelöst ausgegeben. Keine asynchrone Speicherarchitektur, kein Versionssprung und keine Übertragung des nativen Cache-Speichers als Spielzustand. Details in STABILITY_VALIDATION.md.
+
+### D-058 Bauphase beauftragt, Detailentscheidungen offen
+
+25. Oktober 2026. Nach der Empfehlung für Gebäude-/Baustellendaten, Arbeiterbau, Ersatzkern und Außenposten lautet der ausdrückliche Folgeauftrag: „Dann starte den Durchlauf“. Die Bauphase ist damit beauftragt. Bauwerte, Forschungsfreigabe und vollständige Niederlage-/Außenposten-Empfängerregel sind als strukturierte Rückfragen gestellt; eine unbeantwortete Vorauswahl gilt nicht als Zustimmung. Die unabhängige gemeinsame Datenhaltung in settlement_store.gd mit stabilen IDs, Besitzer, Fläche, HP und geplant/begonnen/fertig/zerstört ist erstellt und durch 4 Tests / 31 Prüfungen abgesichert. Sie ist noch nicht an die spielbare Produktion angeschlossen. Keine neuen Balancingkonstanten oder Forschungsausnahmen festgeschrieben. Umfang, Vorschläge und Integrationsplan in CONSTRUCTION_PHASE.md. Bestehende Spielstände und laufende Partien bleiben in diesem vorbereitenden Schritt unverändert.
+
+## D-059 – Bauwerte, Testfreigabe und Überleben ausdrücklich bestätigt (25. Oktober 2026)
+
+Die drei strukturierten Antworten sind eingetroffen: „Diese Testwerte verwenden“, „Im normalen Spiel gesperrt; zum Testen im Testlabor freischalten“ und „Diesen Vorschlag verwenden“. Damit gelten vorläufig Hauptkern 5×5/600 HP/500 Energie/600 Arbeiter-Takte und Außenposten 3×3/200 HP/(200 + 100 je vorhandenem oder begonnenem Außenposten)/300 Arbeiter-Takte; mehrere Arbeiter bauen gemeinsam. Außenposten bleiben bis zum künftigen Forschungsbaum im normalen Spiel gesperrt, im Testlabor freischaltbar. Fertige Außenposten erhalten das Weiterspielen nach Hauptkernverlust und empfangen Energie. Niederlage erst ohne fertigen eigenen Kern/Außenposten und ohne tatsächlich begonnenen Hauptkernbau; vorläufig höchstens ein fertiger oder geplanter/begonnener eigener Hauptkern. Ein bloß bezahlter Plan schützt nicht.
+
+Die zuvor offenen Rückfragen in D-058 sind damit beantwortet. Lokal integriert: authoritative stabile Gebäudedaten, Bauflächenreservierung, manuell zugewiesene Arbeiter mit gemeinsamer Randarbeit, Produktionsauswahl und gemeinsame 50er-Grenze, Gebäudenahkampf und Ersatzkern-/Niederlageprüfung, physischer Energieempfang an allen fertigen eigenen Standorten und additive Version-2-Speicherung mit Altstand-Import. Zusätzliche ausdrücklich vorläufige Ausführungsdetails (Bau-HP, reservierte Außenposten zählen zum Preis, Warteschlangenverlust ohne Erstattung, alte Kernflächen-Upgrades nur für Altkerne) stehen in CONSTRUCTION_PHASE.md und bleiben von genehmigten Zahlen getrennt. Welt/Fog/Forschung/Netzwerk werden nicht als mitumgesetzt ausgegeben. Keine Commits/PRs oder Abschaltung aus diesem Auftrag.
+
+
+## D-060 – Folgeauftrag Reparatur, Abbruch und KI-Bauplanung (25. Oktober 2026)
+
+Nach der abgeschlossenen Bauphase nennt die unmittelbar vorangehende To-do-Antwort drei konkrete Aufgaben: manuelle Reparaturen, Baustellenabbruch und KI-Bauplanung für Außenposten/Ersatzkerne. Der Nutzer beauftragt „Dann arbeite Punkte 1-3 ab“. Das ist diese Folgephase, nicht eine neue Freigabe der älteren Leistungs-Punkte oder anderer großer Systeme.
+
+Lokal umgesetzt: explizite eigene Arbeiterzuweisung zur Reparatur fertiger eigener Standorte mit Energiezahlung, Pausieren ohne Energie und Beenden durch neuen Auftrag/Tod/Fertigstellung; Baustellenabbruch mit freier Fläche, korrektem Schutzverlust und gespeicherter Rückzahlung; deterministische KI-Bauplanung mit bezahlten erreichbaren Standorten, Forschungs-/Remote-Sperre, Ersatzkernpriorität und Ersatz ausgefallener Bauarbeiter. Die KI führt keine automatische Reparaturzuweisung aus.
+
+Neue Reparatur-/Erstattungszahlen wurden als konkrete vorläufige Implementierungsannahmen zur Änderung angeboten: pro Arbeiter alle vier Takte bis zu zwei HP für eine Energie; voller tatsächlich bezahlter Baupreis nur vor dem ersten Beitrag und ohne Schaden, danach keine Erstattung. Diese Zahlen sind kein ausdrücklich bestätigtes endgültiges Balancing. Vorläufige KI-Ausbaupolitik, Grenzen und vollständiger Prüfstand stehen in MAINTENANCE_PHASE.md. D-059 zu Bauwerten, Forschungsfreigabe und Überleben bleibt gültig; außerhalb der Testlabor-Freigabe baut auch die KI keine Außenposten. Welt/Fog/Forschung/Netzwerk/Energieraub und 60-Sekunden-Verfall sind nicht mitbeauftragt. Keine Commits/PRs/Abschaltung aus diesem Auftrag.
+
+
+## D-061 – Reparatur- und Abbruchtestregeln ausdrücklich bestätigt (25. Oktober 2026)
+
+Die nachgereichte strukturierte Antwort lautet „Diese Testregeln verwenden“. Damit sind folgende bereits implementierte Regeln ausdrücklich für die Testfassung bestätigt: je manuell zugewiesenem Arbeiter alle vier Takte bis zu zwei HP Reparatur für eine Energie (bei 20 Takten/s zehn HP/s); ohne Energie wartet der Auftrag. Baustellenabbruch vor dem ersten Arbeitsbeitrag erstattet den vollen tatsächlich gezahlten Baupreis, sofern kein Schaden vorliegt. Nach Baubeginn oder Schaden erfolgt keine Erstattung.
+
+Die Regeln bleiben vorläufiges Balancing. Diese Bestätigung präzisiert den Status der Reparatur-/Erstattungsannahmen aus D-060; sie bestätigt nicht automatisch die separat dokumentierten KI-Ausbauwerte oder weitere Phasen. Keine Codeänderung erforderlich: Die geprüfte Umsetzung entspricht der Antwort bereits.
+
+
+## D-062 – Energiephase ausdrücklich beauftragt (25. Oktober 2026)
+
+Der Nutzer beauftragt „Arbeite Punkte 1-3 ab“ zur unmittelbar zuvor genannten Energieliste: 60-Sekunden-Verfall ohne Route, Abfangstationen und Zerstörung/Neutralisierung mit vollständiger Transportbilanz. Diese Phase umfasst die dafür notwendigen Gebäude-, Speicher-, UI- und Diagnoseanschlüsse. D-059/D-061 bleiben erhalten; keine neue Freigabe für Fog, Forschungsbaum, Welt oder Netzwerk.
+
+Für den testbaren Durchlauf wurden offene Einzelheiten als vorläufige Testfestlegungen zur Änderung angeboten: 1.200 aufeinanderfolgende Simulationstakte ohne eigene Terrainroute, Stau durch Einheiten zählt nicht, gültige Route setzt zurück; Station 3×3/150 HP/250 Energie/300 Arbeitertakte, zunächst nur im Testlabor; Randkontakt, acht Punkte/Takt, 256 Plätze, zwanzig Takte Puffer; neutrale Energie wartet am Ort und unterliegt ebenfalls dem Routenverfall. Diese Werte sind bis zu einer ausdrücklichen Bestätigung keine endgültigen Balancingentscheidungen. Eigentumswechsel ohne neue gültige Route startet die Frist nicht neu. Konkurrenz wird über stabile Stations-IDs aufgelöst; verbündete und eigene Energie werden nicht gestohlen.
+
+Die Bilanz lautet erzeugt = geliefert + verfallen + unterwegs, mit unterwegs = frei mit Besitzer + gepuffert + frei neutral. Abfangen/Neutralisierung sind reine Übergänge; Kontoausgaben und genehmigte Bauabbrüche bleiben separate Banktransaktionen. Geliefert wird genau einmal bei tatsächlicher Ankunft am Empfänger des aktuellen Besitzers gutgeschrieben. Stationszerstörung neutralisiert nur noch gepufferte Punkte und lässt bereits freigegebene Transporte unverändert. Die Station ist weder Produktionsort noch Bankempfänger noch Niederlageschutz. Additive Version-2-Persistenz hält Fristen und Pufferbindungen; Altstände starten ohne erfundene historische Verfallszeiten. Details, Tests und Grenzen in ENERGY_PHASE.md. Keine Commits/PRs oder Abschaltung aus diesem Auftrag.
+
+
+## D-063 – Energie-Testregeln ausdrücklich bestätigt (25. Oktober 2026)
+
+Die nachgereichte strukturierte Antwort lautet „Diese Testregeln verwenden“. Damit sind die angebotenen Regeln ausdrücklich für die Testfassung bestätigt: Verfall nach 1.200 aufeinanderfolgenden Simulationstakten ohne freien Terrainweg zum eigenen fertigen Kern/Außenposten; Einheitenblockaden zählen nicht, eine wieder verfügbare Route setzt den Timer zurück. Abfangstation 3×3, 150 HP, 250 Energie, 300 Arbeiter-Takte; zunächst nur im Testlabor freischaltbar. Abfangen am direkt angrenzenden freien Rand, bis zu acht Energiepunkte je Takt, maximal 256 Pufferplätze und Weitergabe nach zwanzig Takten. Neutrale Energie bleibt am Ort und unterliegt ebenfalls dem 60-Sekunden-Verfall ohne erneutes Abfangen mit gültiger eigener Route.
+
+Diese Bestätigung präzisiert den Status der angebotenen Testregeln aus D-062; endgültiges Balancing bleibt offen. Ergänzende Ausführungsdetails wie die Konkurrenzpriorität nach stabiler Stations-ID sind gesonderte vorläufige Implementierungsfestlegungen und werden nicht als ausdrücklich mitbestätigt ausgegeben. Keine neue Phase ist daraus freigegeben. Die geprüfte Umsetzung entspricht den angebotenen Regeln bereits; keine Codeänderung erforderlich.
+
+
+## D-064 – Gesammelten geprüften Stand committen und nach Main pushen (25. Oktober 2026)
+
+Nach Abschluss der lokalen Phasen und Bestätigung D-063 beauftragt der Nutzer ausdrücklich: „Dann mach jetzt alles für ein Commit fertig und push es nach Main“. Damit ist ein gemeinsamer Commit des vollständigen Hauptprojektstands und ein normaler Push nach origin/main freigegeben. Dazu gehören die vorbestehende Nutzeränderung in SwarmMind, Einheiten-/Armeephase, native Performance-/Fensterstabilität, Bau/Überleben, Reparatur/Abbruch/KI und Energiephase einschließlich Tests, Diagnoseskripten und Dokumentation. Die älteren Aussagen „kein Commit aus diesem Auftrag“ beschreiben die früheren Implementierungsaufträge und stehen dieser neuen ausdrücklichen Freigabe nicht entgegen.
+
+Der eigenständige Untercheckout dot-wars/ bleibt separat und wird ignoriert. Generierte Bibliotheken, Godot-Caches und Diagnoseausgaben werden nicht versioniert. Native Bibliotheken bleiben reproduzierbare Build-Ausgaben. Vor Commit/Push werden alle vorgesehenen Dateien aus dem Git-Index in einen sauberen Prüfexport übernommen und dort Import, Windows-Native-Build, native und Referenzsuite sowie Hauptszene geprüft. Die Linux-Zielbibliothek wird zusätzlich aus denselben Quellen querkompiliert; die tatsächliche Linux-Ausführung übernimmt GitHub Actions. CI erhält angemessene Laufzeitgrenzen und prüft zusätzlich Skript-/Parsefehler in den Testlogs. Keine neue Spielregel, Versionserhöhung, Veröffentlichung als Release oder Abschaltung aus dem Commitauftrag.

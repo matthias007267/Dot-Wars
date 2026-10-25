@@ -74,20 +74,6 @@ static func step(sim: Simulation) -> void:
 	paths_last_tick = 0
 	if workers.count == 0:
 		return
-	var positions := workers.cell
-	var groups := workers.group
-	var factions := workers.faction
-	var states := workers.state
-	var targets := workers.target
-	var sizes := workers.size
-	var aims := workers.aim
-	var aim_steps := workers.aim_step
-	var aim_watches := workers.aim_watch
-	var idle_ticks := workers.idle_ticks
-	var idle_cells := workers.idle_cell
-	var group_goals := PackedInt32Array()
-	for field in sim.fields:
-		group_goals.append(field.goal_cell)
 	var levels := _levels(sim)
 	var active := false
 	for level in levels:
@@ -96,10 +82,10 @@ static func step(sim: Simulation) -> void:
 			break
 	if not active:
 		for id in workers.count:
-			if aims[id] != WorkerStore.NO_TARGET:
-				aims[id] = WorkerStore.NO_TARGET
-				aim_steps[id] = WorkerStore.NO_TARGET
-				aim_watches[id] = 0
+			if workers.aim[id] != WorkerStore.NO_TARGET:
+				workers.aim[id] = WorkerStore.NO_TARGET
+				workers.aim_step[id] = WorkerStore.NO_TARGET
+				workers.aim_watch[id] = 0
 		return
 	var boxed_snapshot := PackedByteArray()
 	var watch_snapshot := PackedInt64Array()
@@ -111,12 +97,12 @@ static func step(sim: Simulation) -> void:
 			watch_snapshot = neighborhood[1]
 	var claimed := {}
 	for id in workers.count:
-		if int(states[id]) != WorkerStore.STATE_MINING:
+		if int(workers.state[id]) != WorkerStore.STATE_MINING:
 			continue
-		var rock := int(targets[id])
+		var rock := int(workers.target[id])
 		if not _marked(sim, id, rock):
 			continue
-		claimed[_key(int(factions[id]), rock)] = id
+		claimed[_key(int(workers.faction[id]), rock)] = id
 	# Nur bei großen Schwärmen rotieren die IDs. Kleine Szenen bleiben bytegleich.
 	# Die Position ist aus tick_count ableitbar und braucht keinen Save-Zustand.
 	var start := 0
@@ -124,36 +110,37 @@ static func step(sim: Simulation) -> void:
 		start = (sim.tick_count * MAX_SEEKS_PER_TICK) % workers.count
 	for offset in workers.count:
 		var id := (start + offset) % workers.count
-		var faction := int(factions[id])
+		if workers.build_site[id] >= 0: continue
+		var faction := int(workers.faction[id])
 		var level := levels[mini(faction, levels.size() - 1)]
-		if level <= 0 or int(sizes[id]) > 1 or group_goals[int(groups[id])] >= 0:
-			aims[id] = WorkerStore.NO_TARGET
-			aim_steps[id] = WorkerStore.NO_TARGET
-			aim_watches[id] = 0
+		if level <= 0 or int(workers.size[id]) > 1 or sim.move_goal(int(workers.group[id])) >= 0:
+			workers.aim[id] = WorkerStore.NO_TARGET
+			workers.aim_step[id] = WorkerStore.NO_TARGET
+			workers.aim_watch[id] = 0
 			continue
-		if int(states[id]) == WorkerStore.STATE_MINING and _marked(sim, id, int(targets[id])):
-			aims[id] = int(targets[id])
-			idle_ticks[id] = 0
-			idle_cells[id] = int(positions[id])
-			aim_steps[id] = int(positions[id])
+		if int(workers.state[id]) == WorkerStore.STATE_MINING and _marked(sim, id, int(workers.target[id])):
+			workers.aim[id] = int(workers.target[id])
+			workers.idle_ticks[id] = 0
+			workers.idle_cell[id] = int(workers.cell[id])
+			workers.aim_step[id] = int(workers.cell[id])
 			continue
-		var cell := int(positions[id])
-		if cell != int(idle_cells[id]):
-			idle_cells[id] = cell
-			idle_ticks[id] = 0
+		var cell := int(workers.cell[id])
+		if cell != int(workers.idle_cell[id]):
+			workers.idle_cell[id] = cell
+			workers.idle_ticks[id] = 0
 		else:
-			idle_ticks[id] += 1
+			workers.idle_ticks[id] += 1
 		var boxed := boxed_snapshot[id] != 0 if boxed_snapshot.size() == workers.count else _boxed(sim, id)
-		var previous := int(aims[id])
-		var drop: bool = int(idle_ticks[id]) >= int(PATIENCE[level]) and not boxed
+		var previous := int(workers.aim[id])
+		var drop: bool = int(workers.idle_ticks[id]) >= int(PATIENCE[level]) and not boxed
 		var keep := previous
 		if drop or not _marked(sim, id, keep) or claimed.has(_key(faction, keep)):
 			keep = WorkerStore.NO_TARGET
 		if keep >= 0:
-			aims[id] = keep
+			workers.aim[id] = keep
 			claimed[_key(faction, keep)] = id
 		elif boxed:
-			aims[id] = WorkerStore.NO_TARGET
+			workers.aim[id] = WorkerStore.NO_TARGET
 		else:
 			if seeks_last_tick >= MAX_SEEKS_PER_TICK:
 				continue
@@ -162,20 +149,20 @@ static func step(sim: Simulation) -> void:
 			var found := _seek(sim, id, level, claimed, ban)
 			if found < 0 and ban >= 0:
 				found = _seek(sim, id, level, claimed, WorkerStore.NO_TARGET)
-			aims[id] = found
+			workers.aim[id] = found
 			if found >= 0:
 				claimed[_key(faction, found)] = id
-		var aim_now := int(aims[id])
+		var aim_now := int(workers.aim[id])
 		var sig := watch_snapshot[id] if watch_snapshot.size() == workers.count and aim_now == previous else _watch(sim, id, aim_now)
-		if sig == int(aim_watches[id]) and aim_now == previous:
+		if sig == int(workers.aim_watch[id]) and aim_now == previous:
 			continue
 		if paths_last_tick >= MAX_PATHS_PER_TICK:
 			# Ein veralteter Schritt darf nicht gegen die aktuelle Belegung benutzt werden.
-			aim_steps[id] = WorkerStore.NO_TARGET
+			workers.aim_step[id] = WorkerStore.NO_TARGET
 			continue
 		paths_last_tick += 1
-		aim_watches[id] = sig
-		aim_steps[id] = _first_step(sim, id, aim_now, level)
+		workers.aim_watch[id] = sig
+		workers.aim_step[id] = _first_step(sim, id, aim_now, level)
 
 
 static func _levels(sim: Simulation) -> PackedInt32Array:

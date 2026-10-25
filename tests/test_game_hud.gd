@@ -69,20 +69,20 @@ func test_buy_worker_requires_energy() -> void:
 	hud.free()
 
 
-func test_fusion_size_is_applied_to_all_working_groups() -> void:
+func test_fusion_requests_are_rejected_for_all_groups() -> void:
 	var hud := _new_hud()
 	check(not hud.set_size_all(2), "gesperrte Größe wird abgewiesen")
 	hud.sim.upgrades.fusion2 = true
-	check(hud.set_size_all(2), "Größe zwei gesetzt")
+	check(not hud.set_size_all(2), "Fusion bleibt auch mit altem Flag entfernt")
 	for g in hud.sim.group_open.size():
-		check_eq(hud.sim.desired_size[g], 2, "interne Gruppen nutzen dieselbe Größe")
+		check_eq(hud.sim.desired_size[g], 1, "alle Gruppen bleiben bei einzelnen Arbeitern")
 	check(hud.set_size_all(1), "Größe gilt für alle Gruppen")
 	check_eq(hud.sim.desired_size[2], 1, "alle internen Gruppen gleich")
 	check_no_errors(hud.sim.check_invariants(), "keine Masse durch Größeneinstellung verloren")
 	hud.free()
 
 
-func test_status_card_shows_the_core_stage() -> void:
+func test_status_card_shows_owned_building_health() -> void:
 	var hud := _new_hud()
 	var layer := Control.new()
 	hud._build_stats(layer)
@@ -90,13 +90,12 @@ func test_status_card_shows_the_core_stage() -> void:
 	hud._build_dock(layer)
 	hud._build_upgrade_panel(layer)
 	hud.refresh()
-	check_eq(hud._kern_value.text, "Stufe 0", "Start ohne erweiterte Fläche")
-	check_eq(hud._kern_bar.value, 0.0, "Balken leer")
-	hud.sim.upgrades.energy = 40
-	check(hud.sim.buy(Upgrades.KIND_CORE), "Kernkauf")
+	check_eq(hud._kern_value.text, "Kern 600/600 HP", "neuer fertiger Hauptkern")
+	check_eq(hud._kern_bar.value, 100.0, "volle HP")
+	hud.sim.construction.damage(hud.sim, 0, 150)
 	hud.refresh()
-	check_eq(hud._kern_value.text, "Stufe 1", "Stufe nach dem Kauf")
-	check_eq(hud._kern_bar.value, 1.0, "Balken zeigt die Stufe")
+	check_eq(hud._kern_value.text, "Kern 450/600 HP", "Schaden sichtbar")
+	check_eq(hud._kern_bar.value, 75.0, "relativer HP-Balken")
 	layer.free()
 	hud.free()
 

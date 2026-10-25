@@ -12,11 +12,7 @@ func test_debug_upgrades_are_free_reversible_and_disabled_by_default() -> void:
 	check(sim.debug_adjust_upgrade(Upgrades.KIND_SPEED, 1), "Arbeiter hoch")
 	check(sim.debug_adjust_upgrade(Upgrades.KIND_SWARM, 1), "Intelligenz hoch")
 	check(sim.debug_adjust_upgrade(Upgrades.KIND_DIG, 1), "Abbau hoch")
-	check(sim.debug_adjust_upgrade(Upgrades.KIND_FUSION2, 1), "Fusion 2")
-	check(sim.debug_adjust_upgrade(Upgrades.KIND_FUSION2, 1), "Fusion 3")
-	check_eq(sim.upgrades.max_size(), 3, "Fusion hoch")
-	check(sim.debug_adjust_upgrade(Upgrades.KIND_FUSION2, -1), "Fusion runter")
-	check_eq(sim.upgrades.max_size(), 2, "Fusion 2")
+	check(not sim.debug_adjust_upgrade(Upgrades.KIND_FUSION2, 1), "Fusion auch im Testlabor entfernt")
 	check(sim.debug_adjust_upgrade(Upgrades.KIND_SPEED, -1), "Arbeiter runter")
 	check(sim.debug_adjust_upgrade(Upgrades.KIND_SWARM, -1), "Intelligenz runter")
 	check(sim.debug_adjust_upgrade(Upgrades.KIND_DIG, -1), "Abbau runter")
@@ -34,7 +30,7 @@ func test_debug_upgrades_are_free_reversible_and_disabled_by_default() -> void:
 func test_debug_core_can_grow_and_shrink_without_costs() -> void:
 	var config := TestHelpers.default_config()
 	config.world_size = 32
-	var sim := Simulation.create(config)
+	var sim := TestHelpers.legacy_core_sim(config)
 	sim.debug_mode = true
 	check(sim.debug_adjust_upgrade(Upgrades.KIND_CORE, 1), "Kern hoch")
 	check_eq(sim.upgrades.core_level, 1, "Stufe 1")
@@ -48,7 +44,9 @@ func test_debug_bulk_spawn_preserves_mass() -> void:
 	var config := TestHelpers.default_config()
 	config.world_size = 64
 	var sim := Simulation.create(config)
-	sim.world.carve_rect(Rect2i(10, 10, 44, 44))
+	for cell in sim.world.cell_count():
+		if Rect2i(10, 10, 44, 44).has_point(Vector2i(cell % sim.world.width, cell / sim.world.width)) and sim.construction.at(cell) < 0:
+			sim.world.set_material(cell, Materials.EMPTY)
 	check_eq(sim.debug_spawn_workers(100), 0, "nur Testlabor")
 	sim.debug_mode = true
 	var before := sim.workers.count

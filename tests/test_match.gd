@@ -24,17 +24,19 @@ func test_two_factions_get_two_cores_and_ignore_solo_goals() -> void:
 
 func test_elimination_removes_the_faction_and_keeps_mass() -> void:
 	var sim := _match(MatchRules.VICTORY_ELIMINATION)
+	sim.construction.sites.records[1].hp = 1
 	sim.rules.core_hp[1] = 1
 	var spot := _free_gate(sim, sim.rules.cores[1])
 	check(spot >= 0, "eine Angriffszelle ist frei")
-	sim.workers.move_to(_worker(sim, 0), spot, 0)
+	var attacker := sim.army.add(spot, 0)
+	sim.army.next_move[sim.army.slots[attacker]] = 100
 	sim.tick_once()
 	check(sim.won, "der letzte lebende Kern gewinnt")
 	check_eq(sim.rules.winner_faction, 0, "der Spieler gewinnt")
 	check_eq(sim.rules.win_kind, MatchRules.VICTORY_ELIMINATION, "Auslöschen")
 	check_eq(sim.rules.alive[1], 0, "die KI ist aus")
 	check_eq(_count(sim, 1), 0, "ihre Arbeiter sind weg")
-	check_eq(sim.world.cells[sim.rules.cores[1]], Materials.INDESTRUCTIBLE, "der Kern bleibt unzerstörbar")
+	check_eq(sim.world.cells[sim.rules.cores[1]], Materials.EMPTY, "zerstörter Kern gibt Baugrund frei")
 	check_no_errors(sim.check_invariants(), "Masse nach dem Entfernen")
 
 
@@ -105,7 +107,7 @@ func test_ai_buys_a_worker_and_remote_does_not() -> void:
 
 func test_energy_reaches_only_the_owning_core() -> void:
 	var sim := _match(MatchRules.VICTORY_ELIMINATION)
-	var gate := SacrificeSystem.delivery_cells(sim.world, sim.rules.cores[1])[0]
+	var gate := sim.construction.receivers(sim, 1)[0]
 	sim.rules.ai_upgrades[0].energy = 0
 	sim.upgrades.energy = 0
 	sim.energy_dots.enqueue(gate, 1, 1)
@@ -113,7 +115,7 @@ func test_energy_reaches_only_the_owning_core() -> void:
 	check_eq(sim.rules.ai_upgrades[0].energy, 1, "die KI bekommt den eigenen Dot")
 	check_eq(sim.upgrades.energy, 0, "der Spieler bekommt ihn nicht")
 	var other := _match(MatchRules.VICTORY_ELIMINATION)
-	var foreign := SacrificeSystem.delivery_cells(other.world, other.rules.cores[1])[0]
+	var foreign := other.construction.receivers(other, 1)[0]
 	other.energy_dots.enqueue(foreign, 1, 0)
 	other.tick_once()
 	check_eq(other.upgrades.energy, 0, "ein fremder Kern schreibt nichts gut")
@@ -192,7 +194,7 @@ func test_match_world_drops_the_old_center_and_splits_mass() -> void:
 	check_eq(sim.rules.relic_cell.size(), 5, "fünf Reliquien")
 	for cell in sim.rules.relic_cell:
 		check_eq(sim.world.cells[cell], Materials.EMPTY, "Reliquie %d ist frei" % cell)
-	check_eq(sim.world.indestructible_count, 2, "nur die beiden Basiskerne")
+	check_eq(sim.world.indestructible_count, 50, "zwei Kerne mit je 25 Zellen")
 	check_eq(sim.faction_mass(0), 1, "eigene Masse")
 	check_eq(sim.opponent_mass(), 1, "Masse der KI")
 	check_no_errors(sim.check_invariants(), "Bilanzen")
@@ -327,9 +329,13 @@ func _count(sim: Simulation, faction: int) -> int:
 
 
 func _free_gate(sim: Simulation, core: int) -> int:
-	for cell in SacrificeSystem.delivery_cells(sim.world, core):
-		if sim.workers.is_free(cell):
-			return cell
+	for cell in sim.construction.receivers_for(sim, sim.construction.at(core)):
+		if not sim.workers.is_free(cell): continue
+		var contested := false
+		for direction in range(1, 5):
+			var next := MovementSystem.neighbor(cell, direction, sim.world.width, sim.world.cell_count())
+			if next >= 0 and sim.workers.occupant[next] >= 0: contested = true
+		if not contested: return cell
 	return -1
 
 
