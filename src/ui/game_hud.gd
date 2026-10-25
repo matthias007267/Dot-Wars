@@ -160,7 +160,7 @@ static func pointer_gesture(button: int, ctrl: bool, dragged: bool) -> int:
 func issue_march(cell: int) -> bool:
 	if sim == null or cell < 0 or cell >= sim.world.cell_count():
 		return false
-	var site: int = sim.construction.at(cell)
+	var site: int = sim.construction.at(cell) if not sim._match_live() or sim.fog.is_visible(0, cell) else -1
 	if site >= 0 and sim.construction.assign_repair(sim, site, selection) > 0:
 		_notice("Arbeiter reparieren: bis zu 2 HP für 1 Energie je 4 Takte (Testwerte).")
 		return true
@@ -516,6 +516,8 @@ func _build_upgrade_panel(layer: Control) -> void:
 
 
 func _build_minimap(layer: Control) -> void:
+	# The existing minimap consumes the unfiltered world texture; suppress it until fog-aware.
+	if sim != null and sim._match_live(): return
 	if renderer == null or camera == null:
 		return
 	var frame := _panel(layer)
