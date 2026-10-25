@@ -39,7 +39,7 @@ static func snapshot(sim: Simulation) -> Dictionary:
 			"mask": (sim.areas.masks[g] as PackedByteArray).duplicate(),
 		})
 	return {
-		"construction": sim.construction.snapshot(sim), "resume": Resume.snapshot(sim), "version": VERSION, "army": sim.army.snapshot(), "worker_losses": sim.worker_losses,
+		"fog": sim.fog.snapshot() if sim._match_live() else {}, "construction": sim.construction.snapshot(sim), "resume": Resume.snapshot(sim), "version": VERSION, "army": sim.army.snapshot(), "worker_losses": sim.worker_losses,
 		"seed": sim.config.world_seed,
 		"mode": sim.config.mode,
 		"ai_count": sim.config.ai_count,
@@ -302,6 +302,12 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 		else:
 			var pit := sim.pit_index()
 			if pit >= 0 and world.cells[pit] == Materials.INDESTRUCTIBLE: sim.construction.initial(sim, pit, 0, true)
+	if sim._match_live():
+		sim.fog.setup(sim.world, sim.rules.faction_count)
+		if data.has("fog"):
+			if not data.fog is Dictionary or not sim.fog.restore(data.fog, sim.world, sim.rules.faction_count): return null
+		else:
+			sim.fog.update(sim)
 	if data.has("resume") and not Resume.restore(sim, data.resume): return null
 	if data.has("energy_transport") and not sim.energy_dots.restore_transport(data.energy_transport, sim): return null
 	if not sim.check_invariants().is_empty():
