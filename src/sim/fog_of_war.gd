@@ -46,7 +46,16 @@ func known_material(faction: int, cell: int) -> int:
 	return int(known_terrain[faction][cell]) if is_explored(faction, cell) else -1
 
 func known_building(faction: int, id: int) -> Dictionary:
+	if faction < 0 or faction >= factions: return {}
 	return known_sites[faction].get(id, {}).duplicate(true)
+
+func remembered_sites(faction: int) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if faction < 0 or faction >= factions: return result
+	for id in known_sites[faction]:
+		var row: Dictionary = known_sites[faction][id]
+		if not bool(row.get("destroyed", false)): result.append(row.duplicate(true))
+	return result
 
 func update(sim: Simulation) -> void:
 	if factions != sim.rules.faction_count or width != sim.world.width or height != sim.world.height:
@@ -83,7 +92,7 @@ func update(sim: Simulation) -> void:
 			if visible[faction][cell] == 0: continue
 			explored[faction][cell] = 1
 			known_terrain[faction][cell] = sim.world.cells[cell]
-		# Enemy site snapshots change only while at least one footprint cell is visible.
+		# Snapshot updates only while a footprint is in view; unseen destruction remains unknown.
 		for row in sim.construction.sites.records:
 			var id := int(row.id)
 			var rect: Rect2i = row.rect
@@ -93,6 +102,19 @@ func update(sim: Simulation) -> void:
 					if visible[faction][y * width + x] == 1: seen = true
 			if seen:
 				known_sites[faction][id] = row.duplicate(true)
+		# Sites absent from live records must not remain visible after their footprint is revisited.
+		for id in known_sites[faction].keys():
+			var present := false
+			for row in sim.construction.sites.records:
+				if int(row.id) == int(id): present = true
+			if present: continue
+			var old: Dictionary = known_sites[faction][id]
+			var footprint: Rect2i = old.get("rect", Rect2i())
+			var revisited := false
+			for y in range(maxi(0, footprint.position.y), mini(height, footprint.end.y)):
+				for x in range(maxi(0, footprint.position.x), mini(width, footprint.end.x)):
+					if visible[faction][y * width + x] == 1: revisited = true
+			if revisited: known_sites[faction].erase(id)
 
 func _reveal(mask: PackedByteArray, blocking: PackedByteArray, origin: int, radius: int) -> void:
 	if origin < 0 or origin >= mask.size(): return
