@@ -23,6 +23,7 @@ var core_mask := PackedByteArray()
 var building_mask := PackedByteArray()
 ## Non-blocking overlay; no terrain texture rebuild for conduit placement.
 var energy_network: EnergyNetwork
+var energy_sim: Simulation
 var _network_revision := -1
 var preview_cells := PackedInt32Array()
 var preview_remove := false
@@ -106,11 +107,26 @@ func _draw_energy_network() -> void:
 		var p := Vector2(cell % energy_network.width, cell / energy_network.width)
 		draw_rect(Rect2(p, Vector2.ONE), Color(1.0, 0.3, 0.25, 0.75) if preview_remove else Color(0.3, 1.0, 0.8, 0.7))
 
+func _draw_powered_research() -> void:
+	if energy_sim == null or not world_fx_enabled or camera == null or camera.zoom.x < PIT_GLOW_MIN_ZOOM: return
+	var pulse := 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * 0.008)
+	for row in energy_sim.construction.sites.records:
+		if row.destroyed or not row.ready or row.kind != 3: continue
+		if not energy_sim.research.is_powered(int(row.id), energy_sim.tick_count): continue
+		var rect: Rect2i = row.rect
+		var center := Vector2(rect.position) + Vector2(rect.size) * 0.5
+		var radius := float(maxi(rect.size.x, rect.size.y)) * 0.72
+		var tint := Color(0.25, 0.85, 1.0, 0.13 + 0.1 * pulse)
+		draw_circle(center, radius, tint)
+		draw_arc(center, radius, 0.0, TAU, 24, Color(0.35, 0.9, 1.0, 0.35 + 0.3 * pulse), 0.16, true)
+
+
 func _draw() -> void:
 	if _texture == null:
 		return
 	_draw_pit_glow()
 	_draw_energy_network()
+	_draw_powered_research()
 	if show_chunks:
 		_draw_chunks()
 	if show_grid:
