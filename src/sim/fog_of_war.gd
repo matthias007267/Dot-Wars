@@ -16,6 +16,8 @@ var known_sites: Array[Dictionary] = []
 var alliance := PackedInt32Array()
 var _last_signature := -1
 var _last_terrain_signature := -1
+var _sight_cache: Dictionary = {}
+var _blocker_signature := -1
 
 func setup(world: WorldState, count: int) -> void:
 	_last_signature = -1
