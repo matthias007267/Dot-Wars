@@ -18,10 +18,16 @@ Branch: `feat/p5-fog-visibility-foundation`, Draft PR #7.
 1. **Wichtig:** Fog-Overlay überdeckt Terrain, aber der ursprüngliche WorldRenderer nutzt weiterhin echte Daten. Auch Marker, HUD, Auswahl-/Order-Overlay und andere Ausgabekanäle müssen vollständig auf Informationslecks geprüft werden. Sichtgefilterte Terrain- und Minimap-Texturen statt nur Overlay sind das Ziel.
 2. Gebäude-Snapshots und Zeichnung gegen Bau-/Zerstörungs- und Sichtwechsel testen. Unbekannte Gebäude dürfen niemals in anderen Overlays/Markern erscheinen.
 3. Fog-Minimap zeigt Terrainwissen; bekannte Gebäudemarker, eigene Einheiten und Kamerafenster sinnvoll ergänzen. Große Textur-Uploads reduzieren.
-4. **Performance:** Unveränderte Fog-Frames und doppelte Sichtquellen werden übersprungen. Bei Sichtwechseln bleiben dichte Arrays, Sichtlinien je unterschiedlicher Quelle und zwei volle Texturuploads bestehen; Dirty-Regionen/Chunks und Profiling sind noch nicht implementiert.
+4. **Performance:** Unveränderte Fog-Frames, identische Sichtquellen und vollständig unveränderte Simulations-Sichtzustände werden übersprungen. Die Signaturprüfung scannt weiterhin Terrain/Quellen; bei Sichtwechseln bleiben volle Sichtarrays und zwei volle Texturuploads. Dirty-Regionen/Chunks und reale Profiling-Messwerte fehlen.
 5. Sicherstellen, dass **keine** unbekannten Gegner-/Ressourcen-/Gebäudedaten über Interaktionen, HUD, KI oder späteren Netzwerkverkehr offengelegt werden. Serverautoritatives Sichtfilter-Protokoll separat designen.
-6. Godot-Parser, alle Tests, Match-Screenshot, Save/Load-Regressionen und Windows/Linux-CI ausführen. GitHub Actions läuft automatisch; noch keine lokale Godot-Ausführung durch den Assistenten.
+6. Godot-Parser, alle Tests, Match-Screenshot, Save/Load-Regressionen und Windows/Linux-CI ausführen. Der zuvor geprüfte Actions-Job war abgebrochen; für die jüngsten Commits war noch kein Lauf abrufbar. Lokal ist keine Godot-Binärdatei verfügbar.
 7. Sichtquellen/Reichweiten sind vorläufig. Sensorgebäude und Forschung bleiben außerhalb dieses Teil-PRs.
 
 ## Work-Prüfauftrag
 PR #7 auschecken; Godot headless import und komplette Tests ausführen; Fehler beheben; mindestens zwei Fraktionen mit Mauern/Terrain-Sichtblockern, beweglichen Dots, zerstörten Gebäuden und Save/Load visuell testen; prüfen, ob gegnerische Informationen im sichtbaren Client erscheinen; CPU-Zeit und Upload-Kosten bei 128², 512² und 1024² mit wachsenden Dot-Zahlen messen; vor Merge alle Sicherheits- und Performance-Blocker beheben.
+
+## Ergänzung: weitere Arbeiten im PR
+- Sichtzustandssignatur überspringt die gesamte LOS-Berechnung bei unverändertem Terrain, Einheitenpositionen, Gebäudestatus und Allianzen; Geländeänderungen invalidieren sie.
+- Mehrzellige Worker werden pro Pixel an Sicht und Kartengrenzen abgeschnitten.
+- Neue Tests für unveränderte Updates und Sichtcache-Invalidierung.
+- **Nicht als erledigt markieren:** Chunk-/Dirty-Rect-Rendering, skalierbares Quellen-Caching, belastbare 1k/10k-Dot-Benchmarks, vollständiger Audit aller HUD/AI/Netzwerk-Ausgabekanäle, visuelle Godot-Abnahme und grüner CI-Lauf.
