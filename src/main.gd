@@ -295,21 +295,10 @@ func _preview_drag(screen: Vector2) -> void:
 
 
 func _energy_network_path(from_screen: Vector2, to_screen: Vector2) -> PackedInt32Array:
-	var result := PackedInt32Array()
-	var a := _cell_at(from_screen)
-	var b := _cell_at(to_screen)
-	if a.x < 0 or b.x < 0: return result
-	# Direct orthogonal corridor; intermediate mouse positions are ignored.
-	var x := a.x
-	var y := a.y
-	while x != b.x:
-		if world.in_bounds(x, y): result.append(world.index(x, y))
-		x += 1 if x < b.x else -1
-	while y != b.y:
-		if world.in_bounds(x, y): result.append(world.index(x, y))
-		y += 1 if y < b.y else -1
-	if world.in_bounds(x, y): result.append(world.index(x, y))
-	return result
+	var start := _cell_at(from_screen)
+	var finish := _cell_at(to_screen)
+	if start.x < 0 or finish.x < 0: return PackedInt32Array()
+	return sim.energy_network.plan_path(sim, 0, world.index(start.x, start.y), world.index(finish.x, finish.y))
 
 
 func _finish_pointer(event: InputEventMouseButton) -> void:
