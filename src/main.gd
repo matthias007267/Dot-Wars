@@ -181,8 +181,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion and _pressing:
 		if hud != null and hud.energy_network_active() and _press_button == MOUSE_BUTTON_LEFT:
-			_draw_energy_network_segment(_press_at, event.position)
-			_press_at = event.position
+			if renderer != null: renderer.set_energy_preview(_energy_network_path(_press_at, event.position))
 			return
 		_preview_drag(event.position)
 		return
@@ -191,8 +190,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		if event.pressed:
 			if hud != null and hud.energy_network_active() and event.button_index == MOUSE_BUTTON_LEFT:
-				var conduit_cell := _cell_at(event.position)
-				if conduit_cell.x >= 0: hud.place_energy_network_cell(world.index(conduit_cell.x, conduit_cell.y))
+				if renderer != null: renderer.set_energy_preview(_energy_network_path(event.position, event.position))
 			_press_button = event.button_index
 			_press_at = event.position
 			_press_ctrl = event.ctrl_pressed
@@ -202,7 +200,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif _pressing and event.button_index == _press_button:
 			_pressing = false
 			if hud != null and hud.energy_network_active() and event.button_index == MOUSE_BUTTON_LEFT:
-				_draw_energy_network_segment(_press_at, event.position)
+				sim.energy_network.place_path(sim, 0, _energy_network_path(_press_at, event.position))
+				if renderer != null: renderer.set_energy_preview(PackedInt32Array())
+				return
+			if hud != null and hud.demolition_active() and event.button_index == MOUSE_BUTTON_LEFT:
+				var target := _cell_at(event.position)
+				if target.x >= 0: hud.demolish_at(world.index(target.x, target.y))
 				return
 			_finish_pointer(event)
 		return
@@ -210,6 +213,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.keycode == KEY_E and hud != null and not hud.menu_open():
 		hud.toggle_energy_network()
+		if renderer != null: renderer.set_energy_preview(PackedInt32Array())
+	elif event.keycode == KEY_Q and hud != null and not hud.menu_open():
+		hud.toggle_demolition()
+		if renderer != null: renderer.set_energy_preview(PackedInt32Array())
 	elif event.keycode == KEY_G and renderer != null:
 		renderer.show_grid = not renderer.show_grid
 		renderer.queue_redraw()
@@ -287,29 +294,23 @@ func _preview_drag(screen: Vector2) -> void:
 	orders.drag_rect = rect
 
 
-func _draw_energy_network_segment(from_screen: Vector2, to_screen: Vector2) -> void:
-	if hud == null or not hud.energy_network_active(): return
+func _energy_network_path(from_screen: Vector2, to_screen: Vector2) -> PackedInt32Array:
+	var result := PackedInt32Array()
 	var a := _cell_at(from_screen)
 	var b := _cell_at(to_screen)
-	if a.x < 0 or b.x < 0: return
-	# Bresenham rasterizes mouse movement without leaving gaps on fast drags.
+	if a.x < 0 or b.x < 0: return result
+	# Direct orthogonal corridor; intermediate mouse positions are ignored.
 	var x := a.x
 	var y := a.y
-	var dx := absi(b.x - a.x)
-	var dy := -absi(b.y - a.y)
-	var sx := 1 if x < b.x else -1
-	var sy := 1 if y < b.y else -1
-	var err := dx + dy
-	while true:
-		if world.in_bounds(x, y): hud.place_energy_network_cell(world.index(x, y))
-		if x == b.x and y == b.y: break
-		var twice := 2 * err
-		if twice >= dy:
-			err += dy
-			x += sx
-		if twice <= dx:
-			err += dx
-			y += sy
+	while x != b.x:
+		if world.in_bounds(x, y): result.append(world.index(x, y))
+		x += 1 if x < b.x else -1
+	while y != b.y:
+		if world.in_bounds(x, y): result.append(world.index(x, y))
+		y += 1 if y < b.y else -1
+	if world.in_bounds(x, y): result.append(world.index(x, y))
+	return result
+
 
 func _finish_pointer(event: InputEventMouseButton) -> void:
 	if orders != null:
