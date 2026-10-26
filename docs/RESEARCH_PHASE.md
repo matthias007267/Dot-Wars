@@ -34,3 +34,27 @@ Status: Planung auf eigenem Branch. **Keine neuen Technologie- oder Balancingwer
 - Freischaltungen für Außenposten, Mauern, Energiefarmen, Abfangstationen und Sensoren sowie deren Einordnung.
 
 **Abgrenzung:** P6 ersetzt weder den bestehenden Forschungssieg noch führt es ungefragt neue Gebäude oder Kampfmechaniken ein. P5-Livetests bleiben ein separater Abnahmepunkt.
+
+## Entscheidung 2026-10-26: Bestehende Sofort-Upgrades ersetzen
+
+Der Nutzer bestätigt die vier Forschungszweige **Wirtschaft, Militär, Infrastruktur, Energietechnik** und verlangt ausdrücklich, dass die bisherigen Upgrades/Forschungen durch das neue zeitbasierte System **ersetzt** werden, nicht daneben bestehen bleiben. Zunächst vorhandene Fähigkeiten in einen erweiterbaren Baum einordnen, danach weitere Technologien gemeinsam brainstormen und erst nach Freigabe vollständig implementieren.
+
+### Migrationsinventar (vorläufige Zweigzuordnung, noch nicht freigegeben)
+| Bestehender Code | Vorschlag für Forschungsbaum | Bestehende Grenzen |
+| --- | --- | --- |
+| KIND_DIG / dig_level | Wirtschaft: Abbaueffizienz | aktuell kein festes Maximum |
+| KIND_SWARM / swarm_level | Wirtschaft: Schwarmkoordination | 4 Stufen |
+| KIND_SPEED / speed_level | Infrastruktur: Arbeiterbewegung | 5 Stufen |
+| KIND_FUSION2 / fusion2 | Infrastruktur: Verschmelzung II | einmalig; aktuell nicht über try_buy kaufbar |
+| KIND_FUSION3 / fusion3 | Infrastruktur: Verschmelzung III | einmalig, erfordert II |
+| KIND_CORE / core_level | Infrastruktur: Kerntechnologie | 4 Stufen; Legacy-Kernmechanik gesondert prüfen |
+| KIND_ENERGY_SPEED / energy_speed_level | Energietechnik: Energietransport | 5 Stufen |
+| KIND_RESEARCH / research_level | Forschungssieg als Technologie-/Siegpfad neu definieren | bisher 5 sofort gekaufte Stufen; nicht unverändert übernehmen |
+
+**Migrationsanforderung:** Alle bisherigen Upgrade-Knöpfe und unmittelbaren Käufe im normalen Spiel durch Forschungsaufträge ersetzen; bestehende Effekte dürfen intern vorübergehend dieselben Upgrade-Felder nutzen, solange nur das Forschungssystem diese verändert. KI, UI, Simulation, Save/Load und Forschungssieg müssen konsistent migriert werden. Debug/Testlabor-Funktionen gesondert erhalten, sofern sie nicht normale Forschung umgehen. Altspielstände explizit migrieren oder nachvollziehbar zurückweisen.
+
+### Erweiterbarkeit
+Technologien datengetrieben durch stabile String-IDs und Definitionen (Zweig, Name, Voraussetzungen, Stufen, Kostenformel, Dauerformel, Effekt-ID, Zielgebäude) modellieren. Ein generischer, fraktionsbezogener Scheduler übernimmt Start, Vorauszahlung, parallele Ausführung und Abschluss. Effekt-Handler bleiben explizit registriert und validiert; keine dynamische Ausführung aus Daten. UI und KI lesen denselben Katalog. Neue Technologien sollen ohne Änderung an Scheduler, Save-Schema oder Forschungsbaum-UI ergänzbar sein.
+
+### Noch offen
+Die Zweigzuordnung, neue Technologien, konkrete Kosten, Dauer, Voraussetzungen, Abbruch-/Erstattungsregeln und der neue Forschungssieg sind vor Gameplay-Implementierung gemeinsam festzulegen.
