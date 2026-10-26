@@ -4,7 +4,7 @@
 
 Dieser Abgleich verwendet den tatsächlichen Repository-Stand: `main` bei `058f012` (P5/PR #7 gemergt), P6-Ausgangsstand `29acce3` auf `feat/p6-research-foundation` in Draft-PR [#8](https://github.com/matthias007267/Dot-Wars/pull/8) und die hier dokumentierte Testmigration. PR #8 bleibt Draft und wird nicht gemergt.
 
-Der Chat **„Abbausystem überdenken“ ist in dieser Sitzung nicht direkt zugänglich**. Grundlage sind deshalb die daraus bereits versionierten Regeln in GAME_DESIGN, CONCEPT_SYNC, den Phasenberichten und insbesondere die neuesten Nutzerentscheidungen in RESEARCH_PHASE. Dies ist keine Behauptung eines vollständigen Abgleichs mit einer nicht vorliegenden Chat-To-do-Liste. Nachgereichte Chat-Punkte müssen ergänzt werden.
+Der Chat **„Abbausystem überdenken“ ist in dieser Sitzung nicht direkt zugänglich**. Nachgereicht wurden jedoch `DOT_WARS_Vision_und_Roadmap_2026-10-26.md` und die Zusammenfassung aus dem Chat. Damit liegen die 17 Kapitel und alle 80 To-dos als Soll-Grundlage vor. Der vollständige ID-für-ID-Abgleich steht in [VISION_TODO_AUDIT_2026-10-26.md](VISION_TODO_AUDIT_2026-10-26.md); die folgenden Tabellen fassen ihn zusammen. Versionierte Regeln und insbesondere die jüngsten P6-Entscheidungen wurden damit abgeglichen. Vorschläge und offene Regeln bleiben ohne neue Freigabe offen.
 
 `CONCEPT_SYNC.md`, `ROADMAP.md`, `FOG_PHASE.md`, `AGENTS.md` und der Anfang von `RESEARCH_PHASE.md` enthalten historische Statusaussagen. Beispielsweise ist P5 bereits gemergt, obwohl FOG_PHASE noch einen Draft nennt. Für P6 sind die jüngsten Entscheidungen maßgeblich: Forschungsgebäude, Energieverbrauch während der Tätigkeit und physische Versorgung über explizite Leitungen ersetzen die frühere globale Sofort-/Vorauszahlungslogik. Die Überschrift des bisherigen PRs beschrieb nur die erste Planung, nicht dessen inzwischen implementierten Umfang.
 
@@ -69,7 +69,7 @@ timeout 600s godot --headless --path . -s tests/run_tests.gd -- --no-native
 timeout 30s godot --headless --path . --quit-after 8
 ```
 
-Lokaler Abschluss dieser Änderung:
+Lokaler vollständiger Abschluss bei Commit `3612986` (vor dem ergänzenden Zerstörungs-Regressionsfall aus A-03):
 
 | Prüfung | Tatsächliches Ergebnis |
 | --- | --- |
@@ -83,3 +83,10 @@ Lokaler Abschluss dieser Änderung:
 Exitstatus und Skript-/Parserfehler werden separat ausgewertet. Erwartete Negativtests ungültiger Weltkonfigurationen dürfen Fehlermeldungen schreiben; sie sind keine unbeachteten Skriptfehler. Der verbindliche neue GitHub-Actions-Nachweis und dessen geprüfter Commit werden nach dem Push im PR-Abschlussprotokoll und in der Aufgabenantwort festgehalten. Ein grüner lokaler Lauf wird nicht als bereits erfolgreicher GitHub-Lauf ausgegeben.
 
 Keine visuellen Windows-/Godot-Livetests, keine neuen 1k/10k-Performance- oder Multiplayernachweise. P6 bleibt ein begrenzter Prototyp mit offenen Punkten aus obiger Tabelle; grüne CI wäre keine Abnahme der gesamten Vision.
+
+
+### Bestätigter GitHub-Abschluss und nachgereichte Vision
+
+[Actions-Lauf 40333687469](https://github.com/matthias007267/Dot-Wars/actions/runs/40333687469) für `3612986044a58bf0a437d2a7061836fbf02770c9`: **success**. Nativer Build, Import, komplette native Suite (**314 / 33.680 / 0**), kompletter Fallback (**314 / 30.386 / 0**) und Hauptszene wurden sämtlich erfolgreich beendet; keine Schritte übersprungen.
+
+Anschließend lieferte der Nutzer die vollständige Vision mit 80 To-dos nach. [VISION_TODO_AUDIT_2026-10-26.md](VISION_TODO_AUDIT_2026-10-26.md) gleicht jede ID gegen Code, Tests und verbleibende Abnahme ab. Ergänzt wurde der in A-03 ausdrücklich genannte Zerstörungsfall: ein aktives Forschungszentrum mit bezahlter Sendung wird zerstört; Auftrag, Puffer und Sendung verschwinden ohne Technologie oder doppelte Energie, ein neuer Auftrag wird abgelehnt, der Zustand bleibt speicherbar. Die gezielte P6-Suite besteht nun aus **15 Tests / 214 Prüfungen / 0 Fehler**. Der ergänzende Commit wird nochmals durch den vollständigen Actions-Workflow geprüft; dessen tatsächlicher Abschluss steht im PR-Abschlussprotokoll.

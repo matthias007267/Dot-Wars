@@ -230,3 +230,6 @@ The remaining maintenance regression for legacy core repair no longer assumes in
 Der aktuelle Auftrag vervollständigt die Testmigration direkt auf `feat/p6-research-foundation`, erhält gültige Regressionen und behebt nachgewiesene Implementierungsfehler. Er stellt keine alte Sofortkauf-Kompatibilität wieder her und führt keinen weiteren Forschungs-/Gebäudekatalog ein. PR #8 bleibt Draft, kein Merge.
 
 [STATUS_AUDIT_2026-10-26.md](STATUS_AUDIT_2026-10-26.md) dokumentiert die Ursachen des zuvor abgebrochenen CI-Laufs, die Änderungen je Datei, die neuen Nachweise und die noch offenen Visionspunkte. Insbesondere sind nicht alle P6.1–P6.6-Abnahmekriterien durch die vorhandene Implementierung abgedeckt; CI-Erfolg ersetzt weder Live-Abnahme noch fehlende Funktionen. Der endgültige Actions-Link und Commit werden im PR-Abschlussprotokoll festgehalten.
+
+
+Die nachgereichte vollständige Vision ist jetzt ID-für-ID in [VISION_TODO_AUDIT_2026-10-26.md](VISION_TODO_AUDIT_2026-10-26.md) abgeglichen. Run [40333687469](https://github.com/matthias007267/Dot-Wars/actions/runs/40333687469) bestätigt Build, Import, beide vollständigen 314-Test-Suiten und Hauptszene für `3612986`. Der ergänzende Forschungszentrum-Zerstörungsfall besteht in der gezielten 15-Test-Suite und erhält einen erneuten vollständigen CI-Lauf. Keine nachgelagerte Vision-Phase wird dadurch gestartet.

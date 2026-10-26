@@ -294,3 +294,27 @@ func test_ai_plans_paid_research_center_before_outpost() -> void:
 	var site := sim.construction.sites.records.size() - 1
 	sim.run_ticks(700)
 	check(sim.construction.sites.records[site].ready, "Arbeiter bauen Forschungszentrum fertig")
+
+func test_destroyed_center_cancels_jobs_without_unlocking_or_duplicating_energy() -> void:
+	var sim := _sim()
+	var site := _center(sim)
+	if site < 0: return
+	var path := _connect(sim, site)
+	check(not path.is_empty(), "Netz")
+	if path.is_empty(): return
+	check(sim.research.start(sim, 0, site, "dig"), "Auftrag")
+	sim.run_ticks(8)
+	check(not sim.research.shipments.is_empty(), "bezahlte Sendung unterwegs")
+	sim.research.deliver(site)
+	sim.construction.damage(sim, site, 200)
+	var before := sim.upgrades.energy
+	sim.tick_once()
+	check(sim.research.jobs.is_empty(), "zerstörtes Zentrum verliert Auftrag")
+	check(sim.research.shipments.is_empty(), "kein Transport an zerstörtes Zentrum")
+	check(not sim.research.supply.has(site), "kein Puffer am zerstörten Zentrum")
+	check_eq(sim.research.level(0, "dig"), 0, "kein kostenloser Abschluss")
+	check_eq(sim.upgrades.dig_level, 0, "kein Effekt")
+	check_eq(sim.upgrades.energy, before, "keine doppelte Gutschrift oder weiterer Versand")
+	check(not sim.research.start(sim, 0, site, "dig"), "keine neue Forschung am zerstörten Zentrum")
+	var loaded := SaveGame.from_bytes(SaveGame.to_bytes(sim))
+	check(loaded != null, "abgebrochener Forschungszustand speicherbar")
