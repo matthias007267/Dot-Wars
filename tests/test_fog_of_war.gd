@@ -66,3 +66,39 @@ func test_snapshot_roundtrip_preserves_exploration() -> void:
 	var invalid := fog.snapshot()
 	invalid["factions"] = 3
 	check(not copy.restore(invalid, sim.world, 2), "mismatched faction count rejected")
+
+func test_enemy_building_memory_is_frozen_outside_sight() -> void:
+	var sim := _sim()
+	var fog := Fog.new()
+	fog.setup(sim.world, 2)
+	var enemy_id := -1
+	for row in sim.construction.sites.records:
+		if int(row.owner) == 1:
+			enemy_id = int(row.id)
+			break
+	check(enemy_id >= 0, "enemy has an initial core")
+	if enemy_id < 0: return
+	var site: Dictionary = sim.construction.sites.records[enemy_id]
+	var footprint: Rect2i = site.rect
+	var first_cell := footprint.position.y * sim.world.width + footprint.position.x
+	check(fog.known_building(0, enemy_id).is_empty(), "unseen enemy core not known")
+	# Directly set a sight mask to verify knowledge without needing a moving unit.
+	fog.visible[0][first_cell] = 1
+	fog.known_sites[0][enemy_id] = site.duplicate(true)
+	var previous := fog.known_building(0, enemy_id)
+	site.hp -= 10
+	check_eq(fog.known_building(0, enemy_id).hp, previous.hp, "enemy HP stays frozen")
+	fog.visible[0][first_cell] = 0
+	check_eq(fog.remembered_sites(0).size(), 1, "previously seen site remains in memory")
+	fog.known_sites[0][enemy_id].destroyed = true
+	check_eq(fog.remembered_sites(0).size(), 0, "confirmed destroyed site not rendered")
+
+func test_no_unexplored_material_or_site_leak() -> void:
+	var sim := _sim()
+	var fog := Fog.new()
+	fog.setup(sim.world, 2)
+	var unseen := 0
+	check_eq(fog.known_material(0, unseen), -1, "unknown terrain has no material")
+	check(not fog.is_explored(0, unseen), "unknown terrain not explored")
+	check(fog.remembered_sites(0).is_empty(), "no enemy site data before discovery")
+	check(fog.known_building(-1, 0).is_empty(), "invalid viewer has no site knowledge")
