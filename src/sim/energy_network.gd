@@ -44,6 +44,51 @@ func place_path(sim: Simulation, faction: int, path: PackedInt32Array) -> int:
 		if place(sim, faction, cell): placed += 1
 	return placed
 
+func plan_path(sim: Simulation, faction: int, start: int, goal: int) -> PackedInt32Array:
+	var result := PackedInt32Array()
+	if start < 0 or goal < 0 or start >= width * height or goal >= width * height: return result
+	if not _placeable(sim, faction, start) or not _placeable(sim, faction, goal): return result
+	# Dijkstra: existing owned conduits are free, new cells cost one.
+	# Stable neighbor ordering ensures reproducible routes and previews.
+	var costs := PackedInt32Array()
+	costs.resize(width * height)
+	costs.fill(2147483647)
+	var parents := PackedInt32Array()
+	parents.resize(width * height)
+	parents.fill(-1)
+	var visited := PackedByteArray()
+	visited.resize(width * height)
+	var frontier: Array[Vector2i] = [Vector2i(0, start)]
+	costs[start] = 0
+	while not frontier.is_empty():
+		var best := 0
+		for i in range(1, frontier.size()):
+			if frontier[i].x < frontier[best].x or (frontier[i].x == frontier[best].x and frontier[i].y < frontier[best].y): best = i
+		var current: int = frontier[best].y
+		frontier.remove_at(best)
+		if visited[current] != 0: continue
+		visited[current] = 1
+		if current == goal: break
+		for next in neighbors(current):
+			if visited[next] != 0 or not _placeable(sim, faction, next): continue
+			var cost := costs[current] + (0 if owner_at(next) == faction else 10) + 1
+			if cost < costs[next]:
+				costs[next] = cost
+				parents[next] = current
+				frontier.append(Vector2i(cost, next))
+	if costs[goal] == 2147483647: return result
+	var cursor := goal
+	while cursor >= 0:
+		result.append(cursor)
+		cursor = parents[cursor]
+	result.reverse()
+	return result
+
+func _placeable(sim: Simulation, faction: int, cell: int) -> bool:
+	if cell < 0 or cell >= width * height: return false
+	if owner_at(cell) == faction: return true
+	return owner_at(cell) < 0 and sim.world.cells[cell] == Materials.EMPTY and sim.construction.at(cell) < 0 and not sim.buildings.occupies(cell)
+
 func connected_path(sim: Simulation, faction: int, source: int, target: int) -> PackedInt32Array:
 	var empty := PackedInt32Array()
 	if source < 0 or target < 0 or source >= width * height or target >= width * height: return empty
