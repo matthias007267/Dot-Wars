@@ -5,6 +5,7 @@ extends Control
 
 var world: WorldState
 var renderer: WorldRenderer
+var fog_view: FogOverlay
 var camera: CameraController
 
 var _elapsed := 0.0
@@ -29,7 +30,7 @@ func _draw() -> void:
 		return
 	var area := Rect2(Vector2.ZERO, size)
 	draw_rect(area, Materials.BACKDROP, true)
-	var texture := renderer.current_texture()
+	var texture := fog_view.minimap_texture() if fog_view != null else renderer.current_texture()
 	if texture == null:
 		return
 	# Weltverhältnis statt verzerrter Darstellung.
