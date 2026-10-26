@@ -62,6 +62,7 @@ var _buy_worker_button: Button
 var _repair_button: Button
 var _cancel_build_button: Button
 var _interceptor_button: Button
+var _research_center_button: Button
 var _pause_button: Button
 var _speed_button: Button
 var _swarm_ids: Array[int] = []
@@ -509,6 +510,8 @@ func _build_upgrade_panel(layer: Control) -> void:
 	_research_button = _button(content, "FORSCHUNG", func() -> void: _buy(Upgrades.KIND_RESEARCH))
 	_research_button.custom_minimum_size = Vector2(310, 34)
 	_research_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_label(content, "FORSCHUNGSGEBÄUDE", 12, UiTheme.MUTED)
+	_research_center_button = _button(content, "FORSCHUNGSZENTRUM BAUEN · 300", _begin_settlement.bind(3))
 	_label(content, "ENERGIETRANSPORT", 12, UiTheme.MUTED)
 	_interceptor_button = _button(content, "ABFANGSTATION BAUEN · 250", _begin_settlement.bind(2))
 	_build_caption = _label(content, "BAUEN", 12, UiTheme.MUTED)
@@ -1312,6 +1315,9 @@ func _cancel_selected() -> void:
 	refresh()
 
 func _refresh_build_actions() -> void:
+	if _research_center_button != null:
+		_research_center_button.disabled = sim.upgrades.energy < sim.construction.price(3, 0)
+		_research_center_button.tooltip_text = "Forschungszentrum: 3×3, 200 HP, 300 Energie, 300 Arbeitertakte. Von Anfang an baubar; Forschungsaufträge folgen in P6.2."
 	if _interceptor_button != null:
 		_interceptor_button.disabled = not sim.construction.interceptors_unlocked or sim.upgrades.energy < 250
 		_interceptor_button.tooltip_text = "Test: 3×3, 150 HP, 250 Energie, 300 Arbeitertakte. Abfangen am freien Rand; Freischaltung derzeit nur im Testlabor."
