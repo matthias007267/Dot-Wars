@@ -20,6 +20,8 @@ var _last_terrain_signature := -1
 func setup(world: WorldState, count: int) -> void:
 	_last_signature = -1
 	_last_terrain_signature = -1
+	_sight_cache.clear()
+	_blocker_signature = -1
 	width = world.width
 	height = world.height
 	factions = count
@@ -86,6 +88,10 @@ func update(sim: Simulation) -> void:
 	blocking.resize(sim.world.cell_count())
 	for cell in blocking.size():
 		blocking[cell] = 1 if sim.world.cells[cell] != Materials.EMPTY or sim.construction.at(cell) >= 0 else 0
+	var blocker_signature := hash(blocking)
+	if blocker_signature != _blocker_signature:
+		_sight_cache.clear()
+		_blocker_signature = blocker_signature
 	var own_sight: Array[PackedByteArray] = []
 	for faction in factions:
 		var mask := PackedByteArray()
@@ -100,7 +106,7 @@ func update(sim: Simulation) -> void:
 			var key := Vector3i(owner, cell, WORKER_RADIUS)
 			if not seen_sources.has(key):
 				seen_sources[key] = true
-				_reveal(own_sight[owner], blocking, cell, WORKER_RADIUS)
+				_reveal_cached(own_sight[owner], blocking, cell, WORKER_RADIUS)
 	for id in sim.army.count:
 		var owner := int(sim.army.owners[id])
 		if owner >= 0 and owner < factions:
@@ -108,7 +114,7 @@ func update(sim: Simulation) -> void:
 			var key := Vector3i(owner, cell, WARRIOR_RADIUS)
 			if not seen_sources.has(key):
 				seen_sources[key] = true
-				_reveal(own_sight[owner], blocking, cell, WARRIOR_RADIUS)
+				_reveal_cached(own_sight[owner], blocking, cell, WARRIOR_RADIUS)
 	for row in sim.construction.sites.records:
 		if row.destroyed or not row.ready: continue
 		var owner := int(row.owner)
@@ -117,7 +123,7 @@ func update(sim: Simulation) -> void:
 			var key := Vector3i(owner, cell, CORE_RADIUS)
 			if not seen_sources.has(key):
 				seen_sources[key] = true
-				_reveal(own_sight[owner], blocking, cell, CORE_RADIUS)
+				_reveal_cached(own_sight[owner], blocking, cell, CORE_RADIUS)
 	for faction in factions:
 		visible[faction].fill(0)
 		for ally in factions:
@@ -151,6 +157,21 @@ func update(sim: Simulation) -> void:
 				for x in range(maxi(0, footprint.position.x), mini(width, footprint.end.x)):
 					if visible[faction][y * width + x] == 1: revisited = true
 			if revisited: known_sites[faction].erase(id)
+
+func _reveal_cached(mask: PackedByteArray, blocking: PackedByteArray, origin: int, radius: int) -> void:
+	var key := Vector2i(origin, radius)
+	if not _sight_cache.has(key):
+		var cells := PackedByteArray()
+		cells.resize(blocking.size())
+		_reveal(cells, blocking, origin, radius)
+		_sight_cache[key] = cells
+	var cached: PackedByteArray = _sight_cache[key]
+	var x0 := origin % width
+	var y0 := origin / width
+	for y in range(maxi(0, y0 - radius), mini(height, y0 + radius + 1)):
+		for x in range(maxi(0, x0 - radius), mini(width, x0 + radius + 1)):
+			var index := y * width + x
+			if cached[index] == 1: mask[index] = 1
 
 func _reveal(mask: PackedByteArray, blocking: PackedByteArray, origin: int, radius: int) -> void:
 	if origin < 0 or origin >= mask.size(): return
@@ -210,4 +231,6 @@ func restore(data: Dictionary, world: WorldState, count: int) -> bool:
 	alliance = a.duplicate()
 	_last_signature = -1
 	_last_terrain_signature = -1
+	_sight_cache.clear()
+	_blocker_signature = -1
 	return true
