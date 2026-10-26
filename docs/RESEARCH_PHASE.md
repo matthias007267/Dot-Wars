@@ -192,3 +192,10 @@ Beim Beginn Status auf `IN PROGRESS` setzen; bei Abschluss `CODE COMPLETE` erst 
 - KI baut derzeit keine Leitungen und kann Forschungszentren daher nicht versorgen. KI-Planung und Netzpfade nachrüsten.
 - Performance: `connected_path` ist aktuell einfache BFS mit linearem `owner_at`; für viele Leitungen/Sendungen gecachte, inkrementelle Netzgraphen und Wegfindung einplanen.
 - **Kein Godot-/CI-Test durchgeführt**; P6.3 bleibt `IN PROGRESS`, keinesfalls `CODE COMPLETE`. Work soll bestehende Dateien prüfen und gezielt ergänzen, nicht neu bauen.
+
+### P6.3 – Energienetz kostenlos und ohne Arbeiter (Nutzerentscheidung 2026-10-26)
+**Neue verbindliche Regeln (ersetzen vorherige Prototypkosten):** Platzierung einer Energieleitung kostet **0 Energie**, benötigt **keine Arbeiter**, ist ausschließlich auf freiem Terrain ohne bestehende Gebäude/Bauplatz zulässig, darf aber mit aktuell dort befindlichen Arbeiter-/Krieger-Dots überlagert werden. Das Netz **blockiert keine Dots** und verändert nicht die Wegfindung oder Kollision. Mehrere Leitungszellen bilden durch orthogonale Nachbarschaft ein Netz; gebäudegebundener Transport bleibt auf vorhandene Leitungszellen begrenzt.
+
+**Codeänderungen:** `EnergyNetwork.COST = 0`, `place` prüft Terrain, Bauplätze, Produktionsgebäude, fremde/bestehende Leitungen, **nicht** Dot-Belegung; kein Wallet-Abzug (`0e7e33c`). HUD-Leitungswerkzeug mit wiederholter Einzelklick-Platzierung und kostenloser Beschriftung (`c7545bb`); `WorldRenderer` zeichnet platzierte Leitungen als farbige, nicht kollidierende Overlay-Zellen ohne Terrain-Textur-Upload; Redraw nur bei Netzrevision (`5958707`, `864e165`).
+
+**Unverifiziert / Work:** Godot-Parser/CI, tatsächlich sichtbare Overlay-Schicht und Performance bei sehr großen Netzen, Klick/Drag-Platzierung, freie Zelle mit Dot, Bauplatz-Kollision, Netzpfad und Save/Load. Die Render-Schleife zeichnet momentan alle Leitungszellen ohne Viewport-Culling; für große Netze optimieren. Platzierung bisher durch wiederholte Klicks, noch **kein Ziehen zum Leitungsbau**. Versand-Dots in Leitungen werden noch nicht separat gerendert; diese Funktion fehlt weiterhin. P6.3 bleibt IN PROGRESS.
