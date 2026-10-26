@@ -124,6 +124,13 @@ func update(sim: Simulation) -> void:
 			if not seen_sources.has(key):
 				seen_sources[key] = true
 				_reveal_cached(own_sight[owner], blocking, cell, CORE_RADIUS)
+	# Evict masks for moved or removed sources; cache stays bounded by live origins.
+	var active_keys: Dictionary = {}
+	for source in seen_sources:
+		var key: Vector3i = source
+		active_keys[Vector2i(key.y, key.z)] = true
+	for key in _sight_cache.keys():
+		if not active_keys.has(key): _sight_cache.erase(key)
 	for faction in factions:
 		visible[faction].fill(0)
 		for ally in factions:
