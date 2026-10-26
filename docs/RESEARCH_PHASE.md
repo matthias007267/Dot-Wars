@@ -104,3 +104,18 @@ Die frühere Vorgabe D-048 „globale Forschung ohne Forschungsgebäude“ ist *
 ## Beschlossen: 60-Sekunden-Kulanz bei unterbrochenem Reliquien-Countdown (2026-10-26)
 
 Der Reliquiensieg benötigt weiterhin sämtliche Reliquien innerhalb der eigenen Basis für einen insgesamt zehnminütigen Sieg-Countdown. Wird die Bedingung unterbrochen (z. B. Diebstahl), **pausiert** der Sieg-Countdown sofort und eine **60-Sekunden-Unterbrechungsfrist** startet. Sind alle Reliquien **vor Ablauf** der 60 Sekunden wieder innerhalb der Basis, läuft der Sieg-Countdown **mit unverändertem Reststand** weiter. Besteht die Unterbrechung **mindestens 60 Sekunden**, wird der Sieg-Countdown vollständig auf 10:00 zurückgesetzt. Sind später wieder alle Reliquien in der Basis, startet ein neuer zehnminütiger Countdown. Eine Unterbrechung von genau 60 Sekunden zählt als Reset. Im HUD beide verbleibenden Zeiten anzeigen; die Relikt-Sichtbarkeit für alle Fraktionen soll während der laufenden Siegesphase und der Unterbrechung bestehen bleiben (Detail bei Umsetzung prüfen). Deterministisch über Simulationsticks und Save/Load abbilden.
+
+## Implementierungsbeschluss: P6 in inkrementellen Schritten (2026-10-26)
+
+**Start der Umsetzung jetzt; keine weitere umfassende Vorabplanung.** Die alte Sofortkauf-Forschungslogik wird ersetzt, nicht der Datenkatalog/Forschungsbaum mit vier Zweigen und Abhängigkeiten. Arbeitstitel des von Anfang an baubaren Gebäudes: **Forschungszentrum**.
+
+Reihenfolge für kleine testbare Änderungen:
+1. P6.1 Forschungszentrum als baubares Gebäude mit Auswahl-/Informations-UI; keine Fusion wieder einführen.
+2. P6.2 Zeitbasierte, gebäudegebundene Forschung pro Fraktion; mehrere Zentren können unabhängig parallel forschen; gemeinsamer Tech-Katalog, definierte Freischaltungen, deterministische Simulation, AI, Save/Load und Tests. Bestehende Sofortkauf-Upgrades vollständig migrieren/ersetzen.
+3. P6.3 Gebäude fordern Energie bedarfsbezogen an; sichtbare Energie-Dots transportieren Energie vom Kern/Netz zum Ziel. Unterversorgung pausiert Aufträge, keine kostenlose Forschung.
+4. P6.4 Aktivitätsglow nur bei tatsächlichem Verbrauch; optionale dauerhaft versorgte Gebäudebuffs mit kontinuierlichem Energiebedarf.
+5. P6.5 Visueller pixelartgerechter Forschungsbaum mit vier Zweigen, Zoom/Pan und Abhängigkeiten auf dem gemeinsamen Tech-Katalog.
+6. P6.6 Energienetz, Energieeffizienz und zusätzliche Gebäudetypen.
+7. Reliquien-Energieerzeugung, Transport/Diebstahl und neuer Siegmodus als eigenes nachgelagertes Arbeitspaket.
+
+Inkrementelle PRs mit Tests/CI, keine ungefragten Balancingzahlen, vorhandene Spielmechaniken möglichst stabil halten. Dies ist die Implementierungsreihenfolge, noch keine Behauptung, dass Code implementiert sei.
