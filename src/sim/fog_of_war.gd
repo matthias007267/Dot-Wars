@@ -14,8 +14,12 @@ var known_terrain: Array[PackedByteArray] = []
 var known_sites: Array[Dictionary] = []
 ## alliance[faction] = alliance id; default independent.
 var alliance := PackedInt32Array()
+var _last_signature := -1
+var _last_terrain_signature := -1
 
 func setup(world: WorldState, count: int) -> void:
+	_last_signature = -1
+	_last_terrain_signature = -1
 	width = world.width
 	height = world.height
 	factions = count
@@ -60,6 +64,24 @@ func remembered_sites(faction: int) -> Array[Dictionary]:
 func update(sim: Simulation) -> void:
 	if factions != sim.rules.faction_count or width != sim.world.width or height != sim.world.height:
 		setup(sim.world, sim.rules.faction_count)
+	# Deterministic state signature: unchanged unit positions, blockers, alliances and
+	# building state need no new LOS rays or player-knowledge updates.
+	var sources: Array = []
+	for id in sim.workers.count:
+		sources.append([int(sim.workers.faction[id]), int(sim.workers.cell[id]), WORKER_RADIUS])
+	for id in sim.army.count:
+		sources.append([int(sim.army.owners[id]), int(sim.army.cells[id]), WARRIOR_RADIUS])
+	var sites_state: Array = []
+	for row in sim.construction.sites.records:
+		sites_state.append([row.id, row.owner, row.rect, row.ready, row.destroyed, row.hp, row.work])
+		if not row.destroyed and row.ready:
+			sources.append([int(row.owner), sim.construction.center(int(row.id)), CORE_RADIUS])
+	var terrain_signature := hash(sim.world.cells)
+	var signature := hash([terrain_signature, sources, sites_state, alliance])
+	if signature == _last_signature and terrain_signature == _last_terrain_signature:
+		return
+	_last_signature = signature
+	_last_terrain_signature = terrain_signature
 	var blocking := PackedByteArray()
 	blocking.resize(sim.world.cell_count())
 	for cell in blocking.size():
@@ -186,4 +208,6 @@ func restore(data: Dictionary, world: WorldState, count: int) -> bool:
 		known_terrain[faction] = t[faction].duplicate()
 		known_sites[faction] = s[faction].duplicate(true)
 	alliance = a.duplicate()
+	_last_signature = -1
+	_last_terrain_signature = -1
 	return true
