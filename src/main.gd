@@ -117,6 +117,7 @@ func _attach(next: Simulation) -> void:
 	energy_view.energy = sim.energy_dots
 	workers_view = WorkerRenderer.new()
 	workers_view.world = world
+	workers_view.sim = sim
 	workers_view.workers = sim.workers
 	workers_view.colors = sim.group_colors
 	if sim._match_live():
@@ -133,6 +134,7 @@ func _attach(next: Simulation) -> void:
 	if sim._match_live():
 		fog_view = FogView.new()
 		fog_view.sim = sim
+		fog_view.cavern_style = renderer.world_fx_enabled
 		add_child(fog_view)
 	add_child(energy_view)
 	add_child(workers_view)

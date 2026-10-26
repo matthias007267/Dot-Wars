@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="SpriteAtlas" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/render/sprite_atlas.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/pixel/tactical_body.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/pixel/tactical_team.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+body = ExtResource("2")
+team_mask = ExtResource("3")
+cell_size = 16
+frames = 4
+frame_ticks = 4
+rows = {
+"research.idle": 0,
+"research.active": 1,
+"research.waiting": 2,
+"research.complete": 3,
+"research.construction": 4,
+"core": 5,
+"outpost": 6,
+"interceptor": 7,
+"network": 8,
+"repair": 9,
+"demolish": 10,
+"research_tree": 11,
+"pause": 12
+}

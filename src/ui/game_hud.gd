@@ -55,7 +55,7 @@ var _test_keys: Array[int] = []
 var _test_stats: Label
 var _perf_overlay: Label
 var _volume: HSlider
-var _dock_row: HBoxContainer
+var _dock_row: Container
 var selection := PackedInt32Array()
 var _buy_warrior_button: Button
 var _buy_worker_button: Button
@@ -87,6 +87,19 @@ var _demolition_mode := false
 var _size_buttons: Array[Button] = []
 var _map: WorldMinimap
 
+var _hud_root: Control
+var _bottom_strip: PanelContainer
+var _bottom_row: HBoxContainer
+var _map_slot: PanelContainer
+var _selection_slot: PanelContainer
+var _actions_slot: PanelContainer
+var _stats_slot: PanelContainer
+var _goals_slot: PanelContainer
+var _selection_caption: Label
+var _selection_detail: Label
+var _selection_cards: Array[TextureRect] = []
+var _unit_icons: Array[Texture2D] = []
+
 var _last_size_style := -1
 var _last_mine_area := Rect2i()
 
@@ -94,7 +107,8 @@ var _last_mine_area := Rect2i()
 func _ready() -> void:
 	var layer := Control.new()
 	layer.name = "HUD"
-	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_hud_root = layer
 	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(layer)
 
@@ -105,8 +119,17 @@ func _ready() -> void:
 	_build_upgrade_panel(layer)
 	_build_pause_menu(layer)
 	_build_minimap(layer)
+	get_viewport().size_changed.connect(_resize_hud)
+	_resize_hud()
 	refresh()
 
+
+func _resize_hud() -> void:
+	if _hud_root == null: return
+	var screen := get_viewport().get_visible_rect().size
+	var factor := clampf(minf(screen.x / 1920.0, screen.y / 1080.0), 0.5, 1.5)
+	_hud_root.scale = Vector2.ONE * factor
+	_hud_root.size = screen / factor
 
 func select_in_rect(rect: Rect2i) -> void:
 	if sim == null:
@@ -355,10 +378,12 @@ func refresh() -> void:
 		_pause_button.text = "WEITER" if clock.paused else "PAUSE"
 	_speed_button.text = "%d×" % clock.speed
 	_buy_worker_button.disabled = not sim.can_buy_worker() or sim.upgrades.energy < Simulation.WORKER_COST or sim.construction.production_site(0, _production_site()) < 0
-	_buy_worker_button.text = "ARBEITER %d/50  ·  10" % sim.worker_population()
+	_buy_worker_button.text = "ARBEITER
+%d/50 · 10 E" % sim.worker_population()
 	if _buy_warrior_button != null:
 		_buy_warrior_button.disabled = sim.upgrades.energy < ArmyState.COST or sim.construction.production_site(0, _production_site()) < 0
-		_buy_warrior_button.text = "KRIEGER %d  ·  %d" % [sim.army.population(0), ArmyState.COST]
+		_buy_warrior_button.text = "KRIEGER
+%d · %d E" % [sim.army.population(0), ArmyState.COST]
 
 	_refresh_build_actions()
 	_refresh_selection()
@@ -393,47 +418,81 @@ func _build_perf_overlay(layer: Control) -> void:
 	_perf_overlay.visible = false
 
 
-func _build_stats(layer: Control) -> void:
-	var card := _panel(layer)
-	card.position = Vector2(16, 16)
-	card.custom_minimum_size = Vector2(270, 0)
-	var content := _column(card, 8)
-	var title := _label(content, "DOT WARS", 25, UiTheme.ACCENT)
-	title.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.6))
-	var sub := _label(content, "SCHWARMSTATUS", 11, UiTheme.MUTED)
-	sub.add_theme_font_size_override("font_size", 11)
+func _ensure_bottom(layer: Control) -> void:
+	if _bottom_strip != null: return
+	_bottom_strip = _panel(layer)
+	_bottom_strip.name = "TacticalDock"
+	_bottom_strip.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_bottom_strip.offset_left = 10
+	_bottom_strip.offset_right = -10
+	_bottom_strip.offset_top = -236
+	_bottom_strip.offset_bottom = -10
+	_bottom_row = HBoxContainer.new()
+	_bottom_row.add_theme_constant_override("separation", 8)
+	_bottom_strip.add_child(_bottom_row)
+	_map_slot = _panel(_bottom_row)
+	_map_slot.custom_minimum_size = Vector2(216, 0)
+	_selection_slot = _panel(_bottom_row)
+	_selection_slot.custom_minimum_size = Vector2(282, 0)
+	_actions_slot = _panel(_bottom_row)
+	_actions_slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_stats_slot = _panel(_bottom_row)
+	_stats_slot.custom_minimum_size = Vector2(260, 0)
+	_goals_slot = _panel(_bottom_row)
+	_goals_slot.custom_minimum_size = Vector2(242, 0)
+	var selected := _column(_selection_slot, 7)
+	_selection_caption = _label(selected, "AUSWAHL · KEINE EINHEITEN", 13, UiTheme.ACCENT)
+	var portraits := HBoxContainer.new()
+	portraits.add_theme_constant_override("separation", 5)
+	selected.add_child(portraits)
+	_unit_icons = [TacticalArt.icon("worker"), TacticalArt.icon("warrior")]
+	for i in 7:
+		var card := TextureRect.new()
+		card.custom_minimum_size = Vector2(30, 38)
+		card.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		card.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		card.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		card.modulate = Color(0.25, 0.38, 0.44)
+		portraits.add_child(card)
+		_selection_cards.append(card)
+	_selection_detail = _label(selected, "Linksklick / Ziehen: auswählen
+Rechtsklick: Marschbefehl", 12, UiTheme.MUTED)
+	_selection_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var controls := HBoxContainer.new()
+	selected.add_child(controls)
+	var pause := _button(controls, "MENÜ", toggle_pause_menu)
+	pause.tooltip_text = "Escape · Pause, Speichern, Laden, Einstellungen"
+	_pause_button = _button(controls, "PAUSE", func() -> void: clock.paused = not clock.paused; refresh())
+	_speed_button = _button(controls, "1×", _cycle_speed)
 
-	var mass := _stat_row(content, "Masse", UiTheme.ACCENT, 100)
+func _build_stats(layer: Control) -> void:
+	_ensure_bottom(layer)
+	var content := _column(_stats_slot, 4)
+	_label(content, "DOT WARS  /  VERSORGUNG", 13, UiTheme.ACCENT)
+	var mass := _stat_row(content, "Arbeiter", UiTheme.ACCENT, 100)
 	_mass_value = mass[0]
 	_mass_bar = mass[1]
 	var energy := _stat_row(content, "Energie", Color8(0x53, 0xC7, 0xFF), 250)
 	_energy_value = energy[0]
 	_energy_bar = energy[1]
-	var mined := _stat_row(content, "Abgebaut", Materials.COLORS[Materials.SOFT], 100)
+	var mined := _stat_row(content, "Abbau", Materials.COLORS[Materials.SOFT], 100)
 	_mined_value = mined[0]
 	_mined_bar = mined[1]
-	var kern := _stat_row(content, "Kern", Materials.PIT_COLOR, Upgrades.CORE_MAX)
+	var kern := _stat_row(content, "Standort", Materials.PIT_COLOR, Upgrades.CORE_MAX)
 	_kern_value = kern[0]
 	_kern_bar = kern[1]
 	_kern_value.custom_minimum_size.x = 78
-
-	_message = _label(content, _opening_hint(), 12, UiTheme.MUTED)
+	_message = _label(content, _opening_hint(), 11, UiTheme.MUTED)
 	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_approach = _label(content, "", 12, UiTheme.ACCENT)
-	_approach.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_approach = _label(content, "", 11, UiTheme.ACCENT)
 	_approach.visible = false
-	_opponent_value = _label(content, "", 12, Color8(0xFF, 0x7A, 0x59))
+	_opponent_value = _label(content, "", 11, Color("e5866e"))
 	_opponent_value.visible = false
 
-
 func _build_goals(layer: Control) -> void:
-	var card := _panel(layer)
-	card.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	card.offset_left = -332
-	card.offset_right = -16
-	card.offset_top = 16
-	card.offset_bottom = 300
-	var content := _column(card, 9)
+	_ensure_bottom(layer)
+	var card := _goals_slot
+	var content := _column(card, 4)
 	_goal_heading = _label(content, "RÄUMUNG", 16, UiTheme.TEXT)
 
 	var mass := _objective(content, "100 Masse", UiTheme.ACCENT, 100)
@@ -468,41 +527,44 @@ func _build_report(layer: Control) -> void:
 		_report_labels.append(_label(content, "", 13, UiTheme.TEXT))
 
 
+func _command_button(parent: Node, title: String, kind: String, action: Callable) -> Button:
+	var button := _button(parent, title, action)
+	button.icon = TacticalArt.icon(kind)
+	button.add_theme_font_size_override("font_size", 11)
+	button.custom_minimum_size = Vector2(134, 46)
+	button.focus_mode = Control.FOCUS_NONE
+	return button
+
 func _build_dock(layer: Control) -> void:
-	var bottom := CenterContainer.new()
-	bottom.anchor_left = 0.0
-	bottom.anchor_right = 1.0
-	bottom.anchor_top = 1.0
-	bottom.anchor_bottom = 1.0
-	bottom.offset_top = -92
-	bottom.offset_bottom = -12
-	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layer.add_child(bottom)
-	var dock := _panel(bottom)
-	var buttons := HBoxContainer.new()
-	buttons.add_theme_constant_override("separation", 7)
-	dock.add_child(buttons)
-	_dock_row = buttons
-
-	_buy_worker_button = _button(buttons, "ARBEITER +10", _buy_worker)
-	_buy_worker_button.focus_mode = Control.FOCUS_NONE
-	_buy_worker_button.tooltip_text = "10 Energie. Start am gewählten fertigen eigenen Kern/Außenposten; gemeinsame Grenze 50."
-
-	_divider(buttons)
-	_buy_warrior_button = _button(buttons, "KRIEGER · 20", func() -> void: sim.buy_warrior(0, _production_site()); refresh())
-	_buy_warrior_button.focus_mode = Control.FOCUS_NONE
-	_buy_warrior_button.tooltip_text = "20 Energie, 1 Sekunde (vorläufig). Produktion am gewählten fertigen eigenen Kern/Außenposten."
-
-	_divider(buttons)
-	_button(buttons, "KERN BAUEN", _begin_settlement.bind(0))
-	_button(buttons, "AUSSENPOSTEN", _begin_settlement.bind(1))
-	_repair_button = _button(buttons, "REPARIEREN", _repair_selected)
-	_cancel_build_button = _button(buttons, "BAU ABBRECHEN", _cancel_selected)
-	var upgrades := _button(buttons, "FÄHIGKEITEN", _toggle_upgrades)
-	upgrades.tooltip_text = "Fähigkeiten kaufen. Weitere Zweige bleiben in diesem Fenster."
-	_speed_button = _button(buttons, "1×", _cycle_speed)
-	_speed_button.tooltip_text = "Wechselt zwischen 1×, 2× und 4×. Escape öffnet das Menü."
-
+	_ensure_bottom(layer)
+	var content := _column(_actions_slot, 5)
+	_label(content, "BAUEN & BEFEHLE", 13, UiTheme.MUTED)
+	var grid := GridContainer.new()
+	grid.columns = 4
+	_dock_row = grid
+	grid.add_theme_constant_override("h_separation", 5)
+	grid.add_theme_constant_override("v_separation", 5)
+	content.add_child(grid)
+	_buy_worker_button = _command_button(grid, "ARBEITER
+10 Energie", "worker", _buy_worker)
+	_buy_worker_button.tooltip_text = "10 Energie · gewählter fertiger Kern/Außenposten · maximal 50 je Spieler"
+	_buy_warrior_button = _command_button(grid, "KRIEGER
+20 Energie", "warrior", func() -> void: sim.buy_warrior(0, _production_site()); refresh())
+	_command_button(grid, "KERN
+500 Energie", "core", _begin_settlement.bind(0))
+	_command_button(grid, "AUSSENPOSTEN", "outpost", _begin_settlement.bind(1))
+	_research_center_button = _command_button(grid, "FORSCHUNG
+Zentrum · 300", "research", _begin_settlement.bind(3))
+	_interceptor_button = _command_button(grid, "ABFANGEN
+Station · 250", "interceptor", _begin_settlement.bind(2))
+	_command_button(grid, "LEITUNGEN
+E", "network", toggle_energy_network)
+	_repair_button = _command_button(grid, "REPARIEREN", "repair", _repair_selected)
+	_command_button(grid, "ABRISS
+Q", "demolish", toggle_demolition)
+	_cancel_build_button = _command_button(grid, "BAU ABBRECHEN", "demolish", _cancel_selected)
+	_command_button(grid, "TECHNOLOGIE
+Forschungsbaum", "research_tree", _toggle_upgrades)
 
 func _build_upgrade_panel(layer: Control) -> void:
 	var center := CenterContainer.new()
@@ -542,10 +604,10 @@ func _build_upgrade_panel(layer: Control) -> void:
 		_research_tech_ids.append(tech)
 		_research_tech_buttons.append(_research_tree_view.buttons[tech])
 	_label(content, "FORSCHUNGSGEBÄUDE", 12, UiTheme.MUTED)
-	_research_center_button = _button(content, "FORSCHUNGSZENTRUM BAUEN · 300", _begin_settlement.bind(3))
+	if _research_center_button == null: _research_center_button = _button(content, "FORSCHUNGSZENTRUM BAUEN · 300", _begin_settlement.bind(3))
 	_label(content, "ENERGIENETZ", 12, UiTheme.MUTED)
 	_label(content, "ENERGIETRANSPORT", 12, UiTheme.MUTED)
-	_interceptor_button = _button(content, "ABFANGSTATION BAUEN · 250", _begin_settlement.bind(2))
+	if _interceptor_button == null: _interceptor_button = _button(content, "ABFANGSTATION BAUEN · 250", _begin_settlement.bind(2))
 	_build_caption = _label(content, "BAUEN", 12, UiTheme.MUTED)
 	_source_place_button = _build_button(content, _arm_source)
 	_source_tier_button = _build_button(content, _raise_source)
@@ -557,16 +619,12 @@ func _build_upgrade_panel(layer: Control) -> void:
 func _build_minimap(layer: Control) -> void:
 	if renderer == null or camera == null:
 		return
-	var frame := _panel(layer)
-	frame.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	frame.offset_left = -201
-	frame.offset_right = -16
-	frame.offset_top = -318
-	frame.offset_bottom = -112
+	_ensure_bottom(layer)
+	var frame := _map_slot
 	var content := _column(frame, 5)
 	_label(content, "ÜBERSICHT", 12, UiTheme.MUTED)
 	_map = WorldMinimap.new()
-	_map.custom_minimum_size = Vector2(164, 164)
+	_map.custom_minimum_size = Vector2(192, 168)
 	_map.world = sim.world
 	_map.renderer = renderer
 	_map.fog_view = fog_view
@@ -1013,6 +1071,17 @@ func _grouped(value: int) -> String:
 
 func _refresh_selection() -> void:
 	selection = sim.picked
+	if _selection_caption != null:
+		var workers_selected := 0
+		var warriors_selected := 0
+		for id in selection:
+			if id >= ArmyState.TAG: warriors_selected += 1
+			else: workers_selected += 1
+		_selection_caption.text = "AUSWAHL · %d EINHEIT%s" % [selection.size(), "" if selection.size() == 1 else "EN"]
+		_selection_detail.text = "%d Arbeiter  /  %d Krieger\nRechtsklick: Marsch · E: Netz · Q: Abriss" % [workers_selected, warriors_selected]
+		for i in _selection_cards.size():
+			_selection_cards[i].texture = _unit_icons[1 if i >= workers_selected else 0]
+			_selection_cards[i].modulate = Color.WHITE if i < selection.size() else Color(0.20, 0.32, 0.40)
 	var unit_size := 1
 	for group_id in sim.group_open.size():
 		if _available_for_work(group_id):

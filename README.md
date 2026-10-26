@@ -1,5 +1,9 @@
 # DOT WARS
 
+Die Grafik verwendet jetzt die bestätigten einfachen Quadrat-Einheiten: Arbeiter mit hellem Kern, Krieger mit dunklem Panzerrahmen und stets sichtbarem Teamrand. Drei verwandte Kriegergrafiken liegen im Katalog; reguläre Partien verwenden den bestehenden Basiskrieger. Die Einheiten drehen sich beim Arbeiten nicht. Weltgrafik und Menüporträts teilen die Assets; Forschungszentren behalten ihre sichtbaren Betriebszustände. Assetformat und Grafikprüfungen: [SPRITE_CATALOG.md](docs/SPRITE_CATALOG.md).
+
+Erste neue Höhlenoptik: texturierte Stein-/Tunneloberflächen, fraktionsbezogene Lichtfelder, metallische Gebäudesilhouetten, unterscheidbare Dot-Arten und eine gemeinsame untere Bau-/Infoleiste mit Minimap. Diese Darstellung baut auf PR #9 auf und ändert keine Spielregeln. Stand, Grenzen und Grafikprüfungen: [CAVERN_VISUALS.md](docs/CAVERN_VISUALS.md).
+
 P6-Folgeauftrag: KI-Netzversorgung, reguläre Außenposten-/Abfangstationsforschung, Energieeffizienz und grafischer Forschungsbaum. **E**: Leitungszug mit Vorschau, Platzierung beim Loslassen; **Q**: Leitungs-/Arbeiterabriss. Im Fähigkeitenfenster ein Forschungszentrum wählen, Knoten inspizieren und Forschung starten; Mausrad/−/+ zoomen, mittlere Maustaste verschiebt den Baum. Regeln, vorläufige Werte und Prüfungen: [P6_PLAYABLE_RESEARCH.md](docs/P6_PLAYABLE_RESEARCH.md). Historische Beschreibungen unten sind teilweise überholt.
 
 Prüfung des gesammelten Commitstands aus einem sauberen Export: [COMMIT_VALIDATION.md](docs/COMMIT_VALIDATION.md).
