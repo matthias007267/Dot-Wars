@@ -182,16 +182,12 @@ func test_double_speed_produces_about_forty_ticks_per_second() -> void:
 	check(ticks >= 38 and ticks <= 42, "2× ergibt etwa 40 Takte, erhalten %d" % ticks)
 
 
-func test_failed_purchase_keeps_energy() -> void:
+func test_legacy_direct_purchase_is_replaced_by_research() -> void:
 	var sim := _empty_sim()
-	sim.upgrades.energy = 10
-	check(not sim.buy(Upgrades.KIND_DIG), "zu wenig Energie")
-	check_eq(sim.upgrades.energy, 10, "Energie unverändert")
-	sim.upgrades.energy = 50
-	check(sim.buy(Upgrades.KIND_DIG), "Kauf")
-	check_eq(sim.upgrades.energy, 0, "Kosten abgezogen")
-	check_eq(sim.upgrades.purchased, 1, "gezählt")
-
+	sim.upgrades.energy = 1000
+	check(not sim.buy(Upgrades.KIND_DIG), "alte Sofortkäufe sind abgeschaltet")
+	check_eq(sim.upgrades.energy, 1000, "kein Energieabzug")
+	check_eq(sim.upgrades.dig_level, 0, "kein direkter Upgrade-Effekt")
 
 func test_old_clearing_goals_remain_disabled_even_when_all_are_met() -> void:
 	var sim := _empty_sim()

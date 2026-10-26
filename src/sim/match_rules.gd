@@ -128,8 +128,9 @@ func gates(sim: Simulation) -> Dictionary:
 		for faction in faction_count:
 			if alive[faction] == 0: continue
 			for cell in sim.construction.receivers(sim, faction):
-				cells.append(cell)
-				owners.append(faction)
+				if not cells.has(cell):
+					cells.append(cell)
+					owners.append(faction)
 		return {"cells": cells, "owners": owners}
 	var cells := PackedInt32Array()
 	var owners := PackedByteArray()
@@ -316,6 +317,12 @@ func _ai(sim: Simulation) -> void:
 			sim.buy_warrior(faction)
 
 
+func _research_site(sim: Simulation, faction: int) -> int:
+	for row in sim.construction.sites.records:
+		if not row.destroyed and row.ready and row.owner == faction and row.kind == 3:
+			return int(row.id)
+	return -1
+
 func _ai_easy(sim: Simulation, faction: int) -> void:
 	var group_id := group_of[faction]
 	var rects: Array = sim.areas.rects[group_id]
@@ -343,7 +350,7 @@ func _ai_normal(sim: Simulation, faction: int) -> void:
 		and research >= 0
 		and upgrades.energy >= research
 	):
-		if upgrades.try_buy(Upgrades.KIND_RESEARCH):
+		if sim.research.start(sim, faction, _research_site(sim, faction), "victory"):
 			return
 	if have < AI_CAP and upgrades.energy >= Simulation.WORKER_COST:
 		_buy_worker(sim, faction)
@@ -375,18 +382,18 @@ func _ai_hard(sim: Simulation, faction: int) -> void:
 		and research >= 0
 		and upgrades.energy >= research
 	):
-		if upgrades.try_buy(Upgrades.KIND_RESEARCH):
+		if sim.research.start(sim, faction, _research_site(sim, faction), "victory"):
 			return
 	if have < 6 and upgrades.energy >= Simulation.WORKER_COST:
 		if _buy_worker(sim, faction):
 			return
 	var dig := upgrades.dig_cost()
 	if upgrades.dig_level < 2 and dig >= 0 and upgrades.energy >= dig:
-		if upgrades.try_buy(Upgrades.KIND_DIG):
+		if sim.research.start(sim, faction, _research_site(sim, faction), "dig"):
 			return
 	var speed := upgrades.speed_cost()
 	if upgrades.speed_level < 1 and speed >= 0 and upgrades.energy >= speed:
-		if upgrades.try_buy(Upgrades.KIND_SPEED):
+		if sim.research.start(sim, faction, _research_site(sim, faction), "speed"):
 			return
 	if have < 10 and upgrades.energy >= Simulation.WORKER_COST:
 		_buy_worker(sim, faction)

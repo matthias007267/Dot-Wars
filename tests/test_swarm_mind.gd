@@ -115,44 +115,40 @@ func test_a_move_goal_keeps_the_shared_march() -> void:
 	check_no_errors(sim.check_invariants(), "Bilanz")
 
 
-func test_swarm_upgrade_is_bought_and_saved() -> void:
+func test_researched_swarm_effect_and_worker_wait_state_are_saved() -> void:
 	var config := TestHelpers.default_config()
-	config.world_size = 16
-	var sim := Simulation.create(config)
-	check(not sim.buy(Upgrades.KIND_SWARM), "ohne Energie kein Kauf")
-	sim.upgrades.energy = 39
-	check(not sim.buy(Upgrades.KIND_SWARM), "39 reichen nicht")
-	sim.upgrades.energy = 40
-	check(sim.buy(Upgrades.KIND_SWARM), "Stufe 1")
-	check_eq(sim.upgrades.swarm_level, 1, "Stufe")
-	check_eq(sim.upgrades.energy, 0, "bezahlt")
-	check_eq(sim.upgrades.purchased, 1, "zählt als Fähigkeit")
-	sim.upgrades.energy = 1000
-	for _i in 3:
-		check(sim.buy(Upgrades.KIND_SWARM), "weitere Stufe")
-	check(not sim.buy(Upgrades.KIND_SWARM), "Stufe 4 ist voll")
+	config.world_size = 32
+	var sim := Simulation.from_world(config, WorldState.new(32, 32, 8, Materials.EMPTY))
+	sim.upgrades.energy = 5000
+	var site := sim.construction.place(sim, 3, 100, PackedInt32Array())
+	check(site >= 0, "Forschungszentrum")
+	if site < 0: return
+	sim.construction.sites.contribute(site, 0, 300)
+	check(TestHelpers.complete_buffered_research(sim, site, "dig"), "Abbau als Voraussetzung erforscht")
+	for stage in Upgrades.SWARM_MAX:
+		check(TestHelpers.complete_buffered_research(sim, site, "swarm"), "Schwarmstufe erforscht")
+	check(not sim.research.start(sim, 0, site, "swarm"), "Stufe 4 ist voll")
 	check_eq(sim.upgrades.swarm_level, Upgrades.SWARM_MAX, "Anschlag")
 	sim.workers.aim[0] = sim.workers.cell[0]
 	sim.workers.idle_ticks[0] = 7
 	sim.workers.idle_cell[0] = sim.workers.cell[0]
 	var restored := SaveGame.from_bytes(SaveGame.to_bytes(sim))
 	check(restored != null, "Stand lesbar")
-	if restored == null:
-		return
-	check_eq(restored.upgrades.swarm_level, Upgrades.SWARM_MAX, "Stufe bleibt")
+	if restored == null: return
+	check_eq(restored.research.level(0, "swarm"), Upgrades.SWARM_MAX, "Forschungsstufe bleibt")
+	check_eq(restored.upgrades.swarm_level, Upgrades.SWARM_MAX, "Wirkung bleibt")
 	check_eq(restored.workers.idle_ticks[0], 7, "Wartezeit bleibt")
 	check_eq(restored.state_hash(), sim.state_hash(), "gleicher Zustand")
 	var hud := GameHud.new()
 	hud.sim = sim
+	sim.construction.selected = site
 	var layer := Control.new()
 	hud._build_upgrade_panel(layer)
-	hud._refresh_upgrades()
-	var label := ""
-	for index in hud._upgrade_kinds.size():
-		if hud._upgrade_kinds[index] == Upgrades.KIND_SWARM:
-			label = hud._upgrade_buttons[index].text
-	check(label.contains("INTELLIGENZ"), "Knopf im Fähigkeiten-Fenster")
-	check(label.contains("VOLL"), "volle Stufe")
+	hud._refresh_research()
+	var index := hud._research_tech_ids.find("swarm")
+	check(index >= 0, "Schwarmtechnologie im Baum")
+	check(hud._research_tech_buttons[index].text.contains("ABGESCHLOSSEN"), "volle Forschungsstufe angezeigt")
+	check(hud._research_tech_buttons[index].disabled, "keine weitere Stufe")
 	layer.free()
 	hud.free()
 

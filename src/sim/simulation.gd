@@ -20,6 +20,8 @@ const Construction = preload("res://src/sim/construction_system.gd")
 var construction: Construction = Construction.new()
 var buildings := Buildings.new()
 var rules := MatchRules.new()
+var research := ResearchSystem.new()
+var energy_network := EnergyNetwork.new()
 const Fog = preload("res://src/sim/fog_of_war.gd")
 var fog = Fog.new()
 var purchased_workers: int = 0
@@ -156,7 +158,9 @@ func tick_once() -> void:
 		)
 		rules.credit_energy(self, before)
 	else:
-		upgrades.energy += energy_dots.step(world, workers, energy_exits(), tick_count, upgrades.energy_period(), PackedByteArray(), PackedByteArray(), self)
+		var gates := energy_exits()
+		upgrades.energy += energy_dots.step(world, workers, gates, tick_count, upgrades.energy_period(), PackedByteArray(), PackedByteArray(), self)
+	research.step(self)
 	var mass_now := total_mass()
 	if mass_now > peak_mass:
 		peak_mass = mass_now
@@ -524,14 +528,14 @@ func check_invariants() -> PackedStringArray:
 func state_hash() -> int:
 	return hash([
 		tick_count,
-		world.state_hash(), army.state_hash(), worker_losses, construction.sites.state_hash(), hash(spawner.site_queue()),
+		world.state_hash(), army.state_hash(), worker_losses, construction.sites.state_hash(), hash(construction.demolitions), hash(spawner.site_queue()),
 		workers.state_hash(),
 		areas.state_hash(),
 		spawner.pending(),
 		energy_dots.state_hash(),
 		purchased_workers,
 		sacrificed_mass,
-		upgrades.state_hash(),
+		upgrades.state_hash(), research.state_hash(), energy_network.state_hash(),
 		config.mode,
 		config.ai_count,
 		config.victory_mask,
@@ -559,6 +563,8 @@ func _setup(
 	workers = WorkerStore.new(world.cell_count(), quotas.size(), world.width)
 	spawner = SpawnSystem.new(world.cell_count(), config.spawn_search_limit)
 	construction.setup(world, 1 + config.ai_count if config.mode == SimConfig.MODE_MATCH else 1)
+	energy_network.setup(world.width, world.height)
+	research.setup(1 + config.ai_count if config.mode == SimConfig.MODE_MATCH else 1)
 	for g in quotas.size():
 		fields.append(FlowField.new(world, areas, g))
 		_append_group_meta(g)
@@ -742,6 +748,8 @@ func debug_spawn_workers(want: int) -> int:
 
 
 func buy(kind: int) -> bool:
+	# Ordinary upgrades must be researched in a completed research center.
+	if not debug_mode: return false
 	if kind in [Upgrades.KIND_FUSION2, Upgrades.KIND_FUSION3]:
 		return false
 	if kind == Upgrades.KIND_RESEARCH:
@@ -763,6 +771,9 @@ func buy(kind: int) -> bool:
 ## Arbeiter werden ausschließlich gegen bereits gelieferte Energie gekauft.
 ## Der Spawn beginnt am zentralen Tunnel; die bestehende Warteschlange erhält die Masse.
 ## Setzt eine Quelle oder einen Veredler auf eine leere Tunnelzelle. Der Kern bleibt frei.
+func place_energy_conduit(cell: int, faction: int = 0) -> bool:
+	return energy_network.place(self, faction, cell)
+
 func place_building(kind: int, idx: int) -> bool:
 	if not buildings.allowed(config.mode, kind):
 		return false

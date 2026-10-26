@@ -110,106 +110,15 @@ func test_energy_save_roundtrip_preserves_in_transit_dots() -> void:
 	check_eq(restored.state_hash(), sim.state_hash(), "identischer Zustand")
 
 
-func test_core_upgrade_clears_the_gate_and_grows() -> void:
+func test_core_technology_cannot_be_bought_without_research() -> void:
 	var config := TestHelpers.default_config()
-	config.world_size = 32
-	config.initial_workers = 5
-	var sim := TestHelpers.legacy_core_sim(config)
-	check(sim != null, "Welt entsteht")
-	if sim == null:
-		return
-	var pit := WorldGenerator.sacrifice_cell(sim.world)
-	var gates := sim.energy_exits()
-	check(gates.size() >= 2, "mindestens zwei Zugänge zur Lichtung")
-	var spare: Array[int] = []
-	for id in sim.workers.count:
-		var on_gate := false
-		for gate in gates:
-			if sim.workers.cell[id] == gate:
-				on_gate = true
-		if not on_gate:
-			spare.append(id)
-	for gate in gates:
-		var taken := false
-		for id in sim.workers.count:
-			if sim.workers.cell[id] == gate:
-				taken = true
-		if taken:
-			continue
-		check(not spare.is_empty(), "ein Arbeiter kann den Zugang besetzen")
-		if spare.is_empty():
-			return
-		sim.workers.move_to(spare.pop_back(), gate, 0)
-	for gate_index in gates.size():
-		var gate_cell: int = gates[gate_index]
-		var group_id := mini(gate_index, sim.quotas.size() - 1)
-		for id in sim.workers.count:
-			if sim.workers.cell[id] == gate_cell and group_id > 0:
-				sim.workers.reassign_group(id, group_id)
-		sim.set_move_goal(group_id, gate_cell)
-	var source := sim.world.index(pit.x - 2, pit.y - 1)
-	check_eq(sim.world.cells[source], Materials.EMPTY, "Energiequelle liegt in der Startlichtung")
-	var count := 6
-	sim.energy_dots.enqueue(source, count)
-	sim.run_ticks(30)
-	check_eq(sim.energy_dots.delivered, 0, "belegte Zugänge lassen keine Energie durch")
-	var mined_before := sim.world.mined_count
-	var fraction_before := sim.world.mined_fraction()
-	sim.upgrades.energy = 0
-	check(not sim.buy(Upgrades.KIND_CORE), "ohne Energie kein Kern")
-	check_eq(sim.world.opened_count, 0, "fehlgeschlagener Kauf gräbt nicht")
-	sim.upgrades.energy = 120
-	check(sim.buy(Upgrades.KIND_CORE), "erste Stufe")
-	check_eq(sim.upgrades.core_level, 1, "Stufe 1")
-	check_eq(sim.upgrades.energy, 80, "40 Energie bezahlt")
-	check_eq(sim.upgrades.purchased, 1, "zählt als Fähigkeit")
-	check_eq(sim.world.mined_count, mined_before, "Kernfläche ist kein Abbau")
-	check(sim.world.opened_count > 0, "Ring wird geöffnet")
-	check_eq(sim.world.mined_fraction(), fraction_before, "Abbauanteil bleibt stabil")
-	for id in sim.workers.count:
-		check(sim.core_mask[sim.workers.cell[id]] == 0, "Arbeiter verlassen die Fläche")
-	_park_off_approach(sim, pit, source)
-	for _tick in 80:
-		sim.tick_once()
-		for id in sim.workers.count:
-			check(sim.core_mask[sim.workers.cell[id]] == 0, "Arbeiter betreten die Fläche nicht")
-	check_eq(sim.energy_dots.delivered, count, "danach kommt die Energie an")
-	check_eq(sim.energy_dots.pending(), 0, "nichts bleibt liegen")
-	check(sim.buy_worker(), "Arbeiter neben der Fläche")
-	sim.tick_once()
-	for id in sim.workers.count:
-		check(sim.core_mask[sim.workers.cell[id]] == 0, "neuer Arbeiter entsteht außerhalb")
-	var first_cells := 0
-	for flag in sim.core_mask:
-		first_cells += int(flag)
-	sim.upgrades.energy = 80
-	check(sim.buy(Upgrades.KIND_CORE), "zweite Stufe")
-	check_eq(sim.upgrades.core_level, 2, "Stufe 2")
-	check_eq(sim.upgrades.energy, 0, "80 Energie bezahlt")
-	check_eq(sim.upgrades.purchased, 2, "zweiter Kauf")
-	var second_cells := 0
-	for flag in sim.core_mask:
-		second_cells += int(flag)
-	check(second_cells > first_cells, "die Fläche wächst")
-	for id in sim.workers.count:
-		check(sim.core_mask[sim.workers.cell[id]] == 0, "auch die größere Fläche bleibt frei")
-	check_no_errors(sim.check_invariants(), "Bilanzen")
-	var restored := SaveGame.from_bytes(SaveGame.to_bytes(sim))
-	check(restored != null, "Speicherstand")
-	if restored == null:
-		return
-	check_eq(restored.upgrades.core_level, 2, "Stufe bleibt erhalten")
-	check_eq(restored.world.opened_count, sim.world.opened_count, "geöffnete Zellen bleiben")
-	check_eq(restored.state_hash(), sim.state_hash(), "identischer Zustand")
-	var data := SaveGame.snapshot(sim)
-	data.erase("core_level")
-	data.erase("opened")
-	var legacy := SaveGame.from_snapshot(data)
-	check(legacy != null, "ältere Version 2 bleibt ladbar")
-	if legacy == null:
-		return
-	check_eq(legacy.upgrades.core_level, 0, "fehlende Stufe ist null")
-	check_eq(legacy.world.opened_count, 0, "fehlende Öffnung ist null")
+	var sim := Simulation.from_world(config, WorldState.new(32, 32, 8, Materials.EMPTY))
+	sim.upgrades.energy = 1000
+	var before := sim.upgrades.energy
+	check(not sim.buy(Upgrades.KIND_CORE), "Kernausbau benötigt Forschungszentrum")
+	check_eq(sim.upgrades.core_level, 0, "kein sofortiger Ausbau")
+	check_eq(sim.upgrades.energy, before, "kein Kaufpreis abgezogen")
+	check(not sim.research.start(sim, 0, -1, "core"), "ohne Forschungszentrum kein Auftrag")
 
 
 func _park_off_approach(sim: Simulation, pit: Vector2i, source: int) -> void:
@@ -235,29 +144,21 @@ func _park_off_approach(sim: Simulation, pit: Vector2i, source: int) -> void:
 		cursor += 1
 
 
-func test_energy_starts_slow_and_each_purchase_is_faster() -> void:
+func test_researched_energy_transport_level_changes_movement_rate() -> void:
 	var upgrades := Upgrades.new()
 	check_eq(upgrades.energy_period(), 8, "Energie startet alle 8 Takte")
 	check_eq(upgrades.worker_period(8), 8, "Arbeiter starten alle 8 Takte")
-	check_eq(upgrades.energy_speed_cost(), 30, "erste Energiekosten")
-	check_eq(upgrades.speed_cost(), 25, "erste Arbeiterkosten")
-	upgrades.energy = 30
-	check(upgrades.try_buy(Upgrades.KIND_ENERGY_SPEED), "erste Energiestufe")
-	check_eq(upgrades.energy_period(), 6, "danach alle 6 Takte")
-	check_eq(upgrades.energy, 0, "30 Energie bezahlt")
 	var slow := _energy_run(0)
 	var fast := _energy_run(Upgrades.ENERGY_SPEED_MAX)
-	check(fast > slow, "höhere Stufe liefert in derselben Zeit mehr (%d > %d)" % [fast, slow])
-	var filled := Upgrades.new()
-	filled.energy = 10000
-	while filled.energy_speed_cost() >= 0:
-		check(filled.try_buy(Upgrades.KIND_ENERGY_SPEED), "weitere Energiestufe")
-	check_eq(filled.energy_period(), 1, "letzte Stufe ist ein Schritt je Takt")
-	check(not filled.try_buy(Upgrades.KIND_ENERGY_SPEED), "danach kein weiterer Kauf")
+	check(fast > slow, "erforschte höhere Stufe beschleunigt den Transport")
+	upgrades.energy_speed_level = 1
+	check_eq(upgrades.energy_period(), 6, "erste erforschte Stufe")
+	upgrades.energy_speed_level = Upgrades.ENERGY_SPEED_MAX
+	check_eq(upgrades.energy_period(), 1, "höchste Stufe")
 	var restored := SaveGame.from_bytes(SaveGame.to_bytes(_sim_with_energy_speed(3)))
-	check(restored != null, "Stufe wird gespeichert")
+	check(restored != null, "Forschungswirkung wird gespeichert")
 	if restored != null:
-		check_eq(restored.upgrades.energy_speed_level, 3, "Energiestufe bleibt erhalten")
+		check_eq(restored.upgrades.energy_speed_level, 3, "Wirkungsstufe bleibt erhalten")
 
 
 func _energy_run(level: int) -> int:

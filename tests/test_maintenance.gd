@@ -217,6 +217,10 @@ func test_ai_respects_research_lock_remote_control_and_manual_repair_rule() -> v
 func test_ai_expansion_selects_reachable_paid_site_and_does_not_change_player_selection() -> void:
 	var sim := _sim()
 	_ai_workers(sim)
+	var center := sim.construction.place(sim, 3, 400, PackedInt32Array(), 1)
+	check(center >= 0, "Forschungszentrum als bestehende KI-Infrastruktur")
+	if center < 0: return
+	sim.construction.sites.contribute(center, 1, 300)
 	sim.construction.outposts_unlocked = true
 	sim.construction.selected = 0
 	sim.tick_count = 1
@@ -258,6 +262,10 @@ func test_ai_rebuilds_lost_main_from_outpost_and_saves_until_affordable() -> voi
 func test_ai_replaces_lost_builders_and_can_buy_worker_for_stalled_main() -> void:
 	var sim := _sim()
 	_ai_workers(sim)
+	var center := sim.construction.place(sim, 3, 400, PackedInt32Array(), 1)
+	check(center >= 0, "Forschungszentrum als bestehende KI-Infrastruktur")
+	if center < 0: return
+	sim.construction.sites.contribute(center, 1, 300)
 	sim.construction.outposts_unlocked = true
 	sim.tick_count = 1
 	Planner.step(sim, 1)
@@ -283,7 +291,9 @@ func test_hud_explicit_repair_and_cancel_actions_use_current_selection() -> void
 	var worker := _worker(sim, 68)
 	var hud := GameHud.new()
 	hud.sim = sim
+	sim.fog.update(sim)
 	hud.select_at(68)
+	check_eq(hud.selection, PackedInt32Array([worker]), "sichtbarer Reparaturarbeiter gewählt")
 	hud.select_at(100)
 	hud._repair_selected()
 	check_eq(sim.workers.build_mode[worker], 1, "Reparaturbutton weist Arbeiter zu")
@@ -300,6 +310,10 @@ func test_ai_caps_and_builder_sizes_follow_difficulty_and_do_not_charge_at_cap()
 	for level in [SimConfig.DIFFICULTY_EASY, SimConfig.DIFFICULTY_NORMAL, SimConfig.DIFFICULTY_HARD]:
 		var sim := _sim()
 		_ai_workers(sim, 8)
+		var center := sim.construction.place(sim, 3, 400, PackedInt32Array(), 1)
+		check(center >= 0, "Forschungszentrum als bestehende KI-Infrastruktur")
+		if center < 0: return
+		sim.construction.sites.contribute(center, 1, 300)
 		sim.rules.difficulty[1] = level
 		sim.construction.outposts_unlocked = true
 		sim.tick_count = 1
@@ -380,18 +394,19 @@ func test_repair_approach_with_intelligence_four_resumes_exactly_after_loading()
 	check_no_errors(copy.check_invariants(), "Bilanzen")
 
 
-func test_legacy_upgraded_core_repairs_from_outside_reserved_energy_area() -> void:
+func test_legacy_core_repairs_without_obsolete_upgrade_purchase() -> void:
 	var config := TestHelpers.default_config()
 	config.world_size = 32
 	config.initial_workers = 5
 	var sim := TestHelpers.legacy_core_sim(config)
 	sim.upgrades.energy = 1000
-	check(sim.buy(Upgrades.KIND_CORE), "historischer Flächenausbau")
+	check(not sim.buy(Upgrades.KIND_CORE), "Kernausbau nicht mehr direkt kaufbar")
 	sim.construction.damage(sim, 0, 20)
 	var ids := PackedInt32Array()
 	for id in sim.workers.count: ids.append(id)
-	check(sim.construction.assign_repair(sim, 0, ids) > 0, "Altbau reparierbar")
+	check(sim.construction.assign_repair(sim, 0, ids) > 0, "Kern bleibt reparierbar")
 	for tick in 100:
 		sim.tick_once()
-		check_no_errors(sim.check_invariants(), "Reparatur betritt keine reservierte Kernzelle")
-	check_eq(sim.construction.sites.records[0].hp, 600, "Altbau vollständig repariert")
+		check_no_errors(sim.check_invariants(), "Reparatur wahrt Invarianten")
+	check_eq(sim.construction.sites.records[0].hp, 600, "Kern vollständig repariert")
+

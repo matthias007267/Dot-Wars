@@ -1,12 +1,12 @@
 extends TestCase
 const Fog = preload("res://src/sim/fog_of_war.gd")
 
-func _sim() -> Simulation:
+func _sim(workers := 1) -> Simulation:
 	var config := SimConfig.new()
 	config.world_size = 32
 	config.mode = SimConfig.MODE_MATCH
 	config.ai_count = 1
-	config.initial_workers = 1
+	config.initial_workers = workers
 	var sim := Simulation.from_world(config, WorldState.new(32, 32, 8, Materials.EMPTY))
 	sim.rules.control.fill(MatchRules.CONTROL_REMOTE)
 	return sim
@@ -104,20 +104,19 @@ func test_no_unexplored_material_or_site_leak() -> void:
 	check(fog.known_building(-1, 0).is_empty(), "invalid viewer has no site knowledge")
 
 func test_repeated_sight_origin_does_not_change_visibility() -> void:
-	var sim := _sim()
+	var sim := _sim(2)
 	var fog := Fog.new()
 	fog.setup(sim.world, 2)
 	fog.update(sim)
 	var before := fog.visible[0].duplicate()
-	# Duplicate a worker's vision source by moving an existing second worker,
-	# when available, to the same cell. Visibility must be deterministic.
-	if sim.workers.count < 2: return
+	# Deliberately duplicate only the vision source; occupancy is not under test.
 	var anchor := int(sim.workers.cell[0])
 	var other := -1
 	for id in range(1, sim.workers.count):
 		if sim.workers.faction[id] == sim.workers.faction[0]:
 			other = id
 			break
+	check(other >= 0, "zweite Sichtquelle derselben Fraktion")
 	if other < 0: return
 	var previous := sim.workers.cell[other]
 	sim.workers.cell[other] = anchor

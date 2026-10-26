@@ -77,3 +77,16 @@ static func legacy_core_sim(config: SimConfig) -> Simulation:
 	sim.peak_mass = sim.initial_mass
 	sim.max_units = sim.workers.count
 	return sim
+
+
+## Scheduler fixture with already delivered energy. Physical delivery is tested separately.
+## Bounded loop: a rejected start fails the test instead of hanging CI.
+static func complete_buffered_research(sim: Simulation, site: int, tech: String, faction := 0) -> bool:
+	if not sim.research.start(sim, faction, site, tech): return false
+	var cost := sim.research.details(tech, sim.research.level(faction, tech) + 1)
+	sim.research.supply[site] = int(sim.research.supply.get(site, 0)) + int(cost.energy)
+	var expected := sim.research.level(faction, tech) + 1
+	for tick in int(cost.ticks):
+		sim.tick_count += 1
+		sim.research.step(sim)
+	return sim.research.level(faction, tech) == expected

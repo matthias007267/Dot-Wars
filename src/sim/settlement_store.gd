@@ -1,7 +1,7 @@
 extends RefCounted
 ## Current construction phase: pure state for owned production buildings/sites.
 ## Geometry, prices, research and defeat policy are supplied by the controller.
-enum Kind { MAIN_CORE, OUTPOST, INTERCEPTOR }
+enum Kind { MAIN_CORE, OUTPOST, INTERCEPTOR, RESEARCH_CENTER }
 const PLANNED := 1
 const STARTED := 2
 const READY := 4
@@ -39,7 +39,7 @@ func space_free(rect: Rect2i) -> bool:
 	return true
 
 func add(kind: int, owner: int, rect: Rect2i, max_hp: int, initial_hp: int, required_work: int, finished: bool) -> int:
-	if kind < Kind.MAIN_CORE or kind > Kind.INTERCEPTOR or owner < 0 or owner >= faction_count: return -1
+	if kind < Kind.MAIN_CORE or kind > Kind.RESEARCH_CENTER or owner < 0 or owner >= faction_count: return -1
 	if max_hp <= 0 or initial_hp <= 0 or initial_hp > max_hp or required_work <= 0 or not space_free(rect): return -1
 	var id := records.size()
 	records.append({"id": id, "kind": kind, "owner": owner, "rect": rect, "hp": initial_hp,
@@ -94,7 +94,7 @@ func has_begun_core(owner: int) -> bool:
 func ready_sites(owner: int, production_only := true) -> PackedInt32Array:
 	var result := PackedInt32Array()
 	for id in records.size():
-		if records[id].owner == owner and phase(id) == READY and (not production_only or records[id].kind != Kind.INTERCEPTOR): result.append(id)
+		if records[id].owner == owner and phase(id) == READY and (not production_only or records[id].kind != Kind.INTERCEPTOR and records[id].kind != Kind.RESEARCH_CENTER): result.append(id)
 	return result
 
 func perimeter(id: int) -> PackedInt32Array:
@@ -124,7 +124,7 @@ func restore(data: Dictionary) -> bool:
 		for key in ["started", "ready", "destroyed"]:
 			if typeof(value.get(key)) != TYPE_BOOL: return false
 		if not value.get("rect") is Rect2i: return false
-		if value.id != candidate.records.size() or value.kind < Kind.MAIN_CORE or value.kind > Kind.INTERCEPTOR or value.owner < 0 or value.owner >= data.factions: return false
+		if value.id != candidate.records.size() or value.kind < Kind.MAIN_CORE or value.kind > Kind.RESEARCH_CENTER or value.owner < 0 or value.owner >= data.factions: return false
 		if not candidate.rect_inside(value.rect) or value.max_hp <= 0 or value.required <= 0 or value.work < 0 or value.work > value.required: return false
 		if value.started != (value.work > 0) or value.ready != (value.work == value.required): return false
 		if value.hp < 0 or value.hp > value.max_hp or value.destroyed != (value.hp == 0): return false

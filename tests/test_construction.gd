@@ -264,7 +264,9 @@ func test_building_hud_selects_origin_and_issues_real_worker_build_order() -> vo
 	var worker := _worker(sim, 68)
 	var hud := GameHud.new()
 	hud.sim = sim
+	sim.fog.update(sim)
 	hud.select_at(sim.workers.cell[worker])
+	check_eq(hud.selection, PackedInt32Array([worker]), "sichtbarer Arbeiter gewählt")
 	sim.construction.outposts_unlocked = true
 	hud._begin_settlement(1)
 	check(hud.issue_build(100), "Baustelle über echte HUD-Befehle")

@@ -1,5 +1,7 @@
 # Konzeptabgleich und spätere Anpassungen
 
+Aktueller Soll/Ist-Abgleich vom 26. Oktober 2026 einschließlich `main`/PR #8, P5/P6 und CI-Testmigration: [STATUS_AUDIT_2026-10-26.md](STATUS_AUDIT_2026-10-26.md). Die älteren Statusabschnitte unten sind historische Snapshots.
+
 Aktueller Nachtrag D-062: P4 Energie ist als begrenzter Prototyp ausdrücklich beauftragt und lokal umgesetzt: Routenverfall, Abfangstationen, unbegrenztes erneutes Abfangen, Neutralisierung bei Stationszerstörung und vollständige Transportbilanz. Ältere „fehlt“-Aussagen zu diesen Energiepunkten sind historische Stände. Testwerte und Grenzen: [ENERGY_PHASE.md](ENERGY_PHASE.md). Fog/Welt/Forschungsbaum/Netzwerk fehlen weiterhin.
 
 Aktueller Nachtrag D-060: Manuelle Reparaturen, Baustellenabbruch und KI-Bauplanung wurden ausdrücklich als Punkte 1–3 beauftragt und lokal integriert. Ältere Aussagen über noch fehlende Reparaturen/KI-Bauplanung sind historische Stände. [MAINTENANCE_PHASE.md](MAINTENANCE_PHASE.md) trennt die Umsetzung von vorläufigen Zahlen und offenen Grenzen. Welt/Fog/Energieraub/Verfall/Forschungsbaum/Netzwerk bleiben offen.

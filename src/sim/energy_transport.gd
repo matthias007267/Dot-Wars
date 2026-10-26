@@ -39,6 +39,7 @@ static func step(e: EnergyStore, world: WorldState, workers: WorkerStore, gates:
 			var result: Variant = native.energy_next(e.cells, world.cells, workers.occupant, e._routed[0], world.width)
 			if result is PackedInt32Array: moved = result
 	var gained := 0
+	var delivered_count := 0
 	var write := 0
 	var original_size := e.cells.size()
 	for i in original_size:
@@ -78,9 +79,15 @@ static func step(e: EnergyStore, world: WorldState, workers: WorkerStore, gates:
 		var due := tick % e._pace_of(owner, period, periods) == 0
 		if holder < 0 and owner < factions and due:
 			if exits.has(cell * 4 + owner):
-				gained += 1
-				while e.delivered_to.size() <= owner: e.delivered_to.append(0)
-				e.delivered_to[owner] += 1
+				delivered_count += 1
+				var research_site := sim.research.receiver_site(sim, cell, owner) if sim != null else -1
+				if research_site >= 0:
+					sim.research.deliver(research_site)
+				else:
+					gained += 1
+				if research_site < 0:
+					while e.delivered_to.size() <= owner: e.delivered_to.append(0)
+					e.delivered_to[owner] += 1
 				if e.refined[i] != 0: e.refined_delivered += 1
 				continue
 			if owner < e._routed.size():
@@ -102,7 +109,7 @@ static func step(e: EnergyStore, world: WorldState, workers: WorkerStore, gates:
 	e.no_route.resize(write)
 	e.held_by.resize(write)
 	e.release_at.resize(write)
-	e.delivered += gained
+	e.delivered += delivered_count
 	return gained
 
 static func _catchers(e: EnergyStore, sim: Simulation, world: WorldState) -> Dictionary:

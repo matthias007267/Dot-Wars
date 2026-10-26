@@ -40,18 +40,15 @@ func test_elimination_removes_the_faction_and_keeps_mass() -> void:
 	check_no_errors(sim.check_invariants(), "Masse nach dem Entfernen")
 
 
-func test_research_bought_by_the_ai_wins_the_same_tick() -> void:
+func test_research_requires_center_and_cannot_win_instantly() -> void:
 	var sim := _match(MatchRules.VICTORY_RESEARCH, 4)
 	var ai := sim.rules.ai_upgrades[0]
 	ai.research_level = 4
-	ai.energy = ai.research_cost()
+	ai.energy = 5000
 	sim.tick_once()
-	check_eq(ai.research_level, 5, "die fünfte Stufe ist gekauft")
-	check(sim.won, "Forschungssieg im selben Takt")
-	check_eq(sim.rules.winner_faction, 1, "die KI hat geforscht")
-	check_eq(sim.rules.win_kind, MatchRules.VICTORY_RESEARCH, "Forschung")
+	check_eq(ai.research_level, 4, "ohne Forschungszentrum kein Sofortkauf")
+	check(not sim.won, "Siegforschung benötigt Energieübertragung und Forschungszeit")
 	check_no_errors(sim.check_invariants(), "Bilanzen")
-
 
 func test_relics_need_three_and_a_channel() -> void:
 	var sim := _match(MatchRules.VICTORY_RELICS)
@@ -148,11 +145,14 @@ func test_hud_dig_does_not_overwrite_the_ai_rect() -> void:
 	hud.refresh()
 	check_eq(hud._goal_heading.text, "MEHRSPIELER", "Zielkarte")
 	check(_goal_visible(hud, "Forschung Stufe 5"), "Forschung ist an")
-	check(hud._research_button.visible, "der Forschungsknopf ist da")
+	var victory_index := hud._research_tech_ids.find("victory")
+	check(victory_index >= 0, "Siegtechnologie im P6-Katalog")
+	check(hud._research_tech_buttons[victory_index].visible, "Siegforschung im Baum sichtbar")
+	check(hud._research_tech_buttons[victory_index].disabled, "ohne Forschungszentrum gesperrt")
 	check(not hud._build_caption.visible, "Bauen bleibt im Match aus")
 	sim.config.victory_mask = MatchRules.VICTORY_ELIMINATION
 	hud.refresh()
-	check(not hud._research_button.visible, "ohne Forschungssieg kein Knopf")
+	check(not hud._research_tech_buttons[victory_index].visible, "ohne Forschungssieg keine Siegtechnologie")
 	layer.free()
 	hud.free()
 
@@ -232,10 +232,10 @@ func test_easy_camps_and_hard_digs_toward_the_core() -> void:
 	wallet.energy = Upgrades.DIG_BASE
 	var workers_before := _count(hard, 1)
 	hard.tick_once()
-	check_eq(_count(hard, 1), workers_before, "Schwer kauft keinen siebten Arbeiter")
-	check_eq(wallet.dig_level, 1, "Schwer kauft Abbau")
-	check_eq(wallet.energy, 0, "50 Energie sind im Abbau")
-	check_eq(hard.rules.match_bought, 0, "ein Werkzeug ist kein Arbeiter")
+	check_eq(_count(hard, 1), workers_before + 1, "ohne verfügbaren Forschungsauftrag kauft Schwer Nachwuchs")
+	check_eq(wallet.dig_level, 0, "ohne Forschungszentrum kein Abbauupgrade")
+	check_eq(wallet.energy, Upgrades.DIG_BASE - Simulation.WORKER_COST - ArmyState.COST, "nur Arbeiter und Krieger bezahlt, kein Sofortupgrade")
+	check_eq(hard.rules.match_bought, 1, "ein regulärer Arbeiterkauf")
 	var lane: Array = hard.areas.rects[hard.rules.group_of[1]]
 	check_eq(lane.size(), 1, "ein Korridor")
 	check_eq(lane[0], Rect2i(7, 13, 17, 6), "Band von der Basis zum gegnerischen Kern")
