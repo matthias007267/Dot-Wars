@@ -4,6 +4,7 @@ extends Node2D
 ## Drawn above terrain and below dots. No access to enemy live unit state.
 var sim: Simulation
 var faction := 0
+@export var cavern_style := true
 const CHUNK_SIZE := 64
 var _chunks: Array[Sprite2D] = []
 var _chunk_pixels: Array[PackedByteArray] = []
@@ -58,7 +59,8 @@ func show_tick(tick: int) -> void:
 		if fog.is_explored(faction, cell):
 			var material := fog.known_material(faction, cell)
 			if material >= 0 and material < Materials.COUNT:
-				color = Materials.COLORS[material] * MEMORY_SHADE
+				color = Materials.COLORS[material]
+				if not cavern_style: color *= MEMORY_SHADE
 		_bytes[offset] = clampi(int(color.r * 255.0), 0, 255)
 		_bytes[offset + 1] = clampi(int(color.g * 255.0), 0, 255)
 		_bytes[offset + 2] = clampi(int(color.b * 255.0), 0, 255)
@@ -86,6 +88,12 @@ func _update_chunks() -> void:
 				sprite.centered = false
 				sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 				sprite.position = Vector2(cx * CHUNK_SIZE, cy * CHUNK_SIZE)
+				var effect := ShaderMaterial.new()
+				effect.shader = WorldRenderer.TERRAIN_SHADER
+				effect.set_shader_parameter("ambient_multiplier", MEMORY_SHADE)
+				effect.set_shader_parameter("vignette_strength", 0.0)
+				effect.set_shader_parameter("cell_origin", sprite.position)
+				if cavern_style: sprite.material = effect
 				add_child(sprite)
 				_chunks.append(sprite)
 				_chunk_pixels.append(PackedByteArray())

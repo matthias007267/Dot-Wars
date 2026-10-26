@@ -109,7 +109,7 @@ func test_escape_menu_holds_save_and_the_dock_does_not() -> void:
 	var dock := _texts(hud._dock_row)
 	check(not dock.has("ABBAU"), "Abbau ist kein eigener Knopf")
 	check(not dock.has("BEWEGEN"), "Bewegen ist kein eigener Knopf")
-	check(dock.has("ARBEITER +10"), "Arbeiter bleibt in der Leiste")
+	check(hud._buy_worker_button.get_parent() == hud._dock_row, "Arbeiter bleibt im Befehlsraster")
 	check(not dock.has("SPEICHERN"), "Speichern ist nicht in der Leiste")
 	check(not dock.has("PAUSE"), "Pause ist nicht in der Leiste")
 	check(not hud.menu_open(), "das Menü ist zu")

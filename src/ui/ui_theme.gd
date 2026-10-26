@@ -4,10 +4,10 @@ extends RefCounted
 
 const TEXT := Color8(0xE7, 0xEE, 0xF5)
 const MUTED := Color8(0x9A, 0xA7, 0xB5)
-const PANEL := Color8(0x13, 0x19, 0x21)
+const PANEL := Color8(0x0B, 0x16, 0x22)
 const PANEL_HOVER := Color8(0x24, 0x30, 0x3B)
 const PANEL_PRESSED := Color8(0x2C, 0x38, 0x48)
-const LINE := Color8(0x2A, 0x34, 0x42)
+const LINE := Color8(0x25, 0x63, 0x80)
 const ACCENT := Color8(0xFF, 0xE4, 0x5E)
 
 
@@ -35,8 +35,9 @@ static func style_line(edit: LineEdit) -> void:
 
 
 static func panel() -> StyleBoxFlat:
-	var box := _box(Color(Materials.BACKDROP, 0.94), LINE)
-	box.set_corner_radius_all(9)
+	var box := _box(Color(0.025, 0.055, 0.085, 0.98), LINE)
+	box.set_corner_radius_all(2)
+	box.set_border_width_all(2)
 	box.shadow_color = Color(0, 0, 0, 0.30)
 	box.shadow_size = 7
 	box.content_margin_left = 10
@@ -55,7 +56,7 @@ static func _box(fill: Color, border: Color) -> StyleBoxFlat:
 	box.content_margin_top = 3
 	box.content_margin_right = 8
 	box.content_margin_bottom = 3
-	box.set_corner_radius_all(5)
+	box.set_corner_radius_all(1)
 	return box
 
 

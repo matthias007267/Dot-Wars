@@ -1,12 +1,14 @@
 shader_type canvas_item;
 render_mode unshaded;
 
-// Nur die Weltoberflaeche: UI und Minimap verwenden weiterhin die Originaltextur.
-// Ein Weltpixel bleibt eine Zelle. Alle Details sind deterministisch und GPU-basiert.
+// The simulation texture remains one texel per cell; detail exists only on the GPU.
 uniform float detail_strength : hint_range(0.0, 1.0) = 0.85;
-uniform float edge_strength : hint_range(0.0, 1.0) = 0.80;
+uniform float edge_strength : hint_range(0.0, 1.0) = 0.8;
 uniform float vignette_strength : hint_range(0.0, 0.35) = 0.15;
-
+uniform sampler2D cavern_light : filter_linear, repeat_disable;
+uniform bool lighting_enabled = false;
+uniform float ambient_multiplier = 1.0;
+uniform vec2 cell_origin = vec2(0.0);
 const vec3 TUNNEL = vec3(22.0, 28.0, 36.0) / 255.0;
 const vec3 SOFT = vec3(87.0, 201.0, 109.0) / 255.0;
 const vec3 MEDIUM = vec3(211.0, 130.0, 44.0) / 255.0;
@@ -14,88 +16,64 @@ const vec3 HARD = vec3(92.0, 134.0, 219.0) / 255.0;
 const vec3 BEDROCK = vec3(57.0, 63.0, 73.0) / 255.0;
 
 float hash_cell(vec2 p) {
-    vec3 p3 = fract(vec3(p.x, p.y, p.x) * 0.1031);
-    p3 += dot(p3, p3.yzx + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
-
-float is_tunnel(vec3 rgb) {
+float is_corridor(vec3 rgb) {
     return 1.0 - step(0.105, distance(rgb, TUNNEL));
 }
 
 void fragment() {
     vec4 source = texture(TEXTURE, UV);
+    vec2 world = UV / TEXTURE_PIXEL_SIZE;
+    vec2 cell = floor(world) + cell_origin;
+    vec2 p = floor(fract(world) * 12.0) / 12.0;
+    float seed = hash_cell(cell);
+    float grain = hash_cell(cell * 13.0 + floor(p * 12.0));
+    bool corridor = distance(source.rgb, TUNNEL) < 0.105;
+    bool soft = distance(source.rgb, SOFT) < 0.13;
+    bool medium = distance(source.rgb, MEDIUM) < 0.13;
+    bool hard = distance(source.rgb, HARD) < 0.13;
+    bool rock = distance(source.rgb, BEDROCK) < 0.10;
+    vec3 light = lighting_enabled ? texture(cavern_light, UV).rgb : vec3(0.0);
     vec3 color = source.rgb;
-    vec2 cell = floor(UV / TEXTURE_PIXEL_SIZE);
-    float fine = hash_cell(cell + vec2(19.0, 7.0)) - 0.5;
-    float broad = hash_cell(floor(cell / 4.0) + vec2(41.0, 11.0)) - 0.5;
-    float fleck = hash_cell(cell + vec2(73.0, 37.0));
-
-    float soft = distance(source.rgb, SOFT);
-    float medium = distance(source.rgb, MEDIUM);
-    float hard = distance(source.rgb, HARD);
-    float stone = distance(source.rgb, BEDROCK);
-    float empty = distance(source.rgb, TUNNEL);
-
-    bool terrain = soft < 0.13 || medium < 0.13 || hard < 0.13 || stone < 0.10;
-    bool corridor = empty < 0.105;
-
-    if (terrain) {
-        float shade = 0.88 + detail_strength * (fine * 0.23 + broad * 0.17);
-        if (soft < 0.13) {
-            // Weiche Erde: leicht organische, matte Oberflaeche.
-            color *= shade;
-            color += vec3(0.020, 0.060, 0.012) * step(0.89, fleck) * detail_strength;
-        } else if (medium < 0.13) {
-            // Mittlere Erde: dunklere Brocken und feine Risse.
-            color *= shade - 0.035;
-            color -= vec3(0.075, 0.045, 0.015) * step(0.91, fleck) * detail_strength;
-        } else if (hard < 0.13) {
-            // Hartes Mineral: kuehle Splitter und seltene Lichtreflexe.
-            color *= shade - 0.065;
-            color += vec3(0.065, 0.105, 0.155) * step(0.963, fleck) * detail_strength;
-        } else {
-            // Unzerstoerbarer Fels: dunkel, schwer, ohne auffaellige Highlights.
-            color *= 0.83 + detail_strength * (fine * 0.12 + broad * 0.12);
-        }
-
-        if (edge_strength > 0.001) {
-            vec2 texel = TEXTURE_PIXEL_SIZE;
-            vec2 safe_min = texel * 0.5;
-            vec2 safe_max = vec2(1.0) - safe_min;
-            vec3 up = texture(TEXTURE, clamp(UV - vec2(0.0, texel.y), safe_min, safe_max)).rgb;
-            vec3 down = texture(TEXTURE, clamp(UV + vec2(0.0, texel.y), safe_min, safe_max)).rgb;
-            vec3 left = texture(TEXTURE, clamp(UV - vec2(texel.x, 0.0), safe_min, safe_max)).rgb;
-            vec3 right = texture(TEXTURE, clamp(UV + vec2(texel.x, 0.0), safe_min, safe_max)).rgb;
-            // Obere/linke Kante hell, untere/rechte Kante schattig: Fels wirkt erhaben.
-            float bevel = (is_tunnel(up) + is_tunnel(left)) * 0.11
-                - (is_tunnel(down) + is_tunnel(right)) * 0.16;
-            color *= 1.0 + bevel * edge_strength;
-        }
-    } else if (corridor) {
-        // Ausgegrabene Tunnel bleiben dunkel und wirken gegenueber dem Fels vertieft.
-        color *= 0.85 + detail_strength * (fine * 0.16 + broad * 0.08);
-        if (edge_strength > 0.001) {
-            vec2 texel = TEXTURE_PIXEL_SIZE;
-            vec2 safe_min = texel * 0.5;
-            vec2 safe_max = vec2(1.0) - safe_min;
-            vec3 up = texture(TEXTURE, clamp(UV - vec2(0.0, texel.y), safe_min, safe_max)).rgb;
-            vec3 down = texture(TEXTURE, clamp(UV + vec2(0.0, texel.y), safe_min, safe_max)).rgb;
-            vec3 left = texture(TEXTURE, clamp(UV - vec2(texel.x, 0.0), safe_min, safe_max)).rgb;
-            vec3 right = texture(TEXTURE, clamp(UV + vec2(texel.x, 0.0), safe_min, safe_max)).rgb;
-            float upper_wall = step(0.105, distance(up, TUNNEL))
-                + step(0.105, distance(left, TUNNEL));
-            float lower_wall = step(0.105, distance(down, TUNNEL))
-                + step(0.105, distance(right, TUNNEL));
-            color += vec3(0.022, 0.031, 0.042) * upper_wall * edge_strength;
-            color *= 1.0 - 0.14 * min(lower_wall, 1.0) * edge_strength;
-        }
+    if (corridor) {
+        color = mix(TUNNEL, vec3(0.17, 0.12, 0.072), detail_strength);
+        color *= 0.65 + seed * 0.22 + grain * 0.23;
+        float grit = step(0.94, grain) * detail_strength;
+        color += vec3(0.045, 0.032, 0.018) * grit;
+        float wall = 4.0 - is_corridor(texture(TEXTURE, clamp(UV + vec2(TEXTURE_PIXEL_SIZE.x, 0.0), TEXTURE_PIXEL_SIZE * 0.5, vec2(1.0) - TEXTURE_PIXEL_SIZE * 0.5)).rgb) - is_corridor(texture(TEXTURE, clamp(UV - vec2(TEXTURE_PIXEL_SIZE.x, 0.0), TEXTURE_PIXEL_SIZE * 0.5, vec2(1.0) - TEXTURE_PIXEL_SIZE * 0.5)).rgb) - is_corridor(texture(TEXTURE, clamp(UV + vec2(0.0, TEXTURE_PIXEL_SIZE.y), TEXTURE_PIXEL_SIZE * 0.5, vec2(1.0) - TEXTURE_PIXEL_SIZE * 0.5)).rgb) - is_corridor(texture(TEXTURE, clamp(UV - vec2(0.0, TEXTURE_PIXEL_SIZE.y), TEXTURE_PIXEL_SIZE * 0.5, vec2(1.0) - TEXTURE_PIXEL_SIZE * 0.5)).rgb);
+        color *= 1.0 - min(wall, 2.0) * 0.12 * edge_strength;
+        color += light * 0.38;
+    } else if (soft || medium || hard || rock) {
+        vec3 stone = vec3(0.075, 0.103, 0.132);
+        stone *= 0.72 + seed * 0.42 + grain * 0.14;
+        // Individual chipped blocks: highlights on top/left, deep joints below.
+        float bevel = step(p.y, 0.085) * 0.05 + step(p.x, 0.085) * 0.025;
+        bevel -= step(0.83, p.y) * 0.035 + step(0.91, p.x) * 0.025;
+        float crack = step(0.96, hash_cell(cell + floor(p * 4.0))) * 0.04;
+        stone += vec3(bevel - crack) * detail_strength;
+        vec3 mineral = vec3(0.04, 0.42, 1.0);
+        if (soft) { mineral = vec3(0.09, 0.85, 0.22); }
+        else if (medium) { mineral = vec3(1.0, 0.48, 0.025); }
+        stone += mineral * (rock ? 0.0 : 0.025);
+        // Sparse facets are visual veins of existing materials, not new deposits.
+        float vein = step(0.66, seed) * (1.0 - float(rock));
+        vec2 q = (p - vec2(0.48, 0.49)) * vec2(1.9, 1.25);
+        float diamond = 1.0 - step(0.48, abs(q.x) + abs(q.y));
+        float facet = (q.x < 0.0 ? 0.7 : 0.35) + (q.y < -0.05 ? 0.35 : 0.0);
+        stone = mix(stone, mineral * facet, vein * diamond * detail_strength);
+        stone += mineral * vein * diamond * step(abs(q.x), 0.075) * 0.27 * detail_strength;
+        stone += mineral * vein * max(0.0, 0.2 - length(q) * 0.15) * 0.16;
+        color = mix(source.rgb, stone, detail_strength);
+        float rim = is_corridor(texture(TEXTURE, clamp(UV - vec2(0.0, TEXTURE_PIXEL_SIZE.y), TEXTURE_PIXEL_SIZE * 0.5, vec2(1.0) - TEXTURE_PIXEL_SIZE * 0.5)).rgb) + is_corridor(texture(TEXTURE, clamp(UV - vec2(TEXTURE_PIXEL_SIZE.x, 0.0), TEXTURE_PIXEL_SIZE * 0.5, vec2(1.0) - TEXTURE_PIXEL_SIZE * 0.5)).rgb);
+        color += vec3(0.035, 0.045, 0.055) * rim * edge_strength;
+        color += light * 0.18;
+    } else {
+        // Existing building/mission marker colors are subdued beneath the new art.
+        color *= 0.28;
+        color += light * 0.16;
     }
-    // Marker, Gebaeude, beschaedigte Zellen und Kerne bleiben klar unterscheidbar.
-    // Der Farbfilter wirkt ausschliesslich auf diesen WorldRenderer-Sprite.
-    color = (color - vec3(0.5)) * 1.055 + vec3(0.5);
     vec2 screen_center = SCREEN_UV * 2.0 - vec2(1.0);
-    float vignette = 1.0 - vignette_strength
-        * smoothstep(0.18, 1.40, dot(screen_center, screen_center));
-    COLOR = vec4(clamp(color * vignette, vec3(0.0), vec3(1.0)), source.a);
+    float vignette = 1.0 - vignette_strength * smoothstep(0.18, 1.40, dot(screen_center, screen_center));
+    COLOR = vec4(clamp(color * vignette * ambient_multiplier, vec3(0.0), vec3(1.0)), source.a);
 }

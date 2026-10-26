@@ -9,7 +9,7 @@ const TERRAIN_SHADER := preload("res://src/render/shaders/terrain.gdshader")
 
 ## Reine Darstellungsoptionen, ohne Einfluss auf die Welt oder das HUD.
 @export var world_fx_enabled := true
-@export_range(0.0, 1.0, 0.05) var terrain_detail := 0.85
+@export_range(0.0, 1.0, 0.05) var terrain_detail := 1.0
 @export_range(0.0, 1.0, 0.05) var tunnel_depth := 0.80
 @export_range(0.0, 0.35, 0.01) var vignette_strength := 0.15
 
@@ -28,6 +28,8 @@ var _network_revision := -1
 var _shipment_signature := -1
 var _research_power_signature := -1
 var _overlay_tick := -1
+var _cavern_lighting := CavernLighting.new()
+var _light_clock := 0.0
 var preview_cells := PackedInt32Array()
 var preview_remove := false
 ## Fraktionskerne, Hügel und Reliquien. Leer lässt die Einzelspieler-Ansicht unverändert.
@@ -76,6 +78,13 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	_light_clock += _delta
+	if energy_sim != null and world_fx_enabled and _light_clock >= 0.20:
+		_light_clock = 0.0
+		var surface_material := _surface.material as ShaderMaterial
+		if surface_material != null:
+			surface_material.set_shader_parameter("cavern_light", _cavern_lighting.update(energy_sim))
+			surface_material.set_shader_parameter("lighting_enabled", true)
 	if energy_sim != null:
 		# Fog changes also invalidate cached draw commands, even when the net is idle.
 		if _overlay_tick != energy_sim.tick_count:
@@ -130,15 +139,20 @@ func _draw_energy_network() -> void:
 	if energy_network == null: return
 	for i in energy_network.cells.size():
 		var cell: int = energy_network.cells[i]
-		if not overlay_visible(cell, energy_network.owners[i]): continue
-		var x := cell % energy_network.width
-		var y := cell / energy_network.width
-		var color := Color8(0x43, 0xBD, 0xDB, 0xC8) if energy_network.owners[i] == 0 else Color8(0xFF, 0x9C, 0x67, 0xC8)
-		_energy_overlay.draw_rect(Rect2(Vector2(x, y), Vector2.ONE), color)
+		var owner: int = energy_network.owners[i]
+		if not overlay_visible(cell, owner): continue
+		var center := Vector2(cell % energy_network.width, cell / energy_network.width) + Vector2(0.5, 0.5)
+		var tint := TacticalArt.tint(owner)
+		for next in energy_network.neighbors(cell):
+			if next <= cell or energy_network.owner_at(next) != owner or not overlay_visible(next, owner): continue
+			var end := Vector2(next % energy_network.width, next / energy_network.width) + Vector2(0.5, 0.5)
+			_energy_overlay.draw_line(center, end, Color(tint, 0.12), 0.42)
+			_energy_overlay.draw_line(center, end, Color(tint, 0.75), 0.10)
+		_energy_overlay.draw_rect(Rect2(center - Vector2.ONE * 0.10, Vector2.ONE * 0.20), tint.lightened(0.25))
 	for cell in preview_cells:
 		if cell < 0 or cell >= energy_network.width * energy_network.height: continue
 		var p := Vector2(cell % energy_network.width, cell / energy_network.width)
-		_energy_overlay.draw_rect(Rect2(p, Vector2.ONE), Color(1.0, 0.3, 0.25, 0.75) if preview_remove else Color(0.3, 1.0, 0.8, 0.7))
+		_energy_overlay.draw_rect(Rect2(p, Vector2.ONE), Color(1.0, 0.3, 0.25, 0.65) if preview_remove else Color(0.3, 1.0, 0.8, 0.45))
 
 func _draw_conduit_shipments() -> void:
 	if energy_sim == null or energy_network == null: return
@@ -150,16 +164,16 @@ func _draw_conduit_shipments() -> void:
 		if energy_network.owner_at(cell) != faction: continue
 		var center := Vector2(float(cell % energy_network.width) + 0.5, float(cell / energy_network.width) + 0.5)
 		var tint := Color(0.65, 0.97, 1.0, 1.0) if faction == 0 else Color(1.0, 0.75, 0.45, 1.0)
-		_energy_overlay.draw_circle(center, 0.36, tint)
+		_energy_overlay.draw_rect(Rect2(center - Vector2.ONE * 0.09, Vector2.ONE * 0.18), tint)
 		if world_fx_enabled and camera != null and camera.zoom.x >= PIT_GLOW_MIN_ZOOM:
-			_energy_overlay.draw_circle(center, 0.72, Color(tint.r, tint.g, tint.b, 0.18))
+			_energy_overlay.draw_circle(center, 0.28, Color(tint.r, tint.g, tint.b, 0.16))
 
 func _draw_powered_research() -> void:
 	if energy_sim == null or not world_fx_enabled or camera == null or camera.zoom.x < PIT_GLOW_MIN_ZOOM: return
 	var pulse := 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * 0.008)
 	for row in energy_sim.construction.sites.records:
 		if row.destroyed or not row.ready or row.kind != 3: continue
-		if not overlay_visible(energy_sim.construction.center(row.id), row.owner): continue
+		if not CavernLighting.site_visible(energy_sim, row): continue
 		if not energy_sim.research.is_powered(int(row.id), energy_sim.tick_count): continue
 		var rect: Rect2i = row.rect
 		var center := Vector2(rect.position) + Vector2(rect.size) * 0.5
@@ -327,6 +341,7 @@ func _upload() -> void:
 ## Die Kerne aller Fraktionen leuchten ohne zusaetzliche Nodes oder Lichtquellen.
 ## Im Fernzoom bleibt die Basismarkierung exakt ein Weltpixel.
 func _draw_pit_glow() -> void:
+	if energy_sim != null and not energy_sim.construction.sites.records.is_empty(): return
 	if not world_fx_enabled or camera == null or camera.zoom.x < PIT_GLOW_MIN_ZOOM:
 		return
 	var pulse := 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * 0.0028)

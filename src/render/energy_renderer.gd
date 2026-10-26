@@ -22,6 +22,7 @@ func _ready() -> void:
 		var shader_material := ShaderMaterial.new()
 		shader_material.shader = DOT_GLOW_SHADER
 		shader_material.set_shader_parameter("glow_strength", glow_strength)
+		shader_material.set_shader_parameter("unit_kind", 2)
 		shader_material.set_shader_parameter("dot_brightness", 1.20)
 		material = shader_material
 	_bytes.resize(world.cell_count() * 4)

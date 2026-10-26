@@ -1,5 +1,13 @@
 # Regeln für Agenten
 
+## Neuester Folgeauftrag zum Grafikkatalog
+
+Der Nutzer bestätigt die Empfehlung, zuerst einen austauschbaren Sprite-/Texturkatalog aufzubauen und Arbeiter, Krieger und Forschungszentrum als erste Beispiele auszuarbeiten. Diese Grafikfortsetzung bleibt im bestehenden Optik-PR #10. Atlas, Fraktionsmaske, Porträts und an echte Zustände gebundene Animationen sind beauftragt; keine neuen Spielregeln oder Kriegerstufen. Umsetzung und Prüfungen: `docs/SPRITE_CATALOG.md`, D-069. Kein automatischer Merge.
+
+## Neuester Optikauftrag
+
+Der Nutzer beauftragt die erste Übertragung seiner Bildreferenz: Höhlen-/Steintexturen, Shader-/Lichtwirkung, gemeinsame untere HUD-Leiste mit Minimap und unterscheidbare Einheitenoberflächen. Diese reine Grafikphase baut separat auf PR #9 auf; keine Änderung der Spielregeln, keine ungefragten Gebäude/Kriegerstufen oder Weltgenerierung, kein Merge. Umfang und Prüfungen: `docs/CAVERN_VISUALS.md`, D-068. Ältere Phasenstände unten bleiben historisch.
+
 ## Neuester Auftrag nach Merge von PR #8
 
 Der Nutzer hat ausdrücklich Punkte 1–6 des Folgeplans beauftragt: KI-Netzversorgung, Transportausfälle/Abriss, grafische Bedienprüfung, Sichtschutz neuer Anzeigen, reguläre Forschungsfreischaltungen/Effizienz und grafischer Forschungsbaum. Auf neuem Branch von `main` und in einem neuen PR arbeiten; kein Merge. Beide Rückfragen zu Transportverlusten und vorläufigen Forschungswerten wurden bestätigt. Aktueller Umfang, Regeln und Nachweise: `docs/P6_PLAYABLE_RESEARCH.md`, D-065 bis D-067. Dieser neueste Auftrag geht widersprechenden historischen Phasen-/Push-Aussagen unten vor. Weitere große Systeme und Release bleiben eigene Aufträge.
