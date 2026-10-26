@@ -168,7 +168,8 @@ func receivers_for(sim: Simulation, id: int) -> PackedInt32Array:
 
 func receivers(sim: Simulation, owner: int) -> PackedInt32Array:
 	var cells := PackedInt32Array()
-	for id in sites.ready_sites(owner): cells.append_array(receivers_for(sim, id))
+	for id in sites.ready_sites(owner):
+		if sites.records[id].kind != Store.Kind.RESEARCH_CENTER: cells.append_array(receivers_for(sim, id))
 	return cells
 
 func production_site(owner: int, wanted := -1) -> int:
