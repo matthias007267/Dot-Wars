@@ -27,6 +27,7 @@ func test_research_requires_ready_center_and_prerequisites() -> void:
 	check(not sim.research.start(sim, 0, -1, "dig"), "ohne Zentrum keine Forschung")
 	var site := sim.construction.place(sim, Store.Kind.RESEARCH_CENTER, 100, PackedInt32Array())
 	check(site >= 0, "Zentrum platziert")
+	if site < 0: return
 	check(not sim.research.start(sim, 0, site, "dig"), "Baustelle kann nicht forschen")
 	sim.construction.sites.contribute(site, 0, 300)
 	check(not sim.research.start(sim, 0, site, "swarm"), "Schwarm benötigt Abbaueffizienz")
@@ -38,6 +39,7 @@ func test_research_requires_ready_center_and_prerequisites() -> void:
 func test_research_waits_for_delivered_energy_and_finishes_over_time() -> void:
 	var sim := _sim()
 	var site := _center(sim)
+	if site < 0: return
 	check(sim.research.start(sim, 0, site, "dig"), "Forschung gestartet")
 	var wallet_before := sim.upgrades.energy
 	sim.research.step(sim)
