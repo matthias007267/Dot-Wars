@@ -15,11 +15,14 @@ var levels: Array[Dictionary] = []
 var jobs: Array[Dictionary] = []
 ## Physically delivered energy, held at each research center.
 var supply: Dictionary = {}
+## Conduit-bound shipments: one paid energy unit travels along a placed path.
+var shipments: Array[Dictionary] = []
 
 func setup(factions: int) -> void:
 	levels.clear()
 	jobs.clear()
 	supply.clear()
+	shipments.clear()
 	for faction in factions:
 		levels.append({})
 
@@ -78,6 +81,7 @@ func deliver(site: int) -> void:
 	supply[site] = int(supply.get(site, 0)) + 1
 
 func step(sim: Simulation) -> void:
+	_step_shipments(sim)
 	for i in range(jobs.size() - 1, -1, -1):
 		var job: Dictionary = jobs[i]
 		var faction: int = int(job["faction"])
@@ -105,6 +109,49 @@ func step(sim: Simulation) -> void:
 				# Core expansion can be temporarily blocked; retry without extra charge.
 				job["elapsed"] = int(job["ticks"]) - 1
 
+func _step_shipments(sim: Simulation) -> void:
+	# Shipments never leave the explicitly built conduit cells.
+	for i in range(shipments.size() - 1, -1, -1):
+		var shipment: Dictionary = shipments[i]
+		var site: int = shipment["site"]
+		var faction: int = shipment["faction"]
+		if not sim.construction.sites.valid(site):
+			shipments.remove_at(i)
+			continue
+		var source: int = shipment["source"]
+		var target: int = sim.construction.center(site)
+		var route := sim.energy_network.connected_path(sim, faction, source, target)
+		if route.is_empty(): continue
+		var index: int = int(shipment["index"])
+		if index >= route.size() - 1:
+			deliver(site)
+			shipments.remove_at(i)
+		else:
+			shipment["index"] = index + 1
+	# Dispatch at most one unit per active center every eight ticks.
+	if sim.tick_count % 8 != 0: return
+	for job in jobs:
+		var site: int = job["site"]
+		var faction: int = job["faction"]
+		if not sim.construction.sites.valid(site): continue
+		if int(supply.get(site, 0)) >= 16: continue
+		var incoming := 0
+		for shipment in shipments:
+			if shipment["site"] == site: incoming += 1
+		if incoming >= 8: continue
+		var source := -1
+		for building in sim.construction.sites.records:
+			if not building.destroyed and building.ready and building.owner == faction and building.kind == Store.Kind.MAIN_CORE:
+				source = sim.construction.center(int(building.id))
+				break
+		if source < 0: continue
+		var route := sim.energy_network.connected_path(sim, faction, source, sim.construction.center(site))
+		if route.is_empty(): continue
+		var wallet := sim.rules.wallet(sim, faction)
+		if wallet.energy < 1: continue
+		wallet.energy -= 1
+		shipments.append({"site": site, "faction": faction, "source": source, "index": 0})
+
 func _apply(sim: Simulation, faction: int, tech: String) -> bool:
 	var wallet: Upgrades = sim.rules.wallet(sim, faction)
 	match tech:
@@ -120,7 +167,7 @@ func _apply(sim: Simulation, faction: int, tech: String) -> bool:
 	return true
 
 func snapshot() -> Dictionary:
-	return {"levels": levels.duplicate(true), "jobs": jobs.duplicate(true), "supply": supply.duplicate(true)}
+	return {"levels": levels.duplicate(true), "jobs": jobs.duplicate(true), "supply": supply.duplicate(true), "shipments": shipments.duplicate(true)}
 
 func restore(sim: Simulation, data: Dictionary) -> bool:
 	var stored_levels: Variant = data.get("levels", [])
@@ -165,7 +212,20 @@ func restore(sim: Simulation, data: Dictionary) -> bool:
 	levels = candidate_levels
 	jobs = candidate_jobs
 	supply = candidate_supply
+	var stored_shipments: Variant = data.get("shipments", [])
+	if not stored_shipments is Array: return false
+	var candidate_shipments: Array[Dictionary] = []
+	for shipment in stored_shipments:
+		if not shipment is Dictionary: return false
+		for key in ["site", "faction", "source", "index"]:
+			if typeof(shipment.get(key)) != TYPE_INT: return false
+		if not sim.construction.sites.valid(shipment["site"]): return false
+		if shipment["faction"] != sim.construction.sites.records[shipment["site"]].owner or shipment["index"] < 0: return false
+		var route := sim.energy_network.connected_path(sim, shipment["faction"], shipment["source"], sim.construction.center(shipment["site"]))
+		if route.is_empty() or shipment["index"] >= route.size(): return false
+		candidate_shipments.append(shipment.duplicate(true))
+	shipments = candidate_shipments
 	return true
 
 func state_hash() -> int:
-	return hash([levels, jobs, supply])
+	return hash([levels, jobs, supply, shipments])
