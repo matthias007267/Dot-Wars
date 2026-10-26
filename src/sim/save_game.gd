@@ -39,7 +39,7 @@ static func snapshot(sim: Simulation) -> Dictionary:
 			"mask": (sim.areas.masks[g] as PackedByteArray).duplicate(),
 		})
 	return {
-		"research_state": sim.research.snapshot(), "fog": sim.fog.snapshot() if sim._match_live() else {}, "construction": sim.construction.snapshot(sim), "resume": Resume.snapshot(sim), "version": VERSION, "army": sim.army.snapshot(), "worker_losses": sim.worker_losses,
+		"energy_network": sim.energy_network.snapshot(), "research_state": sim.research.snapshot(), "fog": sim.fog.snapshot() if sim._match_live() else {}, "construction": sim.construction.snapshot(sim), "resume": Resume.snapshot(sim), "version": VERSION, "army": sim.army.snapshot(), "worker_losses": sim.worker_losses,
 		"seed": sim.config.world_seed,
 		"mode": sim.config.mode,
 		"ai_count": sim.config.ai_count,
@@ -302,6 +302,8 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 		else:
 			var pit := sim.pit_index()
 			if pit >= 0 and world.cells[pit] == Materials.INDESTRUCTIBLE: sim.construction.initial(sim, pit, 0, true)
+	if data.has("energy_network"):
+		if not data.energy_network is Dictionary or not sim.energy_network.restore(data.energy_network, sim): return null
 	if data.has("research_state"):
 		if not data.research_state is Dictionary or not sim.research.restore(sim, data.research_state): return null
 	if sim._match_live():
