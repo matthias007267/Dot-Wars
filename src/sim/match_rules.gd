@@ -382,7 +382,7 @@ func _ai_hard(sim: Simulation, faction: int) -> void:
 		and research >= 0
 		and upgrades.energy >= research
 	):
-		if upgrades.try_buy(Upgrades.KIND_RESEARCH):
+		if sim.research.start(sim, faction, _research_site(sim, faction), "victory"):
 			return
 	if have < 6 and upgrades.energy >= Simulation.WORKER_COST:
 		if _buy_worker(sim, faction):
