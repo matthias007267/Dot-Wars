@@ -65,3 +65,11 @@ Die Zweigzuordnung, neue Technologien, konkrete Kosten, Dauer, Voraussetzungen, 
 - Entfernung muss Simulationslogik, Einheitensteuerung, UI, KI, Tests und Save/Load-Kompatibilität einschließen. Vor dem Entfernen Abhängigkeiten und bestehende Altstand-Migrationsregeln prüfen.
 - Der Forschungsbaum soll bereits innerhalb P6 als spielbare, zum DOT-WARS-Pixel-Art-Stil passende interaktive Oberfläche entstehen. Vorgesehen: vier visuell unterscheidbare Zweige, Verbindungslinien/Voraussetzungen, Technologie-Details, Kosten/Dauer/Fortschritt, Zoom/Pan und spätere Erweiterbarkeit.
 - Spätere Work-Abnahme: Live-/Performance-Tests und visueller Feinschliff, nicht grundlegende Nachimplementierung.
+
+## Brainstorming: Energieversorgung und Late-Game-Gebäudeverstärkung (noch keine implementierten Regeln)
+
+Nutzeridee: Jedes Gebäude kann optional kontinuierlich mit Energie versorgt werden und zeigt im verstärkten Zustand einen sichtbaren Glow. Je nach Gebäudetyp entstehen passende Buffs: schnellere Forschung/Produktion, erhöhte Lebenspunkte, Selbstheilung, zusätzliche Sichtweite, stärkerer Abbau oder Energieertrag. Auch Mauern sowie durch ein geeignetes Fahrzeug versorgte mobile Mauern sind Kandidaten. Abbau- und Energieerzeugungsgebäude dürfen ebenfalls verstärkt werden, aber positive Rückkopplungen müssen gegen unbegrenztes Skalieren abgesichert sein. Das ist eine Late-Game-Basisstrategie, keine kostenlose Standardwirkung.
+
+Wird ein Gebäude versetzt, muss es am neuen Standort neu ans Energienetz angeschlossen werden; die bisherige Verbindung bleibt nicht erhalten. Bei mobilen Mauern kann die Versorgung durch das Transport-/Versorgungsfahrzeug erfolgen. Vorschlag: Energie-Dots sichtbar physisch transportieren, Routen optional als Netz-Overlay; Buff nur bei tatsächlicher fortlaufender Energiezufuhr. Verfügbarkeit, Verbrauch, genaue Effekte, Stufen, Unterbrechungsregeln und Balance noch entscheiden.
+
+**Konzeptkonflikt:** D-048 sah globale Forschung *ohne* Forschungslabore vor; der neue Vorschlag nennt forschende Gebäude und Kriegerproduktion. Vor Umsetzung ausdrücklich klären, ob die frühere Regel ersetzt wird und welche Gebäude tatsächlich Forschung bzw. Produktion durchführen.
