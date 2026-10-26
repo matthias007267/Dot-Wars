@@ -127,3 +127,28 @@ func test_repeated_sight_origin_does_not_change_visibility() -> void:
 	fog.update(sim)
 	check_eq(fog.visible[0], before, "visibility restored after duplicate source")
 	check(duplicate_mask[anchor] == 1, "duplicate source still reveals origin")
+
+func test_unchanged_world_keeps_visibility_and_terrain_memory() -> void:
+	var sim := _sim()
+	var fog := Fog.new()
+	fog.setup(sim.world, 2)
+	fog.update(sim)
+	var before_visible := fog.visible[0].duplicate()
+	var before_known := fog.known_terrain[0].duplicate()
+	fog.update(sim)
+	check_eq(fog.visible[0], before_visible, "unchanged update retains sight")
+	check_eq(fog.known_terrain[0], before_known, "unchanged update retains knowledge")
+	var cell := int(sim.workers.cell[0])
+	sim.world.set_material(cell, Materials.SOFT)
+	fog.update(sim)
+	check_eq(fog.known_material(0, cell), Materials.SOFT, "terrain mutation invalidates visibility cache")
+
+func test_rendered_worker_footprint_never_extends_outside_sight() -> void:
+	var sim := _sim()
+	var fog := Fog.new()
+	fog.setup(sim.world, 2)
+	fog.update(sim)
+	var cell := int(sim.workers.cell[0])
+	check(fog.is_visible(0, cell), "owned worker origin visible")
+	check(not fog.is_visible(0, -1), "negative cell hidden")
+	check(not fog.is_visible(0, sim.world.cell_count()), "out of bounds hidden")
