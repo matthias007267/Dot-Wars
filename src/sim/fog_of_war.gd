@@ -69,19 +69,33 @@ func update(sim: Simulation) -> void:
 		var mask := PackedByteArray()
 		mask.resize(blocking.size())
 		own_sight.append(mask)
+	# Multiple units at the same cell and radius must not trace the same rays twice.
+	var seen_sources: Dictionary = {}
 	for id in sim.workers.count:
 		var owner := int(sim.workers.faction[id])
 		if owner >= 0 and owner < factions:
-			_reveal(own_sight[owner], blocking, int(sim.workers.cell[id]), WORKER_RADIUS)
+			var cell := int(sim.workers.cell[id])
+			var key := Vector3i(owner, cell, WORKER_RADIUS)
+			if not seen_sources.has(key):
+				seen_sources[key] = true
+				_reveal(own_sight[owner], blocking, cell, WORKER_RADIUS)
 	for id in sim.army.count:
 		var owner := int(sim.army.owners[id])
 		if owner >= 0 and owner < factions:
-			_reveal(own_sight[owner], blocking, int(sim.army.cells[id]), WARRIOR_RADIUS)
+			var cell := int(sim.army.cells[id])
+			var key := Vector3i(owner, cell, WARRIOR_RADIUS)
+			if not seen_sources.has(key):
+				seen_sources[key] = true
+				_reveal(own_sight[owner], blocking, cell, WARRIOR_RADIUS)
 	for row in sim.construction.sites.records:
 		if row.destroyed or not row.ready: continue
 		var owner := int(row.owner)
 		if owner >= 0 and owner < factions:
-			_reveal(own_sight[owner], blocking, sim.construction.center(int(row.id)), CORE_RADIUS)
+			var cell := sim.construction.center(int(row.id))
+			var key := Vector3i(owner, cell, CORE_RADIUS)
+			if not seen_sources.has(key):
+				seen_sources[key] = true
+				_reveal(own_sight[owner], blocking, cell, CORE_RADIUS)
 	for faction in factions:
 		visible[faction].fill(0)
 		for ally in factions:
