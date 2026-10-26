@@ -23,7 +23,7 @@ func _draw() -> void:
 		var faction := _faction_of(group_id)
 		if sim._match_live() and faction != 0: continue
 		var color := _faction_color(faction)
-		if sim.sacrifice_on[group_id] == 0:
+		if sim.sacrifice_on[group_id] == 0 and group_id == sim.command_group:
 			var rects: Array[Rect2i] = sim.areas.rects[group_id]
 			for rect in rects:
 				if rect.size.x >= width and rect.size.y >= height:
@@ -49,7 +49,7 @@ func _draw_selection(width: int) -> void:
 		var cell := sim.unit_cell(id)
 		if cell < 0 or (sim._match_live() and not sim.fog.is_visible(0, cell)): continue
 		var unit := 1
-		draw_rect(Rect2(cell % width, cell / width, unit, unit), Color(1, 1, 1, 0.95), false, 0.14)
+		draw_rect(Rect2(cell % width, cell / width, unit, unit).grow(-0.08), Color(0.85, 1.0, 1.0, 0.85), false, 0.07)
 
 
 func _faction_of(group_id: int) -> int:
@@ -98,21 +98,12 @@ func _draw_sites() -> void:
 	for row in rows:
 		if row.destroyed: continue
 		var rect: Rect2i = row.rect
-		var tint := _faction_color(row.owner)
-		var fill := tint
-		fill.a = 0.45 if row.ready else 0.18
-		draw_rect(Rect2(rect), fill, true)
-		draw_rect(Rect2(rect), tint, false, 0.16)
+		var tint := TacticalArt.tint(row.owner)
+		var art_tint := TacticalArt.tint(row.owner)
+		var brightness := 1.0 if CavernLighting.site_visible(sim, row) else 0.35
+		TacticalArt.building(self, row.kind, Rect2(rect), art_tint, row.ready, brightness)
 		if row.owner == 0 and row.id == sim.construction.selected:
 			draw_rect(Rect2(rect).grow(0.15), Color.WHITE, false, 0.1)
 		var fraction := float(row.hp) / float(row.max_hp) if row.ready else float(row.work) / float(row.required)
 		draw_rect(Rect2(rect.position.x, rect.end.y + 0.2, rect.size.x, 0.25), Color(0.1, 0.1, 0.1), true)
 		draw_rect(Rect2(rect.position.x, rect.end.y + 0.2, rect.size.x * fraction, 0.25), tint, true)
-		if row.kind == 2:
-			var middle := Vector2(rect.position) + Vector2(rect.size) * 0.5
-			draw_line(middle - Vector2(0.7, 0.7), middle + Vector2(0.7, 0.7), tint, 0.2)
-			draw_line(middle - Vector2(0.7, -0.7), middle + Vector2(0.7, -0.7), tint, 0.2)
-		if row.kind == 0:
-			var middle := Vector2(rect.position) + Vector2(rect.size) * 0.5
-			draw_line(middle - Vector2(0.8, 0), middle + Vector2(0.8, 0), tint, 0.25)
-			draw_line(middle - Vector2(0, 0.8), middle + Vector2(0, 0.8), tint, 0.25)

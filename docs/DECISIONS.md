@@ -563,3 +563,8 @@ Die Antwort „Diese vorläufigen Regeln verwenden“ bestätigt Pause bezahlter
 ## D-067 – Vorläufige Forschungsfreischaltungen und Effizienz bestätigt (26. Oktober 2026)
 
 Die Antwort „Diese vorläufigen Werte verwenden“ bestätigt Außenposten nach Arbeiterbewegung, Abfangstation nach Energietransport, je 90 Energie/260 Takte; Energieeffizienz nach Energietransport mit drei Stufen, 80 Energie/240 Takte mal Zielstufe und 10/20/30 % weniger Forschungsenergie bei gleicher Dauer. Prototypwerte, kein finales Balancing. Kosten werden je Auftrag beim Start eingefroren, mit dem damaligen Effizienzstand gespeichert und auf ganze Energie nach oben gerundet (mindestens 1). Dauerbuffs, weitere Gebäudetypen und neue Kriegerwerte sind kein Bestandteil.
+
+
+## D-068 – Referenzbasierte erste Grafikphase (26. Oktober 2026)
+
+Der Nutzer zeigt eine Höhlen-Pixelstrategie-Referenz und beauftragt ausdrücklich den Beginn ihrer optischen Übernahme: ähnliche Shader-/Lichtwirkung, Menü-/Bau-/Infoleiste und Minimap unten sowie Texturmerkmale zum Unterscheiden von Arbeitern, Kriegern und vorhandenen Stufen. Umsetzung als separate Grafikphase auf PR #9, zunächst gestapelter Review-PR. Keine neue Weltgenerierung, Ressourcenerträge, Gebäudetypen, Gegnerinformationen oder Krieger-Technologiestufen aus dem Bild ableiten. Originale Codegrafik statt Übernahme des Bildes als Hintergrund; datenorientierte Renderer ohne Node/Licht pro Dot erhalten. Sichtschutz und Aktivitätsbedingungen bleiben verbindlich. Umfang, Diagnose-Testszene und Grenzen in CAVERN_VISUALS.md.
