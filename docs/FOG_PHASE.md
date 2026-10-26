@@ -18,7 +18,7 @@ Branch: `feat/p5-fog-visibility-foundation`, Draft PR #7.
 1. **Wichtig:** Fog-Overlay überdeckt Terrain, aber der ursprüngliche WorldRenderer nutzt weiterhin echte Daten. Auch Marker, HUD, Auswahl-/Order-Overlay und andere Ausgabekanäle müssen vollständig auf Informationslecks geprüft werden. Sichtgefilterte Terrain- und Minimap-Texturen statt nur Overlay sind das Ziel.
 2. Gebäude-Snapshots und Zeichnung gegen Bau-/Zerstörungs- und Sichtwechsel testen. Unbekannte Gebäude dürfen niemals in anderen Overlays/Markern erscheinen.
 3. Fog-Minimap zeigt Terrainwissen; bekannte Gebäudemarker, eigene Einheiten und Kamerafenster sinnvoll ergänzen. Große Textur-Uploads reduzieren.
-4. **Performance:** Unveränderte Fog-Frames werden übersprungen. Bei Sichtwechseln bleiben dichte Arrays, Sichtlinien je Quelle und zwei volle Texturuploads bestehen; für große Karten sind Dirty-Regionen/Chunks und Profiling nötig.
+4. **Performance:** Unveränderte Fog-Frames und doppelte Sichtquellen werden übersprungen. Bei Sichtwechseln bleiben dichte Arrays, Sichtlinien je unterschiedlicher Quelle und zwei volle Texturuploads bestehen; Dirty-Regionen/Chunks und Profiling sind noch nicht implementiert.
 5. Sicherstellen, dass **keine** unbekannten Gegner-/Ressourcen-/Gebäudedaten über Interaktionen, HUD, KI oder späteren Netzwerkverkehr offengelegt werden. Serverautoritatives Sichtfilter-Protokoll separat designen.
 6. Godot-Parser, alle Tests, Match-Screenshot, Save/Load-Regressionen und Windows/Linux-CI ausführen. GitHub Actions läuft automatisch; noch keine lokale Godot-Ausführung durch den Assistenten.
 7. Sichtquellen/Reichweiten sind vorläufig. Sensorgebäude und Forschung bleiben außerhalb dieses Teil-PRs.
