@@ -69,6 +69,7 @@ static func snapshot(sim: Simulation) -> Dictionary:
 		"command_group": sim.command_group,
 		"march_cell": sim.march_cell,
 		"cells": sim.world.cells.duplicate(),
+		"excavated": sim.world.excavated.duplicate(),
 		"progress": sim.world.progress.duplicate(),
 		"progress_frac": sim.world.progress_frac.duplicate(),
 		"progress_frac_high": _export_frac_high(sim.world),
@@ -169,6 +170,11 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 	if not config.validate().is_empty():
 		return null
 	var world := WorldState.new(width, width, config.chunk_size, Materials.EMPTY)
+	var excavated = data.get("excavated", world.excavated)
+	if not excavated is PackedByteArray or excavated.size() != cells.size(): return null
+	for flag in excavated:
+		if flag > 1: return null
+	world.excavated = excavated.duplicate()
 	var progress: PackedInt32Array = data.get("progress", PackedInt32Array())
 	var frac: PackedInt32Array = data.get("progress_frac", PackedInt32Array())
 	if progress.size() != cells.size() or frac.size() != cells.size():

@@ -14,6 +14,7 @@ var factions := 0
 var visible: Array[PackedByteArray] = []
 var explored: Array[PackedByteArray] = []
 var known_terrain: Array[PackedByteArray] = []
+var known_excavated: Array[PackedByteArray] = []
 var known_sites: Array[Dictionary] = []
 ## alliance[faction] = alliance id; default independent.
 var alliance := PackedInt32Array()
@@ -31,6 +32,7 @@ func setup(world: WorldState, count: int) -> void:
 	visible.clear()
 	explored.clear()
 	known_terrain.clear()
+	known_excavated.clear()
 	known_sites.clear()
 	alliance.resize(count)
 	for faction in count:
@@ -43,6 +45,7 @@ func setup(world: WorldState, count: int) -> void:
 		memory.resize(world.cell_count())
 		memory.fill(255)
 		known_terrain.append(memory)
+		known_excavated.append(empty.duplicate())
 		known_sites.append({})
 
 func is_visible(faction: int, cell: int) -> bool:
@@ -81,7 +84,7 @@ func update(sim: Simulation) -> void:
 		sites_state.append([row.id, row.owner, row.rect, row.ready, row.destroyed, row.hp, row.work])
 		if not row.destroyed and row.ready:
 			sources.append([int(row.owner), sim.construction.center(int(row.id)), CORE_RADIUS])
-	var terrain_signature := hash(sim.world.cells)
+	var terrain_signature := hash([hash(sim.world.cells), hash(sim.world.excavated)])
 	var signature := hash([terrain_signature, sources, sites_state, alliance])
 	if signature == _last_signature and terrain_signature == _last_terrain_signature:
 		return
@@ -147,15 +150,18 @@ func update(sim: Simulation) -> void:
 		mask.resize(blocking.size())
 		var explored_mask := explored[faction].duplicate()
 		var memory := known_terrain[faction].duplicate()
+		var floor_memory := known_excavated[faction].duplicate()
 		for ally in factions:
 			if alliance[faction] != alliance[ally]: continue
 			for cell in own_cells[ally]:
 				mask[cell] = 1
 				explored_mask[cell] = 1
 				memory[cell] = terrain[cell]
+				floor_memory[cell] = sim.world.excavated[cell]
 		visible[faction] = mask
 		explored[faction] = explored_mask
 		known_terrain[faction] = memory
+		known_excavated[faction] = floor_memory
 		# Snapshot updates only while a footprint is in view; unseen destruction remains unknown.
 		for row in sim.construction.sites.records:
 			var id := int(row.id)
@@ -235,7 +241,7 @@ func _line_clear(blocking: PackedByteArray, x0: int, y0: int, x1: int, y1: int) 
 func snapshot() -> Dictionary:
 	return {"width": width, "height": height, "factions": factions,
 		"visible": visible.duplicate(true), "explored": explored.duplicate(true),
-		"terrain": known_terrain.duplicate(true), "sites": known_sites.duplicate(true),
+		"terrain": known_terrain.duplicate(true), "excavated": known_excavated.duplicate(true), "sites": known_sites.duplicate(true),
 		"alliance": alliance.duplicate()}
 
 func restore(data: Dictionary, world: WorldState, count: int) -> bool:
@@ -243,19 +249,26 @@ func restore(data: Dictionary, world: WorldState, count: int) -> bool:
 	var v: Array = data.get("visible", [])
 	var e: Array = data.get("explored", [])
 	var t: Array = data.get("terrain", [])
+	var floor_data = data.get("excavated", [])
+	if not floor_data is Array: return false
+	var has_floor := data.has("excavated")
+	if has_floor and floor_data.size() != count: return false
 	var s: Array = data.get("sites", [])
 	var a: PackedInt32Array = data.get("alliance", PackedInt32Array())
 	if v.size() != count or e.size() != count or t.size() != count or s.size() != count or a.size() != count: return false
 	for faction in count:
 		if not v[faction] is PackedByteArray or not e[faction] is PackedByteArray or not t[faction] is PackedByteArray or not s[faction] is Dictionary: return false
 		if v[faction].size() != world.cell_count() or e[faction].size() != world.cell_count() or t[faction].size() != world.cell_count(): return false
+		if has_floor and (not floor_data[faction] is PackedByteArray or floor_data[faction].size() != world.cell_count()): return false
 		for cell in world.cell_count():
 			if int(v[faction][cell]) > 1 or int(e[faction][cell]) > 1 or (v[faction][cell] == 1 and e[faction][cell] == 0): return false
+			if has_floor and (floor_data[faction][cell] > 1 or (e[faction][cell] == 0 and floor_data[faction][cell] != 0)): return false
 	setup(world, count)
 	for faction in count:
 		visible[faction] = v[faction].duplicate()
 		explored[faction] = e[faction].duplicate()
 		known_terrain[faction] = t[faction].duplicate()
+		if has_floor: known_excavated[faction] = floor_data[faction].duplicate()
 		known_sites[faction] = s[faction].duplicate(true)
 	alliance = a.duplicate()
 	_last_signature = -1

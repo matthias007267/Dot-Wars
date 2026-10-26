@@ -6,6 +6,7 @@ extends Node2D
 const GRID_MIN_ZOOM := 8.0
 const PIT_GLOW_MIN_ZOOM := 2.5
 const TERRAIN_SHADER := preload("res://src/render/shaders/terrain.gdshader")
+const FLOOR_TEXTURE := preload("res://assets/pixel/cavern_floor.png")
 
 ## Reine Darstellungsoptionen, ohne Einfluss auf die Welt oder das HUD.
 @export var world_fx_enabled := true
@@ -43,6 +44,8 @@ const RELIC_COLOR := Color8(0xD7, 0xC4, 0xFF)
 
 var _bytes := PackedByteArray()
 var _image: Image
+var _floor_texture: ImageTexture
+var _floor_stamp := -1
 var _texture: ImageTexture
 var _surface: Sprite2D
 var _energy_overlay: Node2D
@@ -60,6 +63,7 @@ func _ready() -> void:
 	if world_fx_enabled:
 		var shader_material := ShaderMaterial.new()
 		shader_material.shader = TERRAIN_SHADER
+		shader_material.set_shader_parameter("stone_floor", FLOOR_TEXTURE)
 		shader_material.set_shader_parameter("detail_strength", terrain_detail)
 		shader_material.set_shader_parameter("edge_strength", tunnel_depth)
 		shader_material.set_shader_parameter("vignette_strength", vignette_strength)
@@ -352,6 +356,18 @@ func _upload() -> void:
 		_texture.update(_image)
 	if _surface != null:
 		_surface.texture = _texture
+		if _surface.material is ShaderMaterial:
+			_surface.material.set_shader_parameter("floor_history", floor_history_texture())
+			_surface.material.set_shader_parameter("floor_history_enabled", true)
+
+func floor_history_texture() -> ImageTexture:
+	# Mining alone changes this mask; progress, units and marker updates reuse it.
+	if _floor_texture == null or _floor_stamp != world.mined_count:
+		var image := Image.create_from_data(world.width, world.height, false, Image.FORMAT_R8, world.excavated)
+		if _floor_texture == null: _floor_texture = ImageTexture.create_from_image(image)
+		else: _floor_texture.update(image)
+		_floor_stamp = world.mined_count
+	return _floor_texture
 
 
 ## Die Kerne aller Fraktionen leuchten ohne zusaetzliche Nodes oder Lichtquellen.

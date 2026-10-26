@@ -599,3 +599,7 @@ Windows erhält v9 neben den geladenen v8-Dateien; kein Überschreiben laufender
 ## D-073 – Performance-Stand ausdrücklich mergen (26. Oktober 2026)
 
 Nach Abschluss D-071/D-072 beauftragt der Nutzer ausdrücklich „Merge den aktuellen stand“. Der vollständig geprüfte lokale Performance-Stand wird auf perf/fog-update committed, nach main zusammengeführt und normal nach origin/main gepusht. Native Bibliotheken und lokale Diagnosepartien bleiben generierte/private Dateien. Vorbestehende Importmetadaten ohne inhaltlichen Diff werden nicht als Performance-Änderung übernommen. Kein Force-Push, Release oder Stopp der laufenden Partien.
+
+## D-074 – Steinboden mit dezenter Abbaukennung (26. Oktober 2026)
+
+Der Nutzer möchte den dunklen generierten Steinhintergrund als Boden ressourcenfreier Flächen und einen leichten Farbunterschied zwischen anfangs frei und tatsächlich abgegraben. Umsetzung auf aktuellem Hauptbranch `cfd2df3`, nach Merge von #11 und Performance-Stand D-071–D-073. Dunkle Steinkachel für alle freien Flächen; kühler Grundton für ursprüngliche Öffnungen, etwas wärmer für erfolgreichen Ressourcenabbau. Die 0/1-Historie bleibt unter Fundamenten erhalten, wird additiv mitgespeichert und je Fraktion nur bei Sichtkontakt bekannt. Alte Version-2-Stände bleiben ladbar, ohne fehlende Vergangenheit zu erfinden. Keine Spielregel-/Weltgenerierungsänderung. Die Performance-Strukturen bleiben erhalten; keine neue Leistungsabnahme behaupten. Neuer Review-PR, kein automatischer Merge. Details in STONE_FLOOR.md.

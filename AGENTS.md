@@ -1,5 +1,9 @@
 # Regeln für Agenten
 
+## Neuester Auftrag: Steinboden und sichtbare Abbauhistorie
+
+Der Nutzer möchte den generierten dunklen Steinhintergrund als Boden freier Zellen übernehmen und anfangs freie von abgebauten Flächen dezent farblich unterscheiden. Neuer Branch/PR auf `cfd2df3` nach Merge von #11 und D-071–D-073. Die bestehenden Performance-Pfade bleiben erhalten. Nur optische Historie, additive Speicherung und sichtgefiltertes Bodengedächtnis; keine Änderung von Rohstoffen, Bilanz, Bewegung oder Weltgenerierung. Regeln/Altstandgrenze und Prüfungen: `docs/STONE_FLOOR.md`, D-074. Kein automatischer Merge dieses Folgeauftrags.
+
 ## Neuester Auftrag: aktuellen Performance-Stand mergen
 
 Der Nutzer beauftragt ausdrücklich: „Merge den aktuellen stand“. Das erlaubt jetzt das Committen der geprüften Änderungen D-071/D-072, Zusammenführen nach main und einen normalen Push nach origin/main. Die bisherigen Einschränkungen verbieten nur automatische Merges ohne diesen Auftrag. Kein Force-Push, Release oder Beenden laufender Partien. D-073 hält die Freigabe fest.
