@@ -13,10 +13,13 @@ const CATALOG := {
 }
 var levels: Array[Dictionary] = []
 var jobs: Array[Dictionary] = []
+## Physically delivered energy, held at each research center.
+var supply: Dictionary = {}
 
 func setup(factions: int) -> void:
 	levels.clear()
 	jobs.clear()
+	supply.clear()
 	for faction in factions:
 		levels.append({})
 
@@ -54,6 +57,26 @@ func start(sim: Simulation, faction: int, site: int, tech: String) -> bool:
 	jobs.append({"faction": faction, "site": site, "tech": tech, "elapsed": 0, "ticks": cost["ticks"], "energy": cost["energy"], "spent": 0})
 	return true
 
+func receiver_site(sim: Simulation, cell: int, faction: int) -> int:
+	for job in jobs:
+		if int(job["faction"]) != faction: continue
+		var site: int = int(job["site"])
+		if sim.construction.sites.valid(site) and sim.construction.receivers_for(sim, site).has(cell):
+			return site
+	return -1
+
+func receiver_gates(sim: Simulation, faction: int) -> PackedInt32Array:
+	var result := PackedInt32Array()
+	for job in jobs:
+		if int(job["faction"]) != faction: continue
+		var site: int = int(job["site"])
+		if sim.construction.sites.valid(site):
+			result.append_array(sim.construction.receivers_for(sim, site))
+	return result
+
+func deliver(site: int) -> void:
+	supply[site] = int(supply.get(site, 0)) + 1
+
 func step(sim: Simulation) -> void:
 	for i in range(jobs.size() - 1, -1, -1):
 		var job: Dictionary = jobs[i]
@@ -61,6 +84,7 @@ func step(sim: Simulation) -> void:
 		var site: int = int(job["site"])
 		if not sim.construction.sites.valid(site):
 			jobs.remove_at(i)
+			supply.erase(site)
 			continue
 		var row: Dictionary = sim.construction.sites.records[site]
 		if row.owner != faction or row.kind != Store.Kind.RESEARCH_CENTER or not row.ready:
@@ -69,9 +93,8 @@ func step(sim: Simulation) -> void:
 		var remaining_ticks: int = int(job["ticks"]) - int(job["elapsed"])
 		var remaining_energy: int = int(job["energy"]) - int(job["spent"])
 		var charge := (remaining_energy + remaining_ticks - 1) / remaining_ticks
-		var wallet: Upgrades = sim.rules.wallet(sim, faction)
-		if wallet.energy < charge: continue
-		wallet.energy -= charge
+		if int(supply.get(site, 0)) < charge: continue
+		supply[site] = int(supply[site]) - charge
 		job["spent"] = int(job["spent"]) + charge
 		job["elapsed"] = int(job["elapsed"]) + 1
 		if int(job["elapsed"]) >= int(job["ticks"]):
@@ -97,7 +120,7 @@ func _apply(sim: Simulation, faction: int, tech: String) -> bool:
 	return true
 
 func snapshot() -> Dictionary:
-	return {"levels": levels.duplicate(true), "jobs": jobs.duplicate(true)}
+	return {"levels": levels.duplicate(true), "jobs": jobs.duplicate(true), "supply": supply.duplicate(true)}
 
 func restore(sim: Simulation, data: Dictionary) -> bool:
 	var stored_levels: Variant = data.get("levels", [])
@@ -132,9 +155,17 @@ func restore(sim: Simulation, data: Dictionary) -> bool:
 		busy_sites[site] = true
 		busy_techs[key] = true
 		candidate_jobs.append(job.duplicate(true))
+	var stored_supply: Variant = data.get("supply", {})
+	if not stored_supply is Dictionary: return false
+	var candidate_supply := {}
+	for site in stored_supply:
+		if typeof(site) != TYPE_INT or typeof(stored_supply[site]) != TYPE_INT or stored_supply[site] < 0: return false
+		if not sim.construction.sites.valid(site) or sim.construction.sites.records[site].kind != Store.Kind.RESEARCH_CENTER: return false
+		candidate_supply[site] = stored_supply[site]
 	levels = candidate_levels
 	jobs = candidate_jobs
+	supply = candidate_supply
 	return true
 
 func state_hash() -> int:
-	return hash([levels, jobs])
+	return hash([levels, jobs, supply])
