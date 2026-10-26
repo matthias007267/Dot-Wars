@@ -102,3 +102,28 @@ func test_no_unexplored_material_or_site_leak() -> void:
 	check(not fog.is_explored(0, unseen), "unknown terrain not explored")
 	check(fog.remembered_sites(0).is_empty(), "no enemy site data before discovery")
 	check(fog.known_building(-1, 0).is_empty(), "invalid viewer has no site knowledge")
+
+func test_repeated_sight_origin_does_not_change_visibility() -> void:
+	var sim := _sim()
+	var fog := Fog.new()
+	fog.setup(sim.world, 2)
+	fog.update(sim)
+	var before := fog.visible[0].duplicate()
+	# Duplicate a worker's vision source by moving an existing second worker,
+	# when available, to the same cell. Visibility must be deterministic.
+	if sim.workers.count < 2: return
+	var anchor := int(sim.workers.cell[0])
+	var other := -1
+	for id in range(1, sim.workers.count):
+		if sim.workers.faction[id] == sim.workers.faction[0]:
+			other = id
+			break
+	if other < 0: return
+	var previous := sim.workers.cell[other]
+	sim.workers.cell[other] = anchor
+	fog.update(sim)
+	var duplicate_mask := fog.visible[0].duplicate()
+	sim.workers.cell[other] = previous
+	fog.update(sim)
+	check_eq(fog.visible[0], before, "visibility restored after duplicate source")
+	check(duplicate_mask[anchor] == 1, "duplicate source still reveals origin")
