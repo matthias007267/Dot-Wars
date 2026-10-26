@@ -79,6 +79,7 @@ var _refinery_tier_button: Button
 var _build_caption: Label
 var _build_kind := Buildings.KIND_SOURCE
 var _settlement_kind := -1
+var _placing_conduit := false
 var _size_buttons: Array[Button] = []
 var _map: WorldMinimap
 
@@ -240,6 +241,13 @@ func issue_war(cell: int) -> bool:
 func issue_build(cell: int) -> bool:
 	if sim == null:
 		return false
+	if _placing_conduit:
+		if not sim.place_energy_conduit(cell):
+			_notice("Energieleitung: leere Zelle und 2 Energie erforderlich.")
+			return false
+		_notice("Energieleitung gesetzt. Weitere Zellen anklicken oder Modus wechseln.")
+		refresh()
+		return true
 	if _settlement_kind >= 0:
 		var id: int = sim.construction.place(sim, _settlement_kind, cell, selection)
 		if id < 0:
@@ -519,6 +527,8 @@ func _build_upgrade_panel(layer: Control) -> void:
 		_research_tech_ids.append(tech)
 	_label(content, "FORSCHUNGSGEBÄUDE", 12, UiTheme.MUTED)
 	_research_center_button = _button(content, "FORSCHUNGSZENTRUM BAUEN · 300", _begin_settlement.bind(3))
+	_label(content, "ENERGIENETZ", 12, UiTheme.MUTED)
+	_button(content, "ENERGIELEITUNG PLATZIEREN · 2 / ZELLE", _begin_conduit)
 	_label(content, "ENERGIETRANSPORT", 12, UiTheme.MUTED)
 	_interceptor_button = _button(content, "ABFANGSTATION BAUEN · 250", _begin_settlement.bind(2))
 	_build_caption = _label(content, "BAUEN", 12, UiTheme.MUTED)
@@ -1303,7 +1313,14 @@ func _production_site() -> int:
 	var site: int = sim.construction.selected
 	return site if sim.construction.sites.valid(site) and sim.construction.sites.records[site].owner == 0 else -1
 
+func _begin_conduit() -> void:
+	_placing_conduit = true
+	_settlement_kind = -1
+	command_mode = Command.BUILD
+	_notice("Energienetz: Leitungszellen nacheinander platzieren. Gebäude müssen durchgehend mit dem Kern verbunden sein.")
+
 func _begin_settlement(kind: int) -> void:
+	_placing_conduit = false
 	if kind == 2 and not sim.construction.interceptors_unlocked:
 		_notice("Abfangstationen benötigen Forschung. Vorläufig nur im Testlabor freischaltbar.")
 		return
