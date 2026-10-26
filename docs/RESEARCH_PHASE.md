@@ -58,3 +58,10 @@ Technologien datengetrieben durch stabile String-IDs und Definitionen (Zweig, Na
 
 ### Noch offen
 Die Zweigzuordnung, neue Technologien, konkrete Kosten, Dauer, Voraussetzungen, Abbruch-/Erstattungsregeln und der neue Forschungssieg sind vor Gameplay-Implementierung gemeinsam festzulegen.
+
+## Entscheidung: Verschmelzung entfernen; visuelle Forschung in P6
+
+- Die 2×2-/3×3-Verschmelzung und ihre Freischaltungen sollen vollständig aus dem Spiel verschwinden; **nicht** in den Forschungsbaum migrieren.
+- Entfernung muss Simulationslogik, Einheitensteuerung, UI, KI, Tests und Save/Load-Kompatibilität einschließen. Vor dem Entfernen Abhängigkeiten und bestehende Altstand-Migrationsregeln prüfen.
+- Der Forschungsbaum soll bereits innerhalb P6 als spielbare, zum DOT-WARS-Pixel-Art-Stil passende interaktive Oberfläche entstehen. Vorgesehen: vier visuell unterscheidbare Zweige, Verbindungslinien/Voraussetzungen, Technologie-Details, Kosten/Dauer/Fortschritt, Zoom/Pan und spätere Erweiterbarkeit.
+- Spätere Work-Abnahme: Live-/Performance-Tests und visueller Feinschliff, nicht grundlegende Nachimplementierung.
