@@ -152,3 +152,17 @@ func test_rendered_worker_footprint_never_extends_outside_sight() -> void:
 	check(fog.is_visible(0, cell), "owned worker origin visible")
 	check(not fog.is_visible(0, -1), "negative cell hidden")
 	check(not fog.is_visible(0, sim.world.cell_count()), "out of bounds hidden")
+
+func test_restore_rejects_invalid_visibility_payload() -> void:
+	var sim := _sim()
+	var fog := Fog.new()
+	fog.setup(sim.world, 2)
+	fog.update(sim)
+	var invalid := fog.snapshot()
+	var visible_masks: Array = invalid["visible"]
+	visible_masks[0] = PackedByteArray([1, 0])
+	var copy := Fog.new()
+	check(not copy.restore(invalid, sim.world, 2), "truncated visibility payload rejected")
+	var valid := fog.snapshot()
+	check(copy.restore(valid, sim.world, 2), "valid snapshot restored after rejection")
+	check_eq(copy.known_sites[0], fog.known_sites[0], "building memory survives restore")
