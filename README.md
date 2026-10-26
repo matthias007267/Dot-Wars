@@ -1,5 +1,7 @@
 # DOT WARS
 
+P6-Folgeauftrag: KI-Netzversorgung, reguläre Außenposten-/Abfangstationsforschung, Energieeffizienz und grafischer Forschungsbaum. **E**: Leitungszug mit Vorschau, Platzierung beim Loslassen; **Q**: Leitungs-/Arbeiterabriss. Im Fähigkeitenfenster ein Forschungszentrum wählen, Knoten inspizieren und Forschung starten; Mausrad/−/+ zoomen, mittlere Maustaste verschiebt den Baum. Regeln, vorläufige Werte und Prüfungen: [P6_PLAYABLE_RESEARCH.md](docs/P6_PLAYABLE_RESEARCH.md). Historische Beschreibungen unten sind teilweise überholt.
+
 Prüfung des gesammelten Commitstands aus einem sauberen Export: [COMMIT_VALIDATION.md](docs/COMMIT_VALIDATION.md).
 
 Energiephase lokal integriert: 60 Sekunden ohne Terrainroute führen zum Verfall; Abfangstationen übernehmen physische gegnerische Energie, puffern und senden sie zum eigenen Kern/Außenposten. Bei Stationszerstörung wird nur der verbleibende Puffer neutral. Testlaborfreigabe und Bau unter Fähigkeiten → Energietransport; Regeln, Bilanz und Prüfstand in [ENERGY_PHASE.md](docs/ENERGY_PHASE.md).

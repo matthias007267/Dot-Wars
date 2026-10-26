@@ -8,6 +8,9 @@ var height := 0
 var cells := PackedInt32Array()
 var owners := PackedInt32Array()
 var revision := 0
+var _owner_index := {}
+var _route_fields := {}
+var _route_stamp := ""
 
 func setup(p_width: int, p_height: int) -> void:
 	width = p_width
@@ -15,10 +18,11 @@ func setup(p_width: int, p_height: int) -> void:
 	cells.clear()
 	owners.clear()
 	revision = 0
+	_owner_index.clear()
+	_route_fields.clear()
 
 func owner_at(cell: int) -> int:
-	var index := cells.find(cell)
-	return -1 if index < 0 else owners[index]
+	return int(_owner_index.get(cell, -1))
 
 func place(sim: Simulation, faction: int, cell: int) -> bool:
 	if cell < 0 or cell >= width * height or faction < 0 or faction >= (sim.rules.faction_count if sim._match_live() else 1): return false
@@ -27,12 +31,14 @@ func place(sim: Simulation, faction: int, cell: int) -> bool:
 	# Conduits are a non-blocking overlay: workers and warriors may stand on them.
 	cells.append(cell)
 	owners.append(faction)
+	_owner_index[cell] = faction
 	revision += 1
 	return true
 
 func remove(faction: int, cell: int) -> bool:
 	var index := cells.find(cell)
 	if index < 0 or owners[index] != faction: return false
+	_owner_index.erase(cell)
 	cells.remove_at(index)
 	owners.remove_at(index)
 	revision += 1
@@ -44,48 +50,84 @@ func place_path(sim: Simulation, faction: int, path: PackedInt32Array) -> int:
 		if place(sim, faction, cell): placed += 1
 	return placed
 
-func plan_path(sim: Simulation, faction: int, start: int, goal: int) -> PackedInt32Array:
-	var result := PackedInt32Array()
-	if start < 0 or goal < 0 or start >= width * height or goal >= width * height: return result
-	if not _placeable(sim, faction, start) or not _placeable(sim, faction, goal): return result
-	# Dijkstra: existing owned conduits are free, new cells cost one.
-	# Stable neighbor ordering ensures reproducible routes and previews.
-	var costs := PackedInt32Array()
-	costs.resize(width * height)
-	costs.fill(2147483647)
-	var parents := PackedInt32Array()
-	parents.resize(width * height)
-	parents.fill(-1)
-	var visited := PackedByteArray()
-	visited.resize(width * height)
-	var frontier: Array[Vector2i] = [Vector2i(_heuristic(start, goal) * 10, start)]
-	costs[start] = 0
-	while not frontier.is_empty():
-		var best := 0
-		for i in range(1, frontier.size()):
-			if frontier[i].x < frontier[best].x or (frontier[i].x == frontier[best].x and frontier[i].y < frontier[best].y): best = i
-		var current: int = frontier[best].y
-		frontier.remove_at(best)
-		if visited[current] != 0: continue
-		visited[current] = 1
-		if current == goal: break
+func plan_path(sim: Simulation, faction: int, start: int, goal: int, viewer := -1) -> PackedInt32Array:
+	return _plan(sim, faction, PackedInt32Array([start]), PackedInt32Array([goal]), viewer)
+
+func plan_connection(sim: Simulation, faction: int, source_site: int, target_site: int) -> PackedInt32Array:
+	if not sim.construction.sites.valid(source_site) or not sim.construction.sites.valid(target_site): return PackedInt32Array()
+	if sim.construction.sites.records[source_site].owner != faction or sim.construction.sites.records[target_site].owner != faction: return PackedInt32Array()
+	return _plan(sim, faction, sim.construction.sites.perimeter(source_site), sim.construction.sites.perimeter(target_site))
+
+func _plan(sim: Simulation, faction: int, starts: PackedInt32Array, goals: PackedInt32Array, viewer := -1) -> PackedInt32Array:
+	# Multi-source Dijkstra: reuse conduits (cost 1), prefer fewer new cells (11).
+	# No terrain carving, cross-faction conduits, or implicit building connections.
+	var costs := {}
+	var parents := {}
+	var targets := {}
+	var frontier: Array[Vector2i] = []
+	for goal in goals:
+		if _known_placeable(sim, faction, goal, viewer): targets[goal] = true
+	if targets.is_empty(): return PackedInt32Array()
+	for start in starts:
+		if not _known_placeable(sim, faction, start, viewer): continue
+		costs[start] = 0
+		parents[start] = -1
+		_heap_push(frontier, Vector2i(0, start))
+	var examined := 0
+	while not frontier.is_empty() and examined < 65536:
+		var item := _heap_pop(frontier)
+		var current := item.y
+		if item.x != costs[current]: continue
+		examined += 1
+		if targets.has(current):
+			var result := PackedInt32Array()
+			while current >= 0:
+				result.append(current)
+				current = parents[current]
+			result.reverse()
+			return result
 		for next in neighbors(current):
-			if visited[next] != 0 or not _placeable(sim, faction, next): continue
-			var cost := costs[current] + (0 if owner_at(next) == faction else 10) + 1
-			if cost < costs[next]:
+			if not _known_placeable(sim, faction, next, viewer): continue
+			var cost: int = item.x + (1 if owner_at(next) == faction else 11)
+			if cost < int(costs.get(next, 2147483647)):
 				costs[next] = cost
 				parents[next] = current
-				frontier.append(Vector2i(cost + _heuristic(next, goal) * 10, next))
-	if costs[goal] == 2147483647: return result
-	var cursor := goal
-	while cursor >= 0:
-		result.append(cursor)
-		cursor = parents[cursor]
-	result.reverse()
+				_heap_push(frontier, Vector2i(cost, next))
+	return PackedInt32Array()
+
+static func _less(a: Vector2i, b: Vector2i) -> bool:
+	return a.x < b.x or (a.x == b.x and a.y < b.y)
+
+static func _heap_push(heap: Array[Vector2i], item: Vector2i) -> void:
+	heap.append(item)
+	var i := heap.size() - 1
+	while i > 0:
+		var parent := (i - 1) / 2
+		if not _less(item, heap[parent]): break
+		heap[i] = heap[parent]
+		i = parent
+	heap[i] = item
+
+static func _heap_pop(heap: Array[Vector2i]) -> Vector2i:
+	var result := heap[0]
+	var last: Vector2i = heap.pop_back()
+	if heap.is_empty(): return result
+	var i := 0
+	while i * 2 + 1 < heap.size():
+		var child := i * 2 + 1
+		if child + 1 < heap.size() and _less(heap[child + 1], heap[child]): child += 1
+		if not _less(heap[child], last): break
+		heap[i] = heap[child]
+		i = child
+	heap[i] = last
 	return result
 
 func _heuristic(cell: int, goal: int) -> int:
 	return absi(cell % width - goal % width) + absi(int(cell / width) - int(goal / width))
+
+func _known_placeable(sim: Simulation, faction: int, cell: int, viewer: int) -> bool:
+	if viewer >= 0 and sim._match_live() and not sim.fog.is_visible(viewer, cell): return false
+	return _placeable(sim, faction, cell)
 
 func _placeable(sim: Simulation, faction: int, cell: int) -> bool:
 	if cell < 0 or cell >= width * height: return false
@@ -101,6 +143,7 @@ func connected_path(sim: Simulation, faction: int, source: int, target: int) -> 
 	var source_site := sim.construction.at(source)
 	var target_site := sim.construction.at(target)
 	if source_site < 0 or target_site < 0: return empty
+	if sim.construction.sites.records[source_site].owner != faction or sim.construction.sites.records[target_site].owner != faction: return empty
 	var start_cells := sim.construction.sites.perimeter(source_site)
 	var target_cells := sim.construction.sites.perimeter(target_site)
 	for c in start_cells:
@@ -128,6 +171,38 @@ func connected_path(sim: Simulation, faction: int, source: int, target: int) -> 
 	reverse.reverse()
 	return reverse
 
+func route_to_site(sim: Simulation, faction: int, cell: int, site: int) -> PackedInt32Array:
+	if owner_at(cell) != faction or not sim.construction.sites.valid(site): return PackedInt32Array()
+	if sim.construction.sites.records[site].owner != faction: return PackedInt32Array()
+	var stamp := "%d:%d:%d" % [revision, sim.world.revision, sim.construction.sites.revision]
+	if stamp != _route_stamp:
+		_route_fields.clear()
+		_route_stamp = stamp
+	var key := Vector2i(faction, site)
+	if not _route_fields.has(key):
+		var parents := {}
+		var queue := PackedInt32Array()
+		for edge in sim.construction.sites.perimeter(site):
+			if owner_at(edge) == faction:
+				parents[edge] = -1
+				queue.append(edge)
+		var head := 0
+		while head < queue.size():
+			var current := queue[head]
+			head += 1
+			for next in neighbors(current):
+				if parents.has(next) or owner_at(next) != faction: continue
+				parents[next] = current
+				queue.append(next)
+		_route_fields[key] = parents
+	var field: Dictionary = _route_fields[key]
+	var result := PackedInt32Array()
+	if not field.has(cell): return result
+	while cell >= 0:
+		result.append(cell)
+		cell = field[cell]
+	return result
+
 func neighbors(cell: int) -> PackedInt32Array:
 	var result := PackedInt32Array()
 	if cell >= width: result.append(cell - width)
@@ -153,6 +228,10 @@ func restore(data: Dictionary, sim: Simulation) -> bool:
 		seen[cell] = true
 	cells = data.cells.duplicate()
 	owners = data.owners.duplicate()
+	_owner_index.clear()
+	for i in cells.size(): _owner_index[cells[i]] = owners[i]
+	_route_fields.clear()
+	_route_stamp = ""
 	revision = data.revision
 	return true
 

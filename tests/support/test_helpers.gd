@@ -83,7 +83,7 @@ static func legacy_core_sim(config: SimConfig) -> Simulation:
 ## Bounded loop: a rejected start fails the test instead of hanging CI.
 static func complete_buffered_research(sim: Simulation, site: int, tech: String, faction := 0) -> bool:
 	if not sim.research.start(sim, faction, site, tech): return false
-	var cost := sim.research.details(tech, sim.research.level(faction, tech) + 1)
+	var cost := sim.research.details(tech, sim.research.level(faction, tech) + 1, faction)
 	sim.research.supply[site] = int(sim.research.supply.get(site, 0)) + int(cost.energy)
 	var expected := sim.research.level(faction, tech) + 1
 	for tick in int(cost.ticks):

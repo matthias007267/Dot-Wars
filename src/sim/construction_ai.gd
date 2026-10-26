@@ -41,7 +41,7 @@ static func step(sim: Simulation, owner: int) -> bool:
 	if pending_outpost >= 0:
 		if due: _staff(sim, pending_outpost, workers, level)
 		return false
-	if not due or not system.outposts_unlocked: return false
+	if not due or not system.unlocked(sim, 1, owner): return false
 	# Provisional easy/normal/hard expansion caps: 1/2/3, at 3/4/6 workers.
 	var cap := 1 if level == SimConfig.DIFFICULTY_EASY else 3 if level == SimConfig.DIFFICULTY_HARD else 2
 	var needed := 3 if level == SimConfig.DIFFICULTY_EASY else 6 if level == SimConfig.DIFFICULTY_HARD else 4

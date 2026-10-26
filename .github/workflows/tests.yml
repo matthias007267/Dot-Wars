@@ -56,3 +56,27 @@ jobs:
             exit 1
           fi
           grep -q "DOT WARS bereit" /tmp/boot.log
+
+      - name: Grafischer P6-Bediencheck
+        run: |
+          if ! command -v xvfb-run >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb libgl1-mesa-dri
+          fi
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1600x1000x24" timeout 90s godot --audio-driver Dummy --path . -s bench/p6_live_check.gd 2>&1 | tee /tmp/p6-live.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" /tmp/p6-live.log; then
+            exit 1
+          fi
+          grep -q "P6 LIVE SUMMARY: 0 failures" /tmp/p6-live.log
+
+      - name: P6-Grafiknachweise
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p6-visual-check
+          path: |
+            /tmp/p6-live.log
+            /tmp/p6-research-tree.png
+            /tmp/p6-powered.png
+            /tmp/p6-world.png
+          if-no-files-found: ignore

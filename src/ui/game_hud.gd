@@ -67,6 +67,7 @@ var _research_tech_buttons: Array[Button] = []
 var _research_tech_ids: Array[String] = []
 var _research_status: Label
 var _research_tree: VBoxContainer
+var _research_tree_view: ResearchTreeView
 var _pause_button: Button
 var _speed_button: Button
 var _swarm_ids: Array[int] = []
@@ -252,6 +253,13 @@ func issue_build(cell: int) -> bool:
 		refresh()
 		return true
 	if _settlement_kind >= 0:
+		if _match_live():
+			var side := 5 if _settlement_kind == 0 else 3
+			for dy in side:
+				for dx in side:
+					if not sim.fog.is_visible(0, cell + dy * sim.world.width + dx):
+						_notice("Baugrund zuerst vollständig aufklären.")
+						return false
 		var id: int = sim.construction.place(sim, _settlement_kind, cell, selection)
 		if id < 0:
 			_notice("Bau gesperrt: freier Baugrund, Energie, Forschung und Kernlimit prüfen.")
@@ -502,51 +510,37 @@ func _build_upgrade_panel(layer: Control) -> void:
 	center.anchor_right = 1.0
 	center.anchor_top = 1.0
 	center.anchor_bottom = 1.0
-	center.offset_top = -680
-	center.offset_bottom = -94
+	center.anchor_top = 0.08
+	center.anchor_bottom = 0.92
+	center.offset_top = 0
+	center.offset_bottom = 0
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(center)
 
 	_upgrade_panel = _panel(center)
-	_upgrade_panel.custom_minimum_size = Vector2(360, 0)
+	_upgrade_panel.custom_minimum_size = Vector2(880, 0)
 	var content := _column(_upgrade_panel, 7)
 	var head := HBoxContainer.new()
 	content.add_child(head)
 	var caption := _label(head, "FÄHIGKEITEN", 16, UiTheme.ACCENT)
 	caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_button(head, "SCHLIESSEN", _toggle_upgrades)
-	_label(content, "KERN", 12, UiTheme.MUTED)
-	_add_upgrade_button(content, Upgrades.KIND_CORE, 0)
-	_label(content, "BEWEGUNG", 12, UiTheme.MUTED)
-	_add_upgrade_button(content, Upgrades.KIND_SPEED, 0)
-	_add_upgrade_button(content, Upgrades.KIND_ENERGY_SPEED, 0)
-	_label(content, "SCHWARM", 12, UiTheme.MUTED)
-	_add_upgrade_button(content, Upgrades.KIND_DIG, 0)
-	_add_upgrade_button(content, Upgrades.KIND_SWARM, 0)
-	_research_caption = _label(content, "FORSCHUNG", 12, UiTheme.MUTED)
-	_research_button = _button(content, "FORSCHUNG", func() -> void: _start_research("victory"))
-	_research_button.custom_minimum_size = Vector2(310, 34)
-	_research_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_label(content, "FORSCHUNGSBAUM · Forschungszentrum auswählen", 12, UiTheme.MUTED)
+	_label(content, "FORSCHUNGSBAUM · Zentrum auf der Karte auswählen", 13, UiTheme.ACCENT)
 	_research_status = _label(content, "Kein Forschungszentrum ausgewählt.", 12, UiTheme.MUTED)
-	var tree_scroll := ScrollContainer.new()
-	tree_scroll.custom_minimum_size = Vector2(340, 250)
-	tree_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.add_child(tree_scroll)
-	_research_tree = _column(tree_scroll, 8)
-	for branch in ["Wirtschaft", "Infrastruktur", "Energietechnik", "Militär"]:
-		var branch_panel := PanelContainer.new()
-		_research_tree.add_child(branch_panel)
-		var branch_content := _column(branch_panel, 5)
-		_label(branch_content, branch.to_upper(), 13, UiTheme.ACCENT)
-		for tech in ResearchSystem.CATALOG:
-			var entry: Dictionary = ResearchSystem.CATALOG[tech]
-			if str(entry["branch"]) != branch: continue
-			var tech_button := _button(branch_content, str(entry["label"]), _start_research.bind(tech))
-			tech_button.custom_minimum_size = Vector2(300, 42)
-			tech_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			_research_tech_buttons.append(tech_button)
-			_research_tech_ids.append(tech)
+	var tools := HBoxContainer.new()
+	content.add_child(tools)
+	_research_tree_view = ResearchTreeView.new()
+	_button(tools, "−", func() -> void: _research_tree_view.set_zoom(_research_tree_view.zoom / 1.2))
+	_button(tools, "+", func() -> void: _research_tree_view.set_zoom(_research_tree_view.zoom * 1.2))
+	_button(tools, "ANSICHT", func() -> void: _research_tree_view.reset_view())
+	_label(tools, "Mausrad: Zoom · Mittlere Maustaste: Verschieben", 12, UiTheme.MUTED)
+	content.add_child(_research_tree_view)
+	_research_tree_view.detail = _label(content, "Technologie auswählen.", 12, UiTheme.TEXT)
+	_research_tree_view.detail.custom_minimum_size.y = 92
+	_research_tree_view.start_button = _button(content, "FORSCHUNG STARTEN", func() -> void: _start_research(_research_tree_view.selected))
+	for tech in _research_tree_view.buttons:
+		_research_tech_ids.append(tech)
+		_research_tech_buttons.append(_research_tree_view.buttons[tech])
 	_label(content, "FORSCHUNGSGEBÄUDE", 12, UiTheme.MUTED)
 	_research_center_button = _button(content, "FORSCHUNGSZENTRUM BAUEN · 300", _begin_settlement.bind(3))
 	_label(content, "ENERGIENETZ", 12, UiTheme.MUTED)
@@ -719,6 +713,13 @@ func _save_game() -> void:
 
 func _toggle_upgrades() -> void:
 	_upgrade_panel.visible = not _upgrade_panel.visible
+	if _upgrade_panel.visible:
+		_placing_conduit = false
+		_demolition_mode = false
+		_settlement_kind = -1
+		command_mode = Command.MINE
+		if renderer != null: renderer.set_energy_preview(PackedInt32Array())
+		if _research_tree_view != null: _research_tree_view.reset_view()
 
 
 func _add_upgrade_button(parent: Node, kind: int, indent: int) -> void:
@@ -874,44 +875,7 @@ func _refresh_research() -> void:
 	var site := _production_site()
 	if _research_status != null:
 		_research_status.text = "Forschungszentrum #%d · Energiepuffer %d" % [site, int(sim.research.supply.get(site, 0))] if site >= 0 and sim.construction.sites.valid(site) and sim.construction.sites.records[site].kind == 3 else "Forschungszentrum auf der Karte auswählen."
-	for i in _research_tech_buttons.size():
-		var tech := _research_tech_ids[i]
-		var entry: Dictionary = ResearchSystem.CATALOG[tech]
-		var level := sim.research.level(0, tech)
-		var cost := sim.research.details(tech, level + 1)
-		var button := _research_tech_buttons[i]
-		button.visible = tech != "victory" or (sim.config.victory_mask & MatchRules.VICTORY_RESEARCH) != 0
-		button.disabled = not sim.research.can_start(sim, 0, site, tech)
-		var prereqs: Array = entry["requires"]
-		var missing: Array[String] = []
-		for prereq in prereqs:
-			if sim.research.level(0, str(prereq)) < 1:
-				missing.append(str(ResearchSystem.CATALOG[str(prereq)]["label"]))
-		var status := "ABGESCHLOSSEN" if cost.is_empty() else "%d Takte · %d Energie" % [int(cost["ticks"]), int(cost["energy"])]
-		if not missing.is_empty(): status = "Benötigt: " + ", ".join(missing)
-		button.text = "%s  [%d/%d]\n%s" % [str(entry["label"]), level, int(entry["max"]), status]
-		button.tooltip_text = "Zweig: %s | Stufe %d/%d | %s" % [str(entry["branch"]), level, int(entry["max"]), status]
-		for job in sim.research.jobs:
-			if int(job["faction"]) == 0 and str(job["tech"]) == tech:
-				button.text = "%s  [%d/%d]\nFORSCHUNG %d/%d Takte · %d/%d Energie" % [str(entry["label"]), level, int(entry["max"]), int(job["elapsed"]), int(job["ticks"]), int(job["spent"]), int(job["energy"])]
-				button.tooltip_text = "Forschung läuft im Zentrum #%d" % int(job["site"])
-	if _research_button == null or _research_caption == null:
-		return
-	var show := (
-		sim.config.mode == SimConfig.MODE_MATCH
-		and (sim.config.victory_mask & MatchRules.VICTORY_RESEARCH) != 0
-	)
-	_research_caption.visible = false
-	_research_button.visible = false
-	if not show:
-		return
-	var cost := sim.upgrades.research_cost()
-	if cost < 0:
-		_research_button.text = "FORSCHUNG   Stufe %d    VOLL" % sim.upgrades.research_level
-		_research_button.disabled = true
-	else:
-		_research_button.text = "FORSCHUNG   Stufe %d    •    %d Energie" % [sim.upgrades.research_level + 1, cost]
-		_research_button.disabled = sim.upgrades.energy < cost
+	if _research_tree_view != null: _research_tree_view.refresh(sim, site)
 
 
 func _show_single_goal(title: String, current: int, goal: int) -> void:
@@ -1376,6 +1340,7 @@ func demolish_at(cell: int) -> bool:
 		_notice("Energieleitung sofort entfernt.")
 		return true
 	var site := sim.construction.at(cell)
+	if _match_live() and not sim.fog.is_visible(0, cell) and (site < 0 or sim.construction.sites.records[site].owner != 0): return false
 	if site >= 0 and sim.construction.start_demolition(sim, site, 0):
 		_notice("Abriss beauftragt: Arbeiter entfernen das Gebäude mit 20 % des Bauaufwands.")
 		return true
@@ -1384,6 +1349,7 @@ func demolish_at(cell: int) -> bool:
 
 func place_energy_network_cell(cell: int) -> bool:
 	if not _placing_conduit or sim == null: return false
+	if _match_live() and not sim.fog.is_visible(0, cell): return false
 	if sim.energy_network.owner_at(cell) == 0: return true
 	var placed := sim.place_energy_conduit(cell)
 	if placed and renderer != null: renderer.queue_redraw()
@@ -1392,12 +1358,13 @@ func place_energy_network_cell(cell: int) -> bool:
 func _begin_settlement(kind: int) -> void:
 	_placing_conduit = false
 	_demolition_mode = false
-	if kind == 2 and not sim.construction.interceptors_unlocked:
-		_notice("Abfangstationen benötigen Forschung. Vorläufig nur im Testlabor freischaltbar.")
+	if kind == 2 and not sim.construction.unlocked(sim, 2):
+		_notice("Abfangstationen benötigen Forschung. Im Forschungsbaum freischalten.")
 		return
-	if kind == 1 and not sim.construction.outposts_unlocked:
-		_notice("Außenposten benötigen Forschung. Vorläufig nur im Testlabor freischaltbar.")
+	if kind == 1 and not sim.construction.unlocked(sim, 1):
+		_notice("Außenposten benötigen Forschung. Im Forschungsbaum freischalten.")
 		return
+	if _upgrade_panel != null: _upgrade_panel.visible = false
 	_settlement_kind = kind
 	command_mode = Command.BUILD
 	_notice("Bauplatz anklicken (linke obere Ecke): %d×%d. Freier Boden erforderlich; gewählte Arbeiter bauen." % [5 if kind == 0 else 3, 5 if kind == 0 else 3])
@@ -1433,10 +1400,10 @@ func _cancel_selected() -> void:
 func _refresh_build_actions() -> void:
 	if _research_center_button != null:
 		_research_center_button.disabled = sim.upgrades.energy < sim.construction.price(3, 0)
-		_research_center_button.tooltip_text = "Forschungszentrum: 3×3, 200 HP, 300 Energie, 300 Arbeitertakte. Von Anfang an baubar; Forschungsaufträge folgen in P6.2."
+		_research_center_button.tooltip_text = "Forschungszentrum: 3×3, 200 HP, 300 Energie, 300 Arbeitertakte. Von Anfang an baubar; Ein Auftrag pro fertigem Zentrum; Energiezufuhr über Leitungen."
 	if _interceptor_button != null:
-		_interceptor_button.disabled = not sim.construction.interceptors_unlocked or sim.upgrades.energy < 250
-		_interceptor_button.tooltip_text = "Test: 3×3, 150 HP, 250 Energie, 300 Arbeitertakte. Abfangen am freien Rand; Freischaltung derzeit nur im Testlabor."
+		_interceptor_button.disabled = not sim.construction.unlocked(sim, 2) or sim.upgrades.energy < 250
+		_interceptor_button.tooltip_text = "Test: 3×3, 150 HP, 250 Energie, 300 Arbeitertakte. Abfangen am freien Rand; Freischaltung über Energietransport → Abfangstation."
 	if _repair_button == null or _cancel_build_button == null: return
 	var site: int = _production_site()
 	_repair_button.disabled = true

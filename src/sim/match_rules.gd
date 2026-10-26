@@ -1,5 +1,6 @@
 class_name MatchRules
 extends RefCounted
+const ResearchAI = preload("res://src/sim/research_ai.gd")
 ## Mehrspieler gegen KI. Menschliche Gegner sind ein freier Platz, noch ohne Netz.
 ## Der Takt bleibt ganzzahlig. Die Schwierigkeit wählt den Plan der KI.
 
@@ -305,6 +306,7 @@ func _ai(sim: Simulation) -> void:
 	for faction in range(1, faction_count):
 		if alive[faction] == 0 or control[faction] != CONTROL_AI:
 			continue
+		ResearchAI.step(sim, faction)
 		if ConstructionAI.step(sim, faction): continue
 		var level := _plan(faction)
 		if level == SimConfig.DIFFICULTY_EASY:
@@ -313,7 +315,7 @@ func _ai(sim: Simulation) -> void:
 			_ai_hard(sim, faction)
 		else:
 			_ai_normal(sim, faction)
-		if wallet(sim, faction).energy >= ArmyState.COST and sim.army.population(faction) < 2000:
+		if wallet(sim, faction).energy >= ArmyState.COST + ResearchAI.reserve(sim, faction) and sim.army.population(faction) < 2000:
 			sim.buy_warrior(faction)
 
 
@@ -401,7 +403,7 @@ func _ai_hard(sim: Simulation, faction: int) -> void:
 
 func _buy_worker(sim: Simulation, faction: int) -> bool:
 	var upgrades := wallet(sim, faction)
-	if not sim.can_buy_worker(faction) or upgrades.energy < Simulation.WORKER_COST:
+	if not sim.can_buy_worker(faction) or upgrades.energy < Simulation.WORKER_COST + ResearchAI.reserve(sim, faction):
 		return false
 	var site: int = sim.construction.production_site(faction)
 	var origin: int = sim.construction.origin(sim, site)

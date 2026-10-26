@@ -550,3 +550,16 @@ Diese Bestätigung präzisiert den Status der angebotenen Testregeln aus D-062; 
 Nach Abschluss der lokalen Phasen und Bestätigung D-063 beauftragt der Nutzer ausdrücklich: „Dann mach jetzt alles für ein Commit fertig und push es nach Main“. Damit ist ein gemeinsamer Commit des vollständigen Hauptprojektstands und ein normaler Push nach origin/main freigegeben. Dazu gehören die vorbestehende Nutzeränderung in SwarmMind, Einheiten-/Armeephase, native Performance-/Fensterstabilität, Bau/Überleben, Reparatur/Abbruch/KI und Energiephase einschließlich Tests, Diagnoseskripten und Dokumentation. Die älteren Aussagen „kein Commit aus diesem Auftrag“ beschreiben die früheren Implementierungsaufträge und stehen dieser neuen ausdrücklichen Freigabe nicht entgegen.
 
 Der eigenständige Untercheckout dot-wars/ bleibt separat und wird ignoriert. Generierte Bibliotheken, Godot-Caches und Diagnoseausgaben werden nicht versioniert. Native Bibliotheken bleiben reproduzierbare Build-Ausgaben. Vor Commit/Push werden alle vorgesehenen Dateien aus dem Git-Index in einen sauberen Prüfexport übernommen und dort Import, Windows-Native-Build, native und Referenzsuite sowie Hauptszene geprüft. Die Linux-Zielbibliothek wird zusätzlich aus denselben Quellen querkompiliert; die tatsächliche Linux-Ausführung übernimmt GitHub Actions. CI erhält angemessene Laufzeitgrenzen und prüft zusätzlich Skript-/Parsefehler in den Testlogs. Keine neue Spielregel, Versionserhöhung, Veröffentlichung als Release oder Abschaltung aus dem Commitauftrag.
+
+
+## D-065 – P6-Folgeauftrag 1–6 auf neuem PR (26. Oktober 2026)
+
+Nach Merge von PR #8 beauftragt der Nutzer ausdrücklich zunächst KI-Netzversorgung und danach Transportausfälle/Abriss, grafische Bedienprüfung, Sichtschutz, reguläre Freischaltungen/Effizienz und grafischen Forschungsbaum. Basis `20a5059`, neuer Branch/PR statt Wiederverwendung von PR #8; kein automatischer Merge oder Release. Umfang und Grenzen in P6_PLAYABLE_RESEARCH.md. Historische Planungspausen gelten nicht als Sperre für diesen neuen ausdrücklichen Auftrag.
+
+## D-066 – Vorläufige Transportausfallregeln bestätigt (26. Oktober 2026)
+
+Die Antwort „Diese vorläufigen Regeln verwenden“ bestätigt Pause bezahlter Sendungen an Leitungsunterbrechungen, Fortsetzung beim Wiederanschluss, Verlust von Puffer/Sendungen bei Zentrumszerstörung ohne Erstattung sowie neue eigene Ersatzversorgung nach Quellkernverlust. Bezahlte Energie wird nicht dupliziert oder teleportiert; Verluste sind getrennt gespeichert. Neuversand nutzt einen verbundenen eigenen Hauptkern, sonst Außenposten. Bisherige physische Sendungen laufen von ihrem tatsächlichen Ort weiter.
+
+## D-067 – Vorläufige Forschungsfreischaltungen und Effizienz bestätigt (26. Oktober 2026)
+
+Die Antwort „Diese vorläufigen Werte verwenden“ bestätigt Außenposten nach Arbeiterbewegung, Abfangstation nach Energietransport, je 90 Energie/260 Takte; Energieeffizienz nach Energietransport mit drei Stufen, 80 Energie/240 Takte mal Zielstufe und 10/20/30 % weniger Forschungsenergie bei gleicher Dauer. Prototypwerte, kein finales Balancing. Kosten werden je Auftrag beim Start eingefroren, mit dem damaligen Effizienzstand gespeichert und auf ganze Energie nach oben gerundet (mindestens 1). Dauerbuffs, weitere Gebäudetypen und neue Kriegerwerte sind kein Bestandteil.

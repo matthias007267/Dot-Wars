@@ -1,5 +1,7 @@
 # P6 – Gebäudegebundene Forschung, Energieversorgung und Implementierung
 
+**Neuer Folgeauftrag nach Merge von PR #8:** [P6_PLAYABLE_RESEARCH.md](P6_PLAYABLE_RESEARCH.md) dokumentiert KI-Netzversorgung, Ausfallregeln, Sichtschutz, Freischaltungen und den grafischen Baum. Die älteren Statusangaben unten sind historische Snapshots.
+
 Status: Umsetzung auf Branch `feat/p6-research-foundation` / Draft-PR #8. **Ältere Abschnitte dokumentieren historische, inzwischen überholte Planungsstände. Maßgeblich sind die neuesten Beschlüsse am Dokumentende und der Implementierungsstatus.**
 
 ## Beschlossene Regeln (D-048)

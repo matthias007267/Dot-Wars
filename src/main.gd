@@ -212,9 +212,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
 	if event.keycode == KEY_E and hud != null and not hud.menu_open():
+		_pressing = false
+		if orders != null: orders.drag_active = false
 		hud.toggle_energy_network()
 		if renderer != null: renderer.set_energy_preview(PackedInt32Array())
 	elif event.keycode == KEY_Q and hud != null and not hud.menu_open():
+		_pressing = false
+		if orders != null: orders.drag_active = false
 		hud.toggle_demolition()
 		if renderer != null: renderer.set_energy_preview(PackedInt32Array())
 	elif event.keycode == KEY_G and renderer != null:
@@ -298,7 +302,7 @@ func _energy_network_path(from_screen: Vector2, to_screen: Vector2) -> PackedInt
 	var start := _cell_at(from_screen)
 	var finish := _cell_at(to_screen)
 	if start.x < 0 or finish.x < 0: return PackedInt32Array()
-	return sim.energy_network.plan_path(sim, 0, world.index(start.x, start.y), world.index(finish.x, finish.y))
+	return sim.energy_network.plan_path(sim, 0, world.index(start.x, start.y), world.index(finish.x, finish.y), 0)
 
 
 func _finish_pointer(event: InputEventMouseButton) -> void:
