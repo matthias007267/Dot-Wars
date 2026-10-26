@@ -174,20 +174,26 @@ func set_buildings(mask: PackedByteArray) -> void:
 func sync_match(sim: Simulation) -> void:
 	if sim.config.mode != SimConfig.MODE_MATCH or sim.rules.cores.is_empty():
 		return
-	var stamp := hash([sim.rules.relic_owner, _site_marker_state(sim)])
+	var stamp := hash([sim.rules.relic_owner, _site_marker_state(sim), sim.fog.known_sites[0], sim.fog.visible[0]]) if sim._match_live() else hash([sim.rules.relic_owner, _site_marker_state(sim)])
 	if not marker_cores.is_empty() and stamp == _marker_stamp:
 		return
 	_marker_stamp = stamp
 	marker_cores = PackedInt32Array()
 	marker_rgb = PackedByteArray()
-	for row in sim.construction.sites.records:
+	var sites: Array = sim.fog.remembered_sites(0) if sim._match_live() else sim.construction.sites.records
+	for row in sites:
 		if row.destroyed or not row.ready: continue
-		marker_cores.append(sim.construction.center(row.id))
+		var rect: Rect2i = row.rect
+		var center := (rect.position.y + rect.size.y / 2) * world.width + rect.position.x + rect.size.x / 2
+		marker_cores.append(center)
 		_append_rgb(marker_rgb, MatchRules.FACTION_COLORS[row.owner])
-	marker_hill = sim.rules.hill_cell
-	marker_relics = sim.rules.relic_cell.duplicate()
+	marker_hill = sim.rules.hill_cell if not sim._match_live() or sim.fog.is_explored(0, sim.rules.hill_cell) else -1
+	marker_relics = PackedInt32Array()
 	marker_relic_rgb = PackedByteArray()
 	for index in sim.rules.relic_cell.size():
+		var relic_cell := int(sim.rules.relic_cell[index])
+		if sim._match_live() and not sim.fog.is_visible(0, relic_cell): continue
+		marker_relics.append(relic_cell)
 		var owner := int(sim.rules.relic_owner[index])
 		var color := RELIC_COLOR
 		if owner >= 0 and owner < MatchRules.FACTION_COLORS.size():
