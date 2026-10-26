@@ -260,7 +260,7 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 		sim.workers.state[id] = int(unit.get("state", 0))
 		sim.workers.build_site[id] = int(unit.get("build_site", -1))
 		sim.workers.build_mode[id] = int(unit.get("build_mode", 0))
-		if int(unit.get("build_mode", 0)) < 0 or int(unit.get("build_mode", 0)) > 1: return null
+		if int(unit.get("build_mode", 0)) < 0 or int(unit.get("build_mode", 0)) > 2: return null
 		sim.workers.target[id] = int(unit.get("target", -1))
 		sim.workers.aim[id] = int(unit.get("aim", -1))
 		sim.workers.aim_step[id] = int(unit.get("aim_step", -1))
