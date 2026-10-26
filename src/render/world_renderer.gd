@@ -21,6 +21,9 @@ var show_chunks := false
 var core_mask := PackedByteArray()
 ## 1 ist eine Quelle, 2 ein Veredler. Die Zelle bleibt leer.
 var building_mask := PackedByteArray()
+## Non-blocking overlay; no terrain texture rebuild for conduit placement.
+var energy_network: EnergyNetwork
+var _network_revision := -1
 ## Fraktionskerne, Hügel und Reliquien. Leer lässt die Einzelspieler-Ansicht unverändert.
 var marker_cores := PackedInt32Array()
 var marker_rgb := PackedByteArray()
@@ -62,6 +65,9 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	if energy_network != null and _network_revision != energy_network.revision:
+		_network_revision = energy_network.revision
+		queue_redraw()
 	var dirty := world.consume_dirty_chunks()
 	if not dirty.is_empty():
 		var palette := palette_bytes()
@@ -80,10 +86,20 @@ func _process(_delta: float) -> void:
 			queue_redraw()
 
 
+func _draw_energy_network() -> void:
+	if energy_network == null: return
+	for i in energy_network.cells.size():
+		var cell: int = energy_network.cells[i]
+		var x := cell % energy_network.width
+		var y := cell / energy_network.width
+		var color := Color8(0x43, 0xBD, 0xDB, 0xC8) if energy_network.owners[i] == 0 else Color8(0xFF, 0x9C, 0x67, 0xC8)
+		draw_rect(Rect2(Vector2(x, y), Vector2.ONE), color)
+
 func _draw() -> void:
 	if _texture == null:
 		return
 	_draw_pit_glow()
+	_draw_energy_network()
 	if show_chunks:
 		_draw_chunks()
 	if show_grid:
