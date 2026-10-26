@@ -16,6 +16,7 @@ func setup(world: WorldState, factions: int) -> void:
 
 func price(kind: int, owner: int) -> int:
 	if kind == Store.Kind.INTERCEPTOR: return 250
+	if kind == Store.Kind.RESEARCH_CENTER: return 300
 	return 500 if kind == Store.Kind.MAIN_CORE else 200 + 100 * sites.count(owner, Store.Kind.OUTPOST)
 
 func at(cell: int) -> int:
@@ -38,7 +39,7 @@ func initial(sim: Simulation, cell: int, owner: int, legacy := false) -> int:
 	return id
 
 func place(sim: Simulation, kind: int, cell: int, builders: PackedInt32Array, owner := 0, dry_run := false) -> int:
-	if kind < 0 or kind > 2 or owner < 0 or owner >= sites.faction_count: return -1
+	if kind < 0 or kind > Store.Kind.RESEARCH_CENTER or owner < 0 or owner >= sites.faction_count: return -1
 	if sim._match_live() and sim.rules.alive[owner] == 0: return -1
 	if kind == Store.Kind.OUTPOST and not outposts_unlocked: return -1
 	if kind == Store.Kind.INTERCEPTOR and not interceptors_unlocked: return -1
