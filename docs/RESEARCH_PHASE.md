@@ -81,3 +81,13 @@ Die frühere Vorgabe D-048 „globale Forschung ohne Forschungsgebäude“ ist *
 **Energie und Visualisierung:** Ein Gebäude leuchtet nur während tatsächlicher energieverbrauchender Tätigkeit oder bei aktiver dauerhaft versorgter Verstärkung; bloße Netzverbindung bzw. abgeschlossene Forschung/inaktives Gebäude erzeugt keinen Glow. Dauerhafte Buffs kosten kontinuierlich Energie. Auch Forschung und Produktion ziehen Energie bedarfsbezogen über sichtbare Energie-Dots an. Energieeffizienz kann durch eine zusätzliche mehrstufige Forschung optimiert werden; Verbrauchswerte, Effizienzgrenzen und Buff-Balancing erst durch spätere Tests festlegen.
 
 **Technische Anforderungen:** Forschungsgebäude, deren Bau-Freischaltung und Produktions-/Forschungszuordnung in den Gebäudekatalog aufnehmen; Energiebedarf pro laufendem Auftrag, Versorgung und Pausen bei Unterversorgung sowie Save/Load deterministisch modellieren. Forschungsdauer und Energieverbrauch unabhängig konfigurierbar, keine ungefragten festen Zahlen. Ein ruhendes Gebäude hat keine Aktivitätsglow. Zu klären: Anfangsverfügbarkeit des ersten Forschungsgebäudes, Kosten und Bauablauf; Stromversorgung beim Start einer Forschung; genaue Regeln für Unterbrechung/Abbruch und Rückerstattung.
+
+## Beschlossenes Konzept: transportierbare Energie-Reliquien (2026-10-26)
+
+- Auf jeder Karte ist eine begrenzte Anzahl Reliquien verteilt; genaue Anzahl und Verteilungsregeln sind offen.
+- Reliquien erzeugen **dauerhaft Energie, solange sie an das Energienetz angeschlossen sind**. Ohne Anschluss keine Einspeisung.
+- Spezielle Transportfahrzeuge können Reliquien aufnehmen und in die eigene Basis bringen. Gegner können sie wieder stehlen und abtransportieren.
+- Beim Aufnehmen, Transport oder sonstiger Trennung vom Netz endet die Energieeinspeisung unmittelbar; nach erneutem Anschluss am neuen Standort kann sie wieder beginnen.
+- Damit entstehen umkämpfte externe Versorgungsorte und transportierbare strategische Ressourcen.
+
+**Abgrenzung/Prüfpunkte:** Die vorhandenen Reliquien sind bisher auch Teil eines Siegmodus (Gebietskontrolle); dessen genaue zukünftige Beziehung zu transportierbaren Energie-Reliquien ist noch zu entscheiden. Energieertrag, Verbindung/Anschluss, Transportkapazität, Abladen, Diebstahl, Neutralität/Besitz und Save/Load müssen vor Implementierung präzisiert werden. Keine Zahlen oder automatische Umdeutung der bisherigen Siegmechanik annehmen.
