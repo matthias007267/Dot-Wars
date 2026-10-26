@@ -58,17 +58,52 @@ func show_tick(tick: int) -> void:
 		_bytes[offset + 1] = clampi(int(color.g * 255.0), 0, 255)
 		_bytes[offset + 2] = clampi(int(color.b * 255.0), 0, 255)
 		_bytes[offset + 3] = 255
-	var img := Image.create_from_data(sim.world.width, sim.world.height, false, Image.FORMAT_RGBA8, _bytes)
-	if _texture == null: _texture = ImageTexture.create_from_image(img)
-	else: _texture.update(img)
+	_update_chunks()
 	var minimap_image := Image.create_from_data(sim.world.width, sim.world.height, false, Image.FORMAT_RGBA8, _minimap_bytes)
 	if _minimap_texture == null: _minimap_texture = ImageTexture.create_from_image(minimap_image)
 	else: _minimap_texture.update(minimap_image)
 	queue_redraw()
 
+func _update_chunks() -> void:
+	var w := sim.world.width
+	var h := sim.world.height
+	var cols := ceili(float(w) / float(CHUNK_SIZE))
+	var rows := ceili(float(h) / float(CHUNK_SIZE))
+	if cols != _chunk_width or rows != _chunk_height:
+		for sprite in _chunks: sprite.queue_free()
+		_chunks.clear()
+		_chunk_pixels.clear()
+		_chunk_width = cols
+		_chunk_height = rows
+		for cy in rows:
+			for cx in cols:
+				var sprite := Sprite2D.new()
+				sprite.centered = false
+				sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+				sprite.position = Vector2(cx * CHUNK_SIZE, cy * CHUNK_SIZE)
+				add_child(sprite)
+				_chunks.append(sprite)
+				_chunk_pixels.append(PackedByteArray())
+	for cy in rows:
+		for cx in cols:
+			var cw := mini(CHUNK_SIZE, w - cx * CHUNK_SIZE)
+			var ch := mini(CHUNK_SIZE, h - cy * CHUNK_SIZE)
+			var pixels := PackedByteArray()
+			pixels.resize(cw * ch * 4)
+			for y in ch:
+				for x in cw:
+					var src := ((cy * CHUNK_SIZE + y) * w + cx * CHUNK_SIZE + x) * 4
+					var dst := (y * cw + x) * 4
+					for channel in 4: pixels[dst + channel] = _bytes[src + channel]
+			var index := cy * cols + cx
+			if pixels == _chunk_pixels[index]: continue
+			_chunk_pixels[index] = pixels
+			var img := Image.create_from_data(cw, ch, false, Image.FORMAT_RGBA8, pixels)
+			var sprite := _chunks[index]
+			if sprite.texture == null: sprite.texture = ImageTexture.create_from_image(img)
+			else: (sprite.texture as ImageTexture).update(img)
+
 func minimap_texture() -> Texture2D:
 	return _minimap_texture
 
-func _draw() -> void:
-	if _texture != null and sim != null:
-		draw_texture_rect(_texture, Rect2(0, 0, sim.world.width, sim.world.height), false)
+
