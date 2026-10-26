@@ -24,6 +24,8 @@ var building_mask := PackedByteArray()
 ## Non-blocking overlay; no terrain texture rebuild for conduit placement.
 var energy_network: EnergyNetwork
 var _network_revision := -1
+var preview_cells := PackedInt32Array()
+var preview_remove := false
 ## Fraktionskerne, Hügel und Reliquien. Leer lässt die Einzelspieler-Ansicht unverändert.
 var marker_cores := PackedInt32Array()
 var marker_rgb := PackedByteArray()
@@ -86,6 +88,11 @@ func _process(_delta: float) -> void:
 			queue_redraw()
 
 
+func set_energy_preview(path: PackedInt32Array, removing: bool = false) -> void:
+	preview_cells = path
+	preview_remove = removing
+	queue_redraw()
+
 func _draw_energy_network() -> void:
 	if energy_network == null: return
 	for i in energy_network.cells.size():
@@ -94,6 +101,10 @@ func _draw_energy_network() -> void:
 		var y := cell / energy_network.width
 		var color := Color8(0x43, 0xBD, 0xDB, 0xC8) if energy_network.owners[i] == 0 else Color8(0xFF, 0x9C, 0x67, 0xC8)
 		draw_rect(Rect2(Vector2(x, y), Vector2.ONE), color)
+	for cell in preview_cells:
+		if cell < 0 or cell >= energy_network.width * energy_network.height: continue
+		var p := Vector2(cell % energy_network.width, cell / energy_network.width)
+		draw_rect(Rect2(p, Vector2.ONE), Color(1.0, 0.3, 0.25, 0.75) if preview_remove else Color(0.3, 1.0, 0.8, 0.7))
 
 func _draw() -> void:
 	if _texture == null:
