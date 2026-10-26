@@ -159,8 +159,6 @@ func tick_once() -> void:
 		rules.credit_energy(self, before)
 	else:
 		var gates := energy_exits()
-		for cell in research.receiver_gates(self, 0):
-			if not gates.has(cell): gates.append(cell)
 		upgrades.energy += energy_dots.step(world, workers, gates, tick_count, upgrades.energy_period(), PackedByteArray(), PackedByteArray(), self)
 	research.step(self)
 	var mass_now := total_mass()
