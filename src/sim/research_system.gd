@@ -17,12 +17,15 @@ var jobs: Array[Dictionary] = []
 var supply: Dictionary = {}
 ## Conduit-bound shipments: one paid energy unit travels along a placed path.
 var shipments: Array[Dictionary] = []
+## Last simulation tick at which a site actually consumed energy.
+var powered_tick: Dictionary = {}
 
 func setup(factions: int) -> void:
 	levels.clear()
 	jobs.clear()
 	supply.clear()
 	shipments.clear()
+	powered_tick.clear()
 	for faction in factions:
 		levels.append({})
 
@@ -80,7 +83,11 @@ func receiver_gates(sim: Simulation, faction: int) -> PackedInt32Array:
 func deliver(site: int) -> void:
 	supply[site] = int(supply.get(site, 0)) + 1
 
+func is_powered(site: int, tick: int) -> bool:
+	return int(powered_tick.get(site, -1)) == tick
+
 func step(sim: Simulation) -> void:
+	powered_tick.clear()
 	_step_shipments(sim)
 	for i in range(jobs.size() - 1, -1, -1):
 		var job: Dictionary = jobs[i]
@@ -96,8 +103,9 @@ func step(sim: Simulation) -> void:
 			continue
 		var remaining_ticks: int = int(job["ticks"]) - int(job["elapsed"])
 		var remaining_energy: int = int(job["energy"]) - int(job["spent"])
-		var charge := (remaining_energy + remaining_ticks - 1) / remaining_ticks
+		var charge: int = ceili(float(remaining_energy) / float(maxi(1, remaining_ticks)))
 		if int(supply.get(site, 0)) < charge: continue
+		if charge > 0: powered_tick[site] = sim.tick_count
 		supply[site] = int(supply[site]) - charge
 		job["spent"] = int(job["spent"]) + charge
 		job["elapsed"] = int(job["elapsed"]) + 1
