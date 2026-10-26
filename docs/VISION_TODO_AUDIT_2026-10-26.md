@@ -1,5 +1,7 @@
 # Abgleich aller 80 Vision-To-dos – 26. Oktober 2026
 
+**Neuer Folgeauftrag nach Merge von PR #8:** [P6_PLAYABLE_RESEARCH.md](P6_PLAYABLE_RESEARCH.md) dokumentiert KI-Netzversorgung, Ausfallregeln, Sichtschutz, Freischaltungen und den grafischen Baum. Die älteren Statusangaben unten sind historische Snapshots.
+
 Quelle ist die vom Nutzer nachgereichte Datei `DOT_WARS_Vision_und_Roadmap_2026-10-26.md` (17 Kapitel). Die beigefügte Zusammenfassung und das Dokument dienen als Soll-Grundlage; ihre Roadmap ist keine pauschale Freigabe, alle Folgephasen umzusetzen. Bearbeitet werden der beauftragte CI-/Testmigrationsumfang und diese Analyse. Ideen, vorläufige Werte und offene Entscheidungen bleiben entsprechend gekennzeichnet.
 
 Geprüfte Basis: `main` bei `058f012`, P6-Ausgangsstand `29acce3`, CI-Reparatur `3612986` plus der ergänzende Zerstörungs-Regressionsfall in diesem Nachtrag, alles auf `feat/p6-research-foundation` / Draft-PR #8. **P6 ist nicht in main gemergt.** Aktuelle CI-Ergebnisse für den abschließenden Commit werden im PR-Abschlussprotokoll festgehalten.

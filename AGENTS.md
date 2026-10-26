@@ -1,5 +1,9 @@
 # Regeln für Agenten
 
+## Neuester Auftrag nach Merge von PR #8
+
+Der Nutzer hat ausdrücklich Punkte 1–6 des Folgeplans beauftragt: KI-Netzversorgung, Transportausfälle/Abriss, grafische Bedienprüfung, Sichtschutz neuer Anzeigen, reguläre Forschungsfreischaltungen/Effizienz und grafischer Forschungsbaum. Auf neuem Branch von `main` und in einem neuen PR arbeiten; kein Merge. Beide Rückfragen zu Transportverlusten und vorläufigen Forschungswerten wurden bestätigt. Aktueller Umfang, Regeln und Nachweise: `docs/P6_PLAYABLE_RESEARCH.md`, D-065 bis D-067. Dieser neueste Auftrag geht widersprechenden historischen Phasen-/Push-Aussagen unten vor. Weitere große Systeme und Release bleiben eigene Aufträge.
+
 Diese Datei gilt für jede Änderung an DOT WARS. Die Dokumentation unter `docs/` ist die verbindliche Quelle. Bei Widerspruch zwischen Code und Spezifikation wird der Widerspruch benannt, nicht still aufgelöst.
 
 ## Konzeptstand und aktuelle Freigabe

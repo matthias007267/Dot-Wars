@@ -10,6 +10,9 @@ const CATALOG := {
 	"core": {"branch": "Infrastruktur", "label": "Kerntechnologie", "kind": Upgrades.KIND_CORE, "max": 4, "ticks": 260, "energy": 90, "requires": ["speed"]},
 	"energy_speed": {"branch": "Energietechnik", "label": "Energietransport", "kind": Upgrades.KIND_ENERGY_SPEED, "max": 5, "ticks": 200, "energy": 60, "requires": []},
 	"victory": {"branch": "Militär", "label": "Siegforschung", "kind": Upgrades.KIND_RESEARCH, "max": 5, "ticks": 350, "energy": 100, "requires": []},
+	"outpost": {"branch": "Infrastruktur", "label": "Außenposten", "kind": -1, "max": 1, "ticks": 260, "energy": 90, "requires": ["speed"]},
+	"interceptor": {"branch": "Energietechnik", "label": "Abfangstation", "kind": -1, "max": 1, "ticks": 260, "energy": 90, "requires": ["energy_speed"]},
+	"efficiency": {"branch": "Energietechnik", "label": "Energieeffizienz", "kind": -1, "max": 3, "ticks": 240, "energy": 80, "requires": ["energy_speed"]},
 }
 var levels: Array[Dictionary] = []
 var jobs: Array[Dictionary] = []
@@ -19,6 +22,7 @@ var supply: Dictionary = {}
 var shipments: Array[Dictionary] = []
 ## Completed simulation tick at which a site actually consumed energy.
 var powered_tick: Dictionary = {}
+var lost_energy := 0
 
 func setup(factions: int) -> void:
 	levels.clear()
@@ -26,6 +30,7 @@ func setup(factions: int) -> void:
 	supply.clear()
 	shipments.clear()
 	powered_tick.clear()
+	lost_energy = 0
 	for faction in factions:
 		levels.append({})
 
@@ -33,11 +38,15 @@ func level(faction: int, tech: String) -> int:
 	if faction < 0 or faction >= levels.size(): return 0
 	return int(levels[faction].get(tech, 0))
 
-func details(tech: String, next_level: int) -> Dictionary:
+func details(tech: String, next_level: int, faction := -1) -> Dictionary:
 	if not CATALOG.has(tech) or next_level < 1: return {}
 	var entry: Dictionary = CATALOG[tech]
 	if next_level > int(entry["max"]): return {}
-	return {"ticks": int(entry["ticks"]) * next_level, "energy": int(entry["energy"]) * next_level}
+	return {"ticks": int(entry["ticks"]) * next_level, "energy": energy_cost(tech, next_level, level(faction, "efficiency"))}
+
+func energy_cost(tech: String, stage: int, efficiency: int) -> int:
+	var raw: int = int(CATALOG[tech].energy) * stage
+	return maxi(1, ceili(float(raw * (100 - clampi(efficiency, 0, 3) * 10)) / 100.0))
 
 func can_start(sim: Simulation, faction: int, site: int, tech: String) -> bool:
 	if not CATALOG.has(tech) or faction < 0 or faction >= levels.size(): return false
@@ -59,8 +68,8 @@ func can_start(sim: Simulation, faction: int, site: int, tech: String) -> bool:
 func start(sim: Simulation, faction: int, site: int, tech: String) -> bool:
 	if not can_start(sim, faction, site, tech): return false
 	var level_next := level(faction, tech) + 1
-	var cost := details(tech, level_next)
-	jobs.append({"faction": faction, "site": site, "tech": tech, "elapsed": 0, "ticks": cost["ticks"], "energy": cost["energy"], "spent": 0})
+	var cost := details(tech, level_next, faction)
+	jobs.append({"faction": faction, "site": site, "tech": tech, "elapsed": 0, "ticks": cost["ticks"], "energy": cost["energy"], "spent": 0, "efficiency": level(faction, "efficiency")})
 	return true
 
 func receiver_site(sim: Simulation, cell: int, faction: int) -> int:
@@ -118,48 +127,63 @@ func step(sim: Simulation) -> void:
 				# Core expansion can be temporarily blocked; retry without extra charge.
 				job["elapsed"] = int(job["ticks"]) - 1
 
+func source_for(sim: Simulation, faction: int, target_site: int) -> int:
+	# Prefer own main cores, then a surviving outpost; never a foreign source.
+	for kind in [Store.Kind.MAIN_CORE, Store.Kind.OUTPOST]:
+		for row in sim.construction.sites.records:
+			if row.destroyed or not row.ready or row.owner != faction or row.kind != kind: continue
+			var route := sim.energy_network.connected_path(sim, faction, sim.construction.center(row.id), sim.construction.center(target_site))
+			if not route.is_empty(): return sim.construction.center(row.id)
+	return -1
+
+func _valid_target(sim: Simulation, site: int, faction: int) -> bool:
+	if not sim.construction.sites.valid(site): return false
+	var row: Dictionary = sim.construction.sites.records[site]
+	return row.owner == faction and row.ready and row.kind == Store.Kind.RESEARCH_CENTER
+
 func _step_shipments(sim: Simulation) -> void:
-	# Shipments never leave the explicitly built conduit cells.
+	# Invalidate jobs and buffers before moving or dispatching. No refunds on destruction.
+	for i in range(jobs.size() - 1, -1, -1):
+		var job: Dictionary = jobs[i]
+		if _valid_target(sim, job.site, job.faction): continue
+		lost_energy += int(supply.get(job.site, 0))
+		supply.erase(job.site)
+		jobs.remove_at(i)
+	for site in supply.keys():
+		if sim.construction.sites.valid(site): continue
+		lost_energy += int(supply[site])
+		supply.erase(site)
 	for i in range(shipments.size() - 1, -1, -1):
 		var shipment: Dictionary = shipments[i]
-		var site: int = shipment["site"]
-		var faction: int = shipment["faction"]
-		if not sim.construction.sites.valid(site):
+		if not _valid_target(sim, shipment.site, shipment.faction):
+			lost_energy += 1
 			shipments.remove_at(i)
 			continue
-		var source: int = shipment["source"]
-		var target: int = sim.construction.center(site)
-		var route := sim.energy_network.connected_path(sim, faction, source, target)
+		# Continue from the actual position, including after source loss/rerouting.
+		# Removing the occupied conduit pauses here until it is rebuilt.
+		var route := sim.energy_network.route_to_site(sim, shipment.faction, shipment.cell, shipment.site)
 		if route.is_empty(): continue
-		var index: int = route.find(int(shipment["cell"]))
-		if index < 0: continue
-		if index >= route.size() - 1:
-			deliver(site)
+		if route.size() == 1:
+			deliver(shipment.site)
 			shipments.remove_at(i)
 		else:
-			shipment["index"] = index + 1
-			shipment["cell"] = route[index + 1]
-	# Dispatch at most one unit per active center every eight ticks.
+			shipment.index = 0
+			shipment.cell = route[1]
 	if sim.tick_count % 8 != 0: return
 	for job in jobs:
-		var site: int = job["site"]
-		var faction: int = job["faction"]
-		if not sim.construction.sites.valid(site): continue
-		if int(supply.get(site, 0)) >= 16: continue
+		var site: int = job.site
+		var faction: int = job.faction
 		var incoming := 0
 		for shipment in shipments:
-			if shipment["site"] == site: incoming += 1
-		if incoming >= 8: continue
-		var source := -1
-		for building in sim.construction.sites.records:
-			if not building.destroyed and building.ready and building.owner == faction and building.kind == Store.Kind.MAIN_CORE:
-				source = sim.construction.center(int(building.id))
-				break
+			if shipment.site == site: incoming += 1
+		var buffered := int(supply.get(site, 0))
+		# Never reserve beyond the job's remaining demand.
+		if buffered >= 16 or incoming >= 8 or buffered + incoming >= int(job.energy) - int(job.spent): continue
+		var source := source_for(sim, faction, site)
 		if source < 0: continue
 		var route := sim.energy_network.connected_path(sim, faction, source, sim.construction.center(site))
-		if route.is_empty(): continue
 		var wallet := sim.rules.wallet(sim, faction)
-		if wallet.energy < 1: continue
+		if route.is_empty() or wallet.energy < 1: continue
 		wallet.energy -= 1
 		shipments.append({"site": site, "faction": faction, "source": source, "index": 0, "cell": route[0]})
 
@@ -171,6 +195,7 @@ func _apply(sim: Simulation, faction: int, tech: String) -> bool:
 		"speed": wallet.speed_level += 1
 		"energy_speed": wallet.energy_speed_level += 1
 		"victory": wallet.research_level += 1
+		"outpost", "interceptor", "efficiency": pass
 		"core":
 			if faction != 0 or not sim._bind_core(wallet.core_level + 1, true): return false
 			wallet.core_level += 1
@@ -178,7 +203,7 @@ func _apply(sim: Simulation, faction: int, tech: String) -> bool:
 	return true
 
 func snapshot() -> Dictionary:
-	return {"levels": levels.duplicate(true), "jobs": jobs.duplicate(true), "supply": supply.duplicate(true), "shipments": shipments.duplicate(true)}
+	return {"levels": levels.duplicate(true), "jobs": jobs.duplicate(true), "supply": supply.duplicate(true), "shipments": shipments.duplicate(true), "lost_energy": lost_energy}
 
 func restore(sim: Simulation, data: Dictionary) -> bool:
 	var stored_levels: Variant = data.get("levels", [])
@@ -206,7 +231,10 @@ func restore(sim: Simulation, data: Dictionary) -> bool:
 		var building: Dictionary = sim.construction.sites.records[site]
 		if building.owner != faction or building.kind != Store.Kind.RESEARCH_CENTER or not building.ready: return false
 		var expected := details(tech, int(candidate_levels[faction].get(tech, 0)) + 1)
-		if expected.is_empty() or job["ticks"] != expected["ticks"] or job["energy"] != expected["energy"]: return false
+		var efficiency: Variant = job.get("efficiency", 0)
+		if typeof(efficiency) != TYPE_INT or efficiency < 0 or efficiency > int(candidate_levels[faction].get("efficiency", 0)): return false
+		if expected.is_empty() or job["ticks"] != expected["ticks"]: return false
+		if job["energy"] != energy_cost(tech, int(candidate_levels[faction].get(tech, 0)) + 1, efficiency): return false
 		if job["elapsed"] < 0 or job["elapsed"] >= job["ticks"] or job["spent"] < 0 or job["spent"] > job["energy"]: return false
 		var key := "%d:%s" % [faction, tech]
 		if busy_sites.has(site) or busy_techs.has(key): return false
@@ -235,9 +263,12 @@ func restore(sim: Simulation, data: Dictionary) -> bool:
 		if shipment["cell"] < 0 or shipment["cell"] >= sim.world.cell_count(): return false
 		# A removed conduit (including under the shipment) is a valid paused state.
 		# Loading must not require the route whose absence caused that pause.
-		var conduit_owner := sim.energy_network.owner_at(shipment["cell"])
-		if conduit_owner >= 0 and conduit_owner != target.owner: return false
+		# A foreign replacement conduit also leaves paid cargo paused; routing
+		# still requires an own conduit and must never transfer its ownership.
 		candidate_shipments.append(shipment.duplicate(true))
+	var stored_lost: Variant = data.get("lost_energy", 0)
+	if typeof(stored_lost) != TYPE_INT or stored_lost < 0: return false
+	lost_energy = stored_lost
 	levels = candidate_levels
 	jobs = candidate_jobs
 	supply = candidate_supply
@@ -246,4 +277,4 @@ func restore(sim: Simulation, data: Dictionary) -> bool:
 	return true
 
 func state_hash() -> int:
-	return hash([levels, jobs, supply, shipments])
+	return hash([levels, jobs, supply, shipments, lost_energy])

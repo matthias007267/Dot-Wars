@@ -295,6 +295,10 @@ func test_station_hud_build_unlock_and_normal_save_lock() -> void:
 	sim.debug_mode = true
 	hud._unlock_interceptors()
 	check(sim.construction.interceptors_unlocked and sim.debug_modified, "Testfreigabe markiert")
+	# A build click must use currently observed terrain, even in the testlab.
+	sim.initial_mass += 1
+	sim.workers.add(68, 0, 0)
+	sim.fog.update(sim)
 	hud._begin_settlement(2)
 	check(hud.issue_build(100), "Bauplatz über Oberfläche")
 	check_eq(sim.construction.sites.records[sim.construction.at(100)].kind, 2, "echte Abfangstation")

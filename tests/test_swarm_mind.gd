@@ -148,7 +148,7 @@ func test_researched_swarm_effect_and_worker_wait_state_are_saved() -> void:
 	var index := hud._research_tech_ids.find("swarm")
 	check(index >= 0, "Schwarmtechnologie im Baum")
 	check(hud._research_tech_buttons[index].text.contains("ABGESCHLOSSEN"), "volle Forschungsstufe angezeigt")
-	check(hud._research_tech_buttons[index].disabled, "keine weitere Stufe")
+	check(not hud._research_tree_view.available("swarm"), "keine weitere Stufe")
 	layer.free()
 	hud.free()
 

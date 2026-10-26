@@ -148,7 +148,7 @@ func test_hud_dig_does_not_overwrite_the_ai_rect() -> void:
 	var victory_index := hud._research_tech_ids.find("victory")
 	check(victory_index >= 0, "Siegtechnologie im P6-Katalog")
 	check(hud._research_tech_buttons[victory_index].visible, "Siegforschung im Baum sichtbar")
-	check(hud._research_tech_buttons[victory_index].disabled, "ohne Forschungszentrum gesperrt")
+	check(not hud._research_tree_view.available("victory"), "ohne Forschungszentrum kein Start")
 	check(not hud._build_caption.visible, "Bauen bleibt im Match aus")
 	sim.config.victory_mask = MatchRules.VICTORY_ELIMINATION
 	hud.refresh()

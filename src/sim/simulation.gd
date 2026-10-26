@@ -778,7 +778,7 @@ func place_building(kind: int, idx: int) -> bool:
 	if not buildings.allowed(config.mode, kind):
 		return false
 	var cost := buildings.place_cost(kind)
-	if cost < 0 or upgrades.energy < cost or not _cell_accepts_building(idx):
+	if cost < 0 or upgrades.energy < cost or energy_network.owner_at(idx) >= 0 or not _cell_accepts_building(idx):
 		return false
 	upgrades.energy -= cost
 	upgrades.purchased += 1

@@ -40,11 +40,15 @@ func initial(sim: Simulation, cell: int, owner: int, legacy := false) -> int:
 	if id >= 0: _ground(sim, rect, Materials.INDESTRUCTIBLE)
 	return id
 
+func unlocked(sim: Simulation, kind: int, owner := 0) -> bool:
+	if kind == Store.Kind.OUTPOST: return outposts_unlocked or sim.research.level(owner, "outpost") > 0
+	if kind == Store.Kind.INTERCEPTOR: return interceptors_unlocked or sim.research.level(owner, "interceptor") > 0
+	return true
+
 func place(sim: Simulation, kind: int, cell: int, builders: PackedInt32Array, owner := 0, dry_run := false) -> int:
 	if kind < 0 or kind > Store.Kind.RESEARCH_CENTER or owner < 0 or owner >= sites.faction_count: return -1
 	if sim._match_live() and sim.rules.alive[owner] == 0: return -1
-	if kind == Store.Kind.OUTPOST and not outposts_unlocked: return -1
-	if kind == Store.Kind.INTERCEPTOR and not interceptors_unlocked: return -1
+	if not unlocked(sim, kind, owner): return -1
 	if kind == Store.Kind.MAIN_CORE and sites.count(owner, kind) > 0: return -1
 	if cell < 0 or cell >= sim.world.cell_count(): return -1
 	var side := 5 if kind == Store.Kind.MAIN_CORE else 3
@@ -53,7 +57,7 @@ func place(sim: Simulation, kind: int, cell: int, builders: PackedInt32Array, ow
 	for y in range(rect.position.y, rect.end.y):
 		for x in range(rect.position.x, rect.end.x):
 			var c := y * sites.width + x
-			if sim.world.cells[c] != Materials.EMPTY or sim.workers.occupant[c] >= 0 or sim.army.occupant[c] >= 0 or sim.buildings.cell.has(c) or (not sim._match_live() and sim._in_core(c)): return -1
+			if sim.energy_network.owner_at(c) >= 0 or sim.world.cells[c] != Materials.EMPTY or sim.workers.occupant[c] >= 0 or sim.army.occupant[c] >= 0 or sim.buildings.cell.has(c) or (not sim._match_live() and sim._in_core(c)): return -1
 	for energy_cell in sim.energy_dots.cells:
 		if rect.has_point(Vector2i(energy_cell % sites.width, energy_cell / sites.width)): return -1
 	var wallet := sim.rules.wallet(sim, owner)
@@ -98,11 +102,17 @@ func start_demolition(sim: Simulation, site: int, owner := 0) -> bool:
 	if sites.records[site].kind == Store.Kind.MAIN_CORE: return false
 	if demolitions.has(site): return true
 	var required := maxi(1, ceili(float(sites.records[site].required) * 0.2))
-	var candidates := PackedInt32Array()
+	var field := _field(sim, site)
+	var nearest: Array[Vector2i] = []
 	for worker in sim.workers.count:
-		if sim.workers.faction[worker] == owner and sim.workers.build_site[worker] < 0:
-			candidates.append(worker)
-			if candidates.size() >= 4: break
+		if sim.workers.faction[worker] != owner or sim.workers.build_site[worker] >= 0: continue
+		var distance: int = field[sim.workers.cell[worker]]
+		if distance >= 0: nearest.append(Vector2i(distance, worker))
+	nearest.sort()
+	var candidates := PackedInt32Array()
+	for choice in nearest:
+		candidates.append(choice.y)
+		if candidates.size() == 4: break
 	if candidates.is_empty(): return false
 	demolitions[site] = {"work": 0, "required": required}
 	for worker in candidates:
@@ -217,10 +227,10 @@ func survives(owner: int) -> bool:
 
 func damage(sim: Simulation, id: int, amount: int) -> void:
 	if not sites.valid(id): return
-	demolitions.erase(id)
 	var rect: Rect2i = sites.records[id].rect
 	sites.damage(id, amount)
 	if not sites.valid(id):
+		demolitions.erase(id)
 		if sites.records[id].kind == Store.Kind.INTERCEPTOR: sim.energy_dots.neutralize_station(id)
 		sim.rules.removed_mass += sim.spawner.cancel_site(id)
 		for i in range(sim.army.queue.size() - 1, -1, -1):

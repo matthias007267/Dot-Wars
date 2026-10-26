@@ -1,5 +1,7 @@
 # Roadmap
 
+**Neuer Folgeauftrag nach Merge von PR #8:** [P6_PLAYABLE_RESEARCH.md](P6_PLAYABLE_RESEARCH.md) dokumentiert KI-Netzversorgung, Ausfallregeln, Sichtschutz, Freischaltungen und den grafischen Baum. Die älteren Statusangaben unten sind historische Snapshots.
+
 **Energiephase P4 lokal umgesetzt und geprüft (D-062).** Routenverfall, Abfangstationen, wiederholter Eigentumswechsel, neutrale Stationspuffer, Energiebilanz und Speicherfortsetzung sind umgesetzt. Vorläufige Testwerte, Abschlussprüfungen und Grenzen: [ENERGY_PHASE.md](ENERGY_PHASE.md). Fog of War/P5, Forschungsbaum und Netzwerk bleiben eigene Aufträge.
 
 **Folgephase Reparatur, Abbruch und KI-Bauplanung lokal umgesetzt und geprüft (D-060).** Sie ergänzt P3 nach ausdrücklichem Punkte-1–3-Auftrag; Prüfstand und vorläufige Regeln in [MAINTENANCE_PHASE.md](MAINTENANCE_PHASE.md). Das nächste größere Paket bleibt P4 Energie und benötigt einen eigenen Auftrag.
