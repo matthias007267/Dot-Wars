@@ -122,12 +122,14 @@ func _step_shipments(sim: Simulation) -> void:
 		var target: int = sim.construction.center(site)
 		var route := sim.energy_network.connected_path(sim, faction, source, target)
 		if route.is_empty(): continue
-		var index: int = int(shipment["index"])
+		var index: int = route.find(int(shipment["cell"]))
+		if index < 0: continue
 		if index >= route.size() - 1:
 			deliver(site)
 			shipments.remove_at(i)
 		else:
 			shipment["index"] = index + 1
+			shipment["cell"] = route[index + 1]
 	# Dispatch at most one unit per active center every eight ticks.
 	if sim.tick_count % 8 != 0: return
 	for job in jobs:
@@ -150,7 +152,7 @@ func _step_shipments(sim: Simulation) -> void:
 		var wallet := sim.rules.wallet(sim, faction)
 		if wallet.energy < 1: continue
 		wallet.energy -= 1
-		shipments.append({"site": site, "faction": faction, "source": source, "index": 0})
+		shipments.append({"site": site, "faction": faction, "source": source, "index": 0, "cell": route[0]})
 
 func _apply(sim: Simulation, faction: int, tech: String) -> bool:
 	var wallet: Upgrades = sim.rules.wallet(sim, faction)
@@ -217,12 +219,12 @@ func restore(sim: Simulation, data: Dictionary) -> bool:
 	var candidate_shipments: Array[Dictionary] = []
 	for shipment in stored_shipments:
 		if not shipment is Dictionary: return false
-		for key in ["site", "faction", "source", "index"]:
+		for key in ["site", "faction", "source", "index", "cell"]:
 			if typeof(shipment.get(key)) != TYPE_INT: return false
 		if not sim.construction.sites.valid(shipment["site"]): return false
 		if shipment["faction"] != sim.construction.sites.records[shipment["site"]].owner or shipment["index"] < 0: return false
 		var route := sim.energy_network.connected_path(sim, shipment["faction"], shipment["source"], sim.construction.center(shipment["site"]))
-		if route.is_empty() or shipment["index"] >= route.size(): return false
+		if route.is_empty() or not route.has(shipment["cell"]): return false
 		candidate_shipments.append(shipment.duplicate(true))
 	shipments = candidate_shipments
 	return true
