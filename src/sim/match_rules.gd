@@ -127,10 +127,6 @@ func gates(sim: Simulation) -> Dictionary:
 		var owners := PackedByteArray()
 		for faction in faction_count:
 			if alive[faction] == 0: continue
-			for cell in sim.research.receiver_gates(sim, faction):
-				if not cells.has(cell):
-					cells.append(cell)
-					owners.append(faction)
 			for cell in sim.construction.receivers(sim, faction):
 				if not cells.has(cell):
 					cells.append(cell)
