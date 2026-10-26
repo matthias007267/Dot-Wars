@@ -4,6 +4,11 @@ extends Node2D
 ## Drawn above terrain and below dots. No access to enemy live unit state.
 var sim: Simulation
 var faction := 0
+const CHUNK_SIZE := 64
+var _chunks: Array[Sprite2D] = []
+var _chunk_pixels: Array[PackedByteArray] = []
+var _chunk_width := 0
+var _chunk_height := 0
 var _texture: ImageTexture
 var _minimap_texture: ImageTexture
 var _minimap_bytes := PackedByteArray()
