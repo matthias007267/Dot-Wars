@@ -144,29 +144,21 @@ func _park_off_approach(sim: Simulation, pit: Vector2i, source: int) -> void:
 		cursor += 1
 
 
-func test_energy_starts_slow_and_each_purchase_is_faster() -> void:
+func test_researched_energy_transport_level_changes_movement_rate() -> void:
 	var upgrades := Upgrades.new()
 	check_eq(upgrades.energy_period(), 8, "Energie startet alle 8 Takte")
 	check_eq(upgrades.worker_period(8), 8, "Arbeiter starten alle 8 Takte")
-	check_eq(upgrades.energy_speed_cost(), 30, "erste Energiekosten")
-	check_eq(upgrades.speed_cost(), 25, "erste Arbeiterkosten")
-	upgrades.energy = 30
-	check(upgrades.try_buy(Upgrades.KIND_ENERGY_SPEED), "erste Energiestufe")
-	check_eq(upgrades.energy_period(), 6, "danach alle 6 Takte")
-	check_eq(upgrades.energy, 0, "30 Energie bezahlt")
 	var slow := _energy_run(0)
 	var fast := _energy_run(Upgrades.ENERGY_SPEED_MAX)
-	check(fast > slow, "höhere Stufe liefert in derselben Zeit mehr (%d > %d)" % [fast, slow])
-	var filled := Upgrades.new()
-	filled.energy = 10000
-	while filled.energy_speed_cost() >= 0:
-		check(filled.try_buy(Upgrades.KIND_ENERGY_SPEED), "weitere Energiestufe")
-	check_eq(filled.energy_period(), 1, "letzte Stufe ist ein Schritt je Takt")
-	check(not filled.try_buy(Upgrades.KIND_ENERGY_SPEED), "danach kein weiterer Kauf")
+	check(fast > slow, "erforschte höhere Stufe beschleunigt den Transport")
+	upgrades.energy_speed_level = 1
+	check_eq(upgrades.energy_period(), 6, "erste erforschte Stufe")
+	upgrades.energy_speed_level = Upgrades.ENERGY_SPEED_MAX
+	check_eq(upgrades.energy_period(), 1, "höchste Stufe")
 	var restored := SaveGame.from_bytes(SaveGame.to_bytes(_sim_with_energy_speed(3)))
-	check(restored != null, "Stufe wird gespeichert")
+	check(restored != null, "Forschungswirkung wird gespeichert")
 	if restored != null:
-		check_eq(restored.upgrades.energy_speed_level, 3, "Energiestufe bleibt erhalten")
+		check_eq(restored.upgrades.energy_speed_level, 3, "Wirkungsstufe bleibt erhalten")
 
 
 func _energy_run(level: int) -> int:
