@@ -9,6 +9,8 @@ const DOT_GLOW_SHADER := preload("res://src/render/shaders/dot_glow.gdshader")
 
 var world: WorldState
 var energy: EnergyStore
+var fog = null
+var viewer := 0
 var _texture: ImageTexture
 var _bytes := PackedByteArray()
 var _previous := PackedInt32Array()
@@ -37,7 +39,7 @@ func show_energy() -> void:
 	_previous.clear()
 	for token in energy.cells.size():
 		var c := energy.cells[token]
-		if c < 0 or c >= world.cell_count():
+		if c < 0 or c >= world.cell_count() or (fog != null and not fog.is_visible(viewer, c)):
 			continue
 		var i := c * 4
 		var tint := EnergyStore.COLOR

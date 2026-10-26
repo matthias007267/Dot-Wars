@@ -21,6 +21,7 @@ func _draw() -> void:
 		if sim.group_open[group_id] == 0:
 			continue
 		var faction := _faction_of(group_id)
+		if sim._match_live() and faction != 0: continue
 		var color := _faction_color(faction)
 		if sim.sacrifice_on[group_id] == 0:
 			var rects: Array[Rect2i] = sim.areas.rects[group_id]
@@ -46,7 +47,7 @@ func _draw() -> void:
 func _draw_selection(width: int) -> void:
 	for id in sim.picked:
 		var cell := sim.unit_cell(id)
-		if cell < 0: continue
+		if cell < 0 or (sim._match_live() and not sim.fog.is_visible(0, cell)): continue
 		var unit := 1
 		draw_rect(Rect2(cell % width, cell / width, unit, unit), Color(1, 1, 1, 0.95), false, 0.14)
 
@@ -75,6 +76,7 @@ func _draw_bases(width: int) -> void:
 	var screen_size := 18
 	for faction in sim.rules.faction_count:
 		var core := sim.rules.cores[faction]
+		if sim._match_live() and not sim.fog.is_visible(0, core): continue
 		var x := float(core % width)
 		var y := float(core / width)
 		var color := _faction_color(faction)
@@ -92,7 +94,8 @@ func _draw_bases(width: int) -> void:
 
 
 func _draw_sites() -> void:
-	for row in sim.construction.sites.records:
+	var rows: Array = sim.fog.remembered_sites(0) if sim._match_live() else sim.construction.sites.records
+	for row in rows:
 		if row.destroyed: continue
 		var rect: Rect2i = row.rect
 		var tint := _faction_color(row.owner)
@@ -100,7 +103,7 @@ func _draw_sites() -> void:
 		fill.a = 0.45 if row.ready else 0.18
 		draw_rect(Rect2(rect), fill, true)
 		draw_rect(Rect2(rect), tint, false, 0.16)
-		if row.id == sim.construction.selected:
+		if row.owner == 0 and row.id == sim.construction.selected:
 			draw_rect(Rect2(rect).grow(0.15), Color.WHITE, false, 0.1)
 		var fraction := float(row.hp) / float(row.max_hp) if row.ready else float(row.work) / float(row.required)
 		draw_rect(Rect2(rect.position.x, rect.end.y + 0.2, rect.size.x, 0.25), Color(0.1, 0.1, 0.1), true)

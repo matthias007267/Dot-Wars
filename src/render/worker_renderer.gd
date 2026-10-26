@@ -8,6 +8,8 @@ const DOT_GLOW_SHADER := preload("res://src/render/shaders/dot_glow.gdshader")
 
 var world: WorldState
 var workers: WorkerStore
+var fog = null
+var viewer := 0
 var colors: Array[Color] = [
 	Color8(0xFF, 0xE4, 0x5E),
 	Color8(0x53, 0xC7, 0xFF),
@@ -46,6 +48,7 @@ func show_tick(tick: int) -> void:
 	var palette := _palette()
 	var width := world.width
 	for id in workers.count:
+		if fog != null and not fog.is_visible(viewer, workers.cell[id]): continue
 		var group_id := int(workers.group[id])
 		var color_index := group_id if group_id < colors.size() else 0
 		var src := color_index * 4

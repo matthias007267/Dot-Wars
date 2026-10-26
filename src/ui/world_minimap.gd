@@ -5,6 +5,7 @@ extends Control
 
 var world: WorldState
 var renderer: WorldRenderer
+var fog_view: FogOverlay
 var camera: CameraController
 
 var _elapsed := 0.0
@@ -29,7 +30,7 @@ func _draw() -> void:
 		return
 	var area := Rect2(Vector2.ZERO, size)
 	draw_rect(area, Materials.BACKDROP, true)
-	var texture := renderer.current_texture()
+	var texture := fog_view.minimap_texture() if fog_view != null else renderer.current_texture()
 	if texture == null:
 		return
 	# Weltverhältnis statt verzerrter Darstellung.
@@ -39,6 +40,25 @@ func _draw() -> void:
 	var map_rect := Rect2(origin, map_size)
 	draw_texture_rect(texture, map_rect, false)
 	draw_rect(map_rect, Color(1, 1, 1, 0.28), false, 1.0)
+	# Only player knowledge is allowed to produce minimap markers.
+	if fog_view != null and fog_view.sim != null and fog_view.sim._match_live():
+		var sim := fog_view.sim
+		for site in sim.fog.remembered_sites(fog_view.faction):
+			var rect: Rect2i = site.rect
+			var center := Vector2(rect.position) + Vector2(rect.size) * 0.5
+			var color := MatchRules.FACTION_COLORS[int(site.owner)]
+			draw_circle(origin + center * factor, 2.5, color)
+		for id in sim.workers.count:
+			if int(sim.workers.faction[id]) != fog_view.faction: continue
+			var cell := int(sim.workers.cell[id])
+			if not sim.fog.is_visible(fog_view.faction, cell): continue
+			draw_circle(origin + Vector2(cell % world.width, cell / world.width) * factor, 1.2, Color.WHITE)
+		for id in sim.army.count:
+			if int(sim.army.owners[id]) != fog_view.faction: continue
+			var cell := int(sim.army.cells[id])
+			if not sim.fog.is_visible(fog_view.faction, cell): continue
+			draw_circle(origin + Vector2(cell % world.width, cell / world.width) * factor, 1.5, UiTheme.ACCENT)
+
 
 	if camera != null:
 		var viewport_size := camera.get_viewport_rect().size

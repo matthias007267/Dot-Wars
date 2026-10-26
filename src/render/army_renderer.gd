@@ -3,6 +3,7 @@ extends Node2D
 ## Eine Textur für alle Krieger; keine Szene pro Dot.
 const PALETTE := [245, 78, 80, 255, 255, 122, 89, 255, 126, 182, 255, 255, 93, 222, 154, 255]
 var sim: Simulation
+var viewer := 0
 var _bytes := PackedByteArray()
 var _texture: ImageTexture
 var _painted := PackedInt32Array()
@@ -22,6 +23,7 @@ func show_tick(tick: int) -> void:
 	var positions := sim.army.cells
 	var owners := sim.army.owners
 	for index in positions.size():
+		if sim._match_live() and not sim.fog.is_visible(viewer, positions[index]): continue
 		var at := positions[index] * 4
 		var color := owners[index] * 4
 		_bytes[at] = PALETTE[color]

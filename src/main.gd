@@ -5,6 +5,8 @@ var device_guard: Node
 var sim: Simulation
 var world: WorldState
 var renderer: WorldRenderer
+const FogView = preload("res://src/render/fog_overlay.gd")
+var fog_view: FogOverlay
 const ArmyView = preload("res://src/render/army_renderer.gd")
 var army_view
 var workers_view: WorkerRenderer
@@ -117,6 +119,9 @@ func _attach(next: Simulation) -> void:
 	workers_view.world = world
 	workers_view.workers = sim.workers
 	workers_view.colors = sim.group_colors
+	if sim._match_live():
+		workers_view.fog = sim.fog
+		energy_view.fog = sim.fog
 	camera = CameraController.new()
 	camera.world_size = Vector2(world.width, world.height)
 	renderer.camera = camera
@@ -125,6 +130,10 @@ func _attach(next: Simulation) -> void:
 	if _has_flag("--chunks"):
 		renderer.show_chunks = true
 	add_child(renderer)
+	if sim._match_live():
+		fog_view = FogView.new()
+		fog_view.sim = sim
+		add_child(fog_view)
 	add_child(energy_view)
 	add_child(workers_view)
 	army_view = ArmyView.new()
@@ -139,6 +148,7 @@ func _attach(next: Simulation) -> void:
 	hud.clock = clock
 	hud.camera = camera
 	hud.renderer = renderer
+	hud.fog_view = fog_view
 	hud.load_requested.connect(_boot_from_save)
 	hud.restart_requested.connect(_restart)
 	hud.leave_requested.connect(_leave)
@@ -152,10 +162,11 @@ func _attach(next: Simulation) -> void:
 
 
 func _clear_playfield() -> void:
-	for node in [renderer, energy_view, workers_view, army_view, orders, camera, hud, _tone]:
+	for node in [renderer, fog_view, energy_view, workers_view, army_view, orders, camera, hud, _tone]:
 		if node != null and is_instance_valid(node):
 			node.queue_free()
 	renderer = null
+	fog_view = null
 	workers_view = null
 	army_view = null
 	energy_view = null
@@ -219,6 +230,7 @@ func _process(delta: float) -> void:
 	var ticks := clock.advance_wall_time(Time.get_ticks_usec())
 	if ticks > 0:
 		sim.run_ticks(ticks)
+		if fog_view != null: fog_view.show_tick(sim.tick_count)
 		workers_view.show_tick(sim.tick_count)
 		army_view.show_tick(sim.tick_count)
 		energy_view.show_energy()
