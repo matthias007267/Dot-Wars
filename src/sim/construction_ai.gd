@@ -23,14 +23,21 @@ static func step(sim: Simulation, owner: int) -> bool:
 		return true
 	var pending_main := -1
 	var pending_outpost := -1
+	var pending_research := -1
 	for row in store.records:
 		if row.destroyed or row.owner != owner or row.ready: continue
 		if row.kind == 0: pending_main = row.id
 		elif row.kind == 1 and pending_outpost < 0: pending_outpost = row.id
+		elif row.kind == 3 and pending_research < 0: pending_research = row.id
 	if pending_main >= 0:
 		if workers.is_empty(): sim.rules._buy_worker(sim, owner)
 		if due: _staff(sim, pending_main, workers, level)
 		return true
+	if pending_research >= 0:
+		if due: _staff(sim, pending_research, workers, level)
+		return false
+	if store.count(owner, 3) == 0 and workers.size() >= 3 and due and sim.rules.wallet(sim, owner).energy >= system.price(3, owner) + 30:
+		if _place(sim, owner, 3, workers, level): return true
 	if pending_outpost >= 0:
 		if due: _staff(sim, pending_outpost, workers, level)
 		return false
