@@ -21,6 +21,7 @@ var construction: Construction = Construction.new()
 var buildings := Buildings.new()
 var rules := MatchRules.new()
 var research := ResearchSystem.new()
+var energy_network := EnergyNetwork.new()
 const Fog = preload("res://src/sim/fog_of_war.gd")
 var fog = Fog.new()
 var purchased_workers: int = 0
@@ -536,7 +537,7 @@ func state_hash() -> int:
 		energy_dots.state_hash(),
 		purchased_workers,
 		sacrificed_mass,
-		upgrades.state_hash(), research.state_hash(),
+		upgrades.state_hash(), research.state_hash(), energy_network.state_hash(),
 		config.mode,
 		config.ai_count,
 		config.victory_mask,
@@ -564,6 +565,7 @@ func _setup(
 	workers = WorkerStore.new(world.cell_count(), quotas.size(), world.width)
 	spawner = SpawnSystem.new(world.cell_count(), config.spawn_search_limit)
 	construction.setup(world, 1 + config.ai_count if config.mode == SimConfig.MODE_MATCH else 1)
+	energy_network.setup(world.width, world.height)
 	research.setup(1 + config.ai_count if config.mode == SimConfig.MODE_MATCH else 1)
 	for g in quotas.size():
 		fields.append(FlowField.new(world, areas, g))
@@ -771,6 +773,9 @@ func buy(kind: int) -> bool:
 ## Arbeiter werden ausschließlich gegen bereits gelieferte Energie gekauft.
 ## Der Spawn beginnt am zentralen Tunnel; die bestehende Warteschlange erhält die Masse.
 ## Setzt eine Quelle oder einen Veredler auf eine leere Tunnelzelle. Der Kern bleibt frei.
+func place_energy_conduit(cell: int, faction: int = 0) -> bool:
+	return energy_network.place(self, faction, cell)
+
 func place_building(kind: int, idx: int) -> bool:
 	if not buildings.allowed(config.mode, kind):
 		return false
