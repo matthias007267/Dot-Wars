@@ -72,10 +72,6 @@ func show_tick(tick: int) -> void:
 		var anchor := workers.cell[id]
 		var state := int(workers.state[id])
 		var sprite_row := SpriteCatalog.worker_row(state)
-		var target := workers.target[id] if state == WorkerStore.STATE_MINING else workers.aim[id]
-		if state == WorkerStore.STATE_BUILDING and sim != null and sim.construction.sites.valid(workers.build_site[id]):
-			target = sim.construction.center(workers.build_site[id])
-		var facing := SpriteCatalog.facing(anchor, target, width)
 		for dy in unit_size:
 			var row := anchor + dy * width
 			for dx in unit_size:
@@ -86,7 +82,7 @@ func show_tick(tick: int) -> void:
 				_bytes[dst + 2] = palette[src + 2]
 				_bytes[dst + 3] = 255
 				_details[dst] = sprite_row
-				_details[dst + 1] = facing
+				_details[dst + 1] = state
 				_details[dst + 2] = workers.faction[id]
 				_details[dst + 3] = marks if workers.faction[id] == 0 else 0
 				_painted.append(cell)

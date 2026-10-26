@@ -1,56 +1,59 @@
-# Grafikkatalog und erste Sprite-Beispiele
+# Grafikkatalog und bestätigte Quadrat-Einheiten
 
-Diese Fortsetzung von PR #10 setzt die bestätigte Empfehlung um: zuerst einen austauschbaren Grafikkatalog und daran Arbeiter, Krieger und Forschungszentrum ausarbeiten. Der bestehende Branch `feat/cavern-visual-foundation` bleibt auf PR #9 aufgebaut; kein automatischer Merge. Terrain, Spielregeln, Forschungswerte und gespeicherte Simulationsdaten bleiben erhalten.
+Der Nutzer übernimmt ausdrücklich den generierten Entwurf einfacher quadratischer Arbeiter und Krieger. Diese Korrektur ersetzt die vorherigen Figuren mit Helm/Gliedmaßen. Neuer Branch `feat/square-unit-art` auf `main` (`d9fbadb`), kein automatischer Merge. Die Optik aus PR #10 wird mitgenommen: PR #9 wurde zuerst nach `main` gesquasht, PR #10 danach nur in dessen alten Feature-Branch gemergt. Details in D-070.
 
 ## Tatsächlich integrierte Grafik
 
-- **Arbeiter:** Helm mit Lichtreflex, neutraler Metallrand, cyanfarbenes Visier, Rucksack und Beine. Bereit, Bewegung, Abbau mit Werkzeug, Bau/Reparatur mit Werkzeugkasten sowie blockierter Weg haben eigene Zeilen. Zwei vorhandene eigene Forschungsmarkierungen bleiben sichtbar. Es werden keine unbekannten Gegnerverbesserungen oder neuen Einheitenstufen dargestellt.
-- **Krieger:** Gepanzerter Helm, breitere Schultern, Schild mit Kreuz und Nahkampfwaffe. Bewegung folgt dem tatsächlichen Bewegungstimer; ein Angriff erscheint nur kurz nach einem vorhandenen Angriffstakt. Die Fraktionsfarbe kommt aus dem Besitzer, unabhängig von der alten Army-Farbpalette.
-- **Forschungszentrum:** Fertig/bereit, laufende Forschung mit Scanlinie, fehlende Versorgung mit statischer Warnung, kurz sichtbarer beobachteter Abschluss und Baustellengerüst. Gehäuse sind fraktionsfarben, Prisma und Metall bleiben davon unabhängig.
-- **Gemeinsame Grafiken:** Weltgebäude, Einheitenporträts und Bau-/Befehlsicons lesen denselben Katalog. Die anderen bestehenden Gebäude und Icons liegen ebenfalls im Atlas; die ersten detailliert angebundenen Zustandssätze sind die drei Beispiele oben.
+- **Arbeiter:** Ein Teamquadrat mit dunklerem quadratischem Einsatz und kleinem hellem Kern. Keine Arme, Beine, Werkzeuge oder sichtbare Drehung. Beim tatsächlichen Abbau/Bauen pulsiert ausschließlich der Kern in Simulationstakten. Vorhandene eigene Forschungsmarkierungen erscheinen als symmetrischer Kernrand.
+- **Krieger 1:** Derselbe quadratische Fußabdruck und durchgehende Teamrand, dunkler Panzerrahmen, vier Metallpunkte und farbiger Kern.
+- **Krieger 2:** Dieselbe Grafikfamilie mit verstärkten L-Ecken.
+- **Krieger 3:** Dieselben verstärkten Ecken plus zusätzlichem Innenrahmen.
+- **Forschungszentrum:** Die vorhandenen Zustände bereit, Forschung, Versorgungswartezeit, beobachteter Abschluss und Baustelle bleiben erhalten. Andere Gebäude/Icons behalten ihre Bilder.
 
-Die 16×16-Pixel-Bilder sind eine erste eigene Pixelart-Fassung. Bei weniger als zehn Bildschirmpixeln pro Weltzelle verwendet der Einheiten-Shader kompakte Fraktionssymbole: quadratische Arbeiter, rautenförmige Krieger. Die Detailgrafik bleibt unabhängig vom Leuchten aktiv. Die vorherige Dot-Darstellung kann über `sprites_enabled` am Renderer bei dessen Aufbau verwendet werden; `glow_enabled` steuert separat den Halo. Das sind Renderer-Eigenschaften, noch kein neues Qualitätseinstellungsmenü.
+Die drei Kriegergrafiken sind vollständig im Katalog vorhanden. **Die Simulation besitzt weiterhin nur den bestehenden Basiskrieger; reguläre Partien verwenden Grafik 1.** `ArmyRenderer.visual_level` ermöglicht ausschließlich eine ausdrückliche Grafikvorschau der drei Varianten und wird im Grafikcheck benutzt. Es wurden keine Kampfwerte, Forschungsstufen, Speicherfelder, unbekannten Gegnerstufen oder Schere-Stein-Papier-Regeln ergänzt.
 
-## Dateien austauschen
+Weltansicht und HUD-Porträts lesen denselben zentralen `SpriteCatalog`. Die Teamfarbe kommt aus dem Besitzer und bleibt unabhängig von der internen Farbgruppe. Bei weniger als zehn Bildschirmpixeln je Zelle zeichnet der Shader ebenfalls Quadrate: Arbeiterkern und Kriegerpanzer bleiben als einfache Merkmale erhalten. Die Detaildarstellung bleibt ohne Halo aktiv. `sprites_enabled` und `glow_enabled` bleiben getrennte Renderer-Eigenschaften beim Aufbau; ein neues Qualitätseinstellungsmenü ist nicht Bestandteil.
 
-`assets/pixel/tactical_atlas.tres` ist die tatsächlich geladene Godot-Resource. Sie enthält:
+## Assets und Austausch
 
-| Feld | Bedeutung |
-| --- | --- |
-| `body` | PNG mit neutralem Metall, Visieren, Prismen und transparentem Hintergrund |
-| `team_mask` | Deckungsgleiche PNG mit weiß/grauen Fraktionsflächen und transparentem Rest |
-| `cell_size` | Kantenlänge eines Bildes, aktuell 16 Pixel |
-| `frames` | Spalten/Animationsbilder, aktuell vier |
-| `frame_ticks` | Simulationstakte je Bild, aktuell vier bei 20 Takten/s |
-| `rows` | Benannte Zustände und ihre Atlaszeilen |
+| Resource | Bilder | Raster | Inhalt |
+| --- | --- | --- | --- |
+| `assets/pixel/square_units.tres` | `square_units_body.png`, `square_units_team.png` | 32×32, eine Spalte, vier Zeilen | Arbeiter und Kriegergrafiken 1–3 |
+| `assets/pixel/tactical_atlas.tres` | `tactical_body.png`, `tactical_team.png` | 16×16, vier Spalten, 13 Zeilen | Bestehende Gebäudezustände und Befehlsicons |
 
-Beide PNGs sind aktuell 64×336 Pixel groß. Ein statischer Zustand wiederholt sein Bild in allen vier Spalten. Fraktionsmasken übernehmen beim Zeichnen die jeweilige Teamfarbe; Grautöne erhalten Schattierungen. Metall-/Visierdetails müssen in der Maske transparent bleiben. Unbenutzte Pixel sind transparent. Beide Texturen werden verlustfrei, ohne Mipmaps und mit nächster Pixelabtastung verwendet.
+Beide Resources sind tatsächlich geladen. Ein `SpriteAtlas` enthält `body`, `team_mask`, `cell_size`, `frames`, `frame_ticks` und benannte `rows`. Der Einheitenatlas ist 32×128 Pixel groß; seine Zustandsnamen verwenden dasselbe jeweilige Quadrat. Der Gebäudeatlas ist 64×208 Pixel groß. Seine bisherigen Bilder wurden nur umgeordnet, nicht neu gestaltet. Die Forschungsanimation behält vier Bilder mit vier Takten je Bild.
 
-Zum Überarbeiten bestehender Figuren genügen Änderungen an den beiden PNGs im gleichen Raster. Zeilen können in der Resource umgeordnet werden; die Renderer benutzen Namen wie `worker.mine` oder `research.waiting`. Rastergröße, Spalten und Taktabstand werden ebenfalls aus der Resource gelesen. Weltgrafik und daraus erzeugte 32×32-HUD-Porträts werden beim nächsten Spielstart gemeinsam aktualisiert. Terrain bleibt derzeit im vorhandenen Materialshader.
+Die neutralen Körperbilder enthalten Metall, Kerne, Prismen und transparente Flächen. Deckungsgleiche weiß/graue Team-Masken werden beim Zeichnen mit der Fraktionsfarbe multipliziert und behalten ihre Schattierungen. Beide Ebenen nutzen verlustfreie PNGs, nächste Pixelabtastung und keine Mipmaps. Die 32×32-HUD-Porträts werden aus denselben Bildregionen erzeugt und gecacht. Der Körper-/Team-Dateitausch benötigt keine Änderung der Simulation. Raster und Zeilen stehen in den Resources; Terrain bleibt im vorhandenen Materialshader.
 
-Die PNGs wurden mit dem eingecheckten Originalzeichenwerkzeug `tools/draw_tactical_atlas.py` erstellt. Es kann die Ausgangsgrafiken mit Python/Pillow erneut erzeugen, wird aber beim Spielstart, Export oder in CI nicht benötigt. Direkt bearbeitete PNGs werden vom Werkzeug beim erneuten Ausführen überschrieben. Es wurden keine Bildteile aus der Nutzerreferenz übernommen und keine fremden Assetpakete eingebaut.
+`assets/pixel/square_units_source.png` ist die mit dem Bildwerkzeug aus dem freigegebenen Konzept aufbereitete transparente Vierer-Spritequelle. `tools/import_square_units.gd` erledigt nur den technischen Import: vier getrennte Alpha-Fußabdrücke finden, auf 32 Pixel ausrichten und Goldflächen von neutralem Metall trennen. Der Quellstreifen ist keine Laufzeitabhängigkeit. Die Originalausgabe des Bildwerkzeugs bleibt außerhalb des Repositorys erhalten.
+
+```sh
+godot --headless --path . -s tools/import_square_units.gd
+godot --headless --path . --import
+```
+
+Die bestehenden Gebäude/Icons lassen sich mit `tools/draw_tactical_atlas.py` (optional Python/Pillow) reproduzieren. Dieses Werkzeug schreibt ausschließlich den Gebäudeatlas und überschreibt die Quadrate nicht. Zum Spielen, Exportieren und in CI sind weder dieses Werkzeug noch Pillow erforderlich. Direkte Änderungen an den fertigen PNGs werden beim erneuten Aufruf des jeweiligen Import-/Zeichenwerkzeugs überschrieben.
 
 ## Zustände, Zeit und Wissen
 
-`SpriteCatalog` bindet die Atlas-Resource an Shader, Weltzeichnungen und gecachte Porträts. `TacticalArt` behält seine bisherigen Aufrufstellen als kleine Fassade bei. Worker- und Army-Renderer verwenden zusätzlich zur bisherigen Farbtextur je eine gebündelte RGBA-Zustandstextur: Atlaszeile, Blickrichtung, Besitzer und eigene Forschungsmarkierung. Verlassene, tote und nicht sichtbare Einheiten werden aus Farb- und Zusatzdaten entfernt. Keine Node oder Szene pro Einheit.
+`TacticalArt` bleibt eine kleine Fassade zum zentralen Katalog. Die Worker-/Army-Renderer behalten ihre gebündelten Farbtexturen und zusätzliche RGBA-Daten: Atlaszeile, tatsächliche Aktivität, Besitzer sowie eigene Arbeitermarkierung bzw. visuelle Krieger-Vorschauvariante. Blickrichtungen und Sprite-Rotation wurden entfernt. Der Arbeitskern und der kurze Angriffskern lesen reale Workerzustände bzw. `last_attack`; allein veränderte Ziele drehen und verändern die Figuren nicht. Es gibt keine Node oder Szene pro Einheit.
 
-Animationsbilder hängen ausschließlich vom übergebenen Simulationstakt ab. Pause stoppt sie, Spieltempo beschleunigt sie. Zeichenoperationen schreiben keine Simulations-, Zufalls- oder Speicherdaten. Die neuen Welt-Zustandstexturen benötigen vier zusätzliche CPU- und GPU-Bytes pro Weltzelle und Renderer; Laufzeit und Speicherbedarf bei großen Welten sind separat zu messen.
+Kernakzente und Forschungsbilder folgen ausschließlich Simulationstakten. Pause stoppt sie; Spieltempo verändert deren Taktgeschwindigkeit. Zeichnen verändert keine Simulation, Zufallsquelle oder Speicherdatei. Tote, verlassene und nicht sichtbare Einheiten werden aus Farb- und Zusatzdaten entfernt. Die Zustandstexturen benötigen je vier zusätzliche CPU- und GPU-Bytes pro Weltzelle und Renderer; eine große Leistungsabnahme ist weiterhin gesondert zu messen.
 
-`ResearchVisualState` ist flüchtiger Darstellungszustand. Er liest nur eigene bzw. aktuell sichtbare Zentren. Echte Energielieferung schaltet den Betrieb ein; fehlende benötigte Lieferung zeigt Warten. Ist die gesamte Energie bereits bezahlt, läuft die vorhandene Restdauer weiterhin sichtbar weiter. Das Umgebungslicht bleibt wie bisher an tatsächlichen Verbrauch gebunden. Ein Abschlusszeichen erscheint nur, wenn ein zuvor beobachteter Auftrag tatsächlich eine Forschungsstufe erhöht hat; es endet nach 40 Simulationstakten. Ein neu gestarteter Auftrag hat Vorrang. Nach Laden/Wechsel der Simulation wird der Beobachtungszustand verworfen. Verborgene Zentren zeigen nur das gedimmte statische Erinnerungsbild; verborgene Abschlüsse werden nicht nachträglich gemeldet.
+`ResearchVisualState` bleibt flüchtiger Darstellungszustand: eigene/aktuell sichtbare Zentren, echte Versorgung, weiterlaufende bereits bezahlte Restdauer und nur tatsächlich beobachtete Abschlüsse. Das Umgebungslicht erfordert tatsächlichen Verbrauch. Abschlusszeichen enden nach 40 Simulationstakten; ein neuer Auftrag hat Vorrang. Nach Simulationstausch wird die Beobachtung verworfen. Verborgene Gegnerzentren verwenden ein statisches gedimmtes Erinnerungsbild; keine Live-Aktivität und keine nachträglichen Abschlussmeldungen.
 
 ## Prüfungen und Reviewbilder
 
-`tests/test_sprite_catalog.gd` prüft Atlasgrenzen, Ebenen und gemeinsame Icons; tatsächliche Arbeits-/Angriffszustände; Besitzer unabhängig von Farbgruppen; eigene Markierungen; Entfernen/Verbergen von Einheiten; echte Versorgung, bereits bezahlte Restdauer, Abschlussdauer sowie verborgene Forschung. Die bisherigen Army-Paletten- und Gameplayregressionen bleiben erhalten.
+`tests/test_sprite_catalog.gd` prüft beide Atlasgrenzen, Körper-/Maskenebenen, gemeinsame Icons, die vier unterscheidbaren Quadratgrafiken und den Teamrand an allen vier Seiten. Weiter geprüft werden echte Arbeits-/Angriffszustände, Besitzer unabhängig von Farbgruppen, eigene Markierungen, tote/verborgene Einheiten und die bisherigen Forschungszustände einschließlich Sichtverlust. Die gültigen Army-Paletten- und Gameplayregressionen bleiben erhalten.
 
-`bench/sprite_visual_check.gd` läuft zusätzlich im echten Godot-4.3-OpenGL-Renderer. Er erstellt eine beschriftete Atlasübersicht und prüft den gebündelten Einheiten-Shader ohne Leuchten, Fraktionsfarben anhand gerenderter Pixel, Bildidentität bei Pause, Bildänderung durch Simulationstakte, Entfernung toter Einheiten sowie das echte Forschungsgebäude bei Lieferung und Unterbrechung. Das ist eine ausdrücklich veränderte Diagnosewelt, keine neue Spielregel. Ausgabe: `SPRITE SUMMARY: 0 failures`.
+`bench/sprite_visual_check.gd` rendert eine beschriftete Übersicht aller drei Teamfarben und Kriegergrafiken sowie Ansichten bei 32/16 Pixeln. Der echte gebündelte GPU-Renderer wird ohne Halo geprüft: Teamrand/Kernpixel, Pause, Arbeitskern, identische Bilder bei geänderten Zielen, sichtbare Panzerunterschiede, tote Einheiten und echtes Forschungsgebäude bei Versorgung/Unterbrechung. Die Stufen-Vorschau erzeugt keine spielmechanischen Stufen. Die Diagnosewelt wird ausdrücklich verändert und ist keine speicherbare normale Partie.
 
 ```sh
-godot --headless --path . --import
 godot --headless --path . -s tests/run_tests.gd -- sprite_catalog
 LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s '-screen 0 1600x1000x24' \
   godot --audio-driver Dummy --path . -s bench/sprite_visual_check.gd
 ```
 
-CI führt zusätzlich weiterhin die vollständigen nativen und GDScript-Referenztests, Hauptszenenstart, P6-Bedienung und Cavern-HUD-Prüfung aus. Der neue Schritt erkennt auch Script-/Shaderfehler und lädt Protokoll und Screenshots als `sprite-visual-check` hoch. Der tatsächlich geprüfte Commit und Actions-Lauf werden im PR dokumentiert.
+CI prüft weiterhin die vollständigen nativen und GDScript-Referenzsuiten, Hauptszenenstart, P6-Bedienung, Cavern-HUD und Sprite-Darstellung. Script-/Shaderfehler lassen die Grafikschritte fehlschlagen. Protokolle/Bilder werden als `p6-visual-check`, `cavern-visual-check` und `sprite-visual-check` hochgeladen. Tatsächlicher Commit und Actions-Ergebnis werden im neuen PR dokumentiert.
 
-Die Beispielsprites sind integriert und austauschbar. Vollständig ausgearbeitete weitere Gebäudegrafiken, physikalische Schatten, große Partikeleffekte, ein Qualitätseinstellungsmenü, eine vollständige zweite HUD-Überarbeitung sowie Windows-/10k-Armee-Leistungsabnahme sind damit nicht abgeschlossen.
+Physikalische Schatten, größere Partikeleffekte, weitere ausgearbeitete Gebäudegrafiken, das Qualitätseinstellungsmenü und Windows-/10k-Armee-Leistungsabnahme bleiben eigene Schritte.

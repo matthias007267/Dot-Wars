@@ -6,27 +6,29 @@ class AtlasReview extends Control:
 	func _draw() -> void:
 		draw_rect(Rect2(0, 0, 1920, 1080), Color("08121c"))
 		var font := ThemeDB.fallback_font
-		draw_string(font, Vector2(40, 45), "DOT WARS  /  SPRITES UND ZUSTÄNDE", HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color("90e4fa"))
-		draw_string(font, Vector2(40, 78), "Originalgrafiken · 16-Pixel-Raster · Körper und Fraktionsfarbe getrennt · vier Animationsbilder", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("9db3c0"))
-		var groups := [
-			{"x": 40, "keys": ["worker.idle", "worker.move", "worker.mine", "worker.build", "worker.blocked", "warrior.idle", "warrior.move", "warrior.attack"],
-			"labels": ["Arbeiter / Bereit", "Bewegung", "Abbau", "Bau / Reparatur", "Weg blockiert", "Krieger / Bereit", "Bewegung", "Angriff"]},
-			{"x": 1000, "keys": ["research.idle", "research.active", "research.waiting", "research.complete", "research.construction"],
-			"labels": ["Forschung / Bereit", "Forschung läuft", "Versorgung fehlt", "Abgeschlossen", "Baustelle"]}]
-		for group in groups:
-			for index in range(group["keys"].size()):
-				var y: int = 126 + index * 108
-				draw_string(font, Vector2(group.x, y + 20), group.labels[index], HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("d0dfe7"))
-				for frame in SpriteCatalog.ATLAS.frames:
-					var area := Rect2(group.x + 230 + frame * 108, y, 80, 80)
-					draw_rect(area, Color("172736"))
-					SpriteCatalog.draw(self, group["keys"][index], area, SpriteCatalog.team_color(0), frame * SpriteCatalog.ATLAS.frame_ticks)
-				SpriteCatalog.draw(self, group["keys"][index], Rect2(group.x + 700, y, 80, 80), SpriteCatalog.team_color(1))
-		var icons := ["worker", "warrior", "research", "core", "outpost", "interceptor", "network", "repair", "demolish", "research_tree"]
-		for index in icons.size():
-			draw_texture_rect(SpriteCatalog.icon(icons[index]), Rect2(1000 + index * 76, 780, 56, 56), false)
-		draw_string(font, Vector2(1000, 880), "HUD-Porträts stammen aus demselben Atlas.", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("90e4fa"))
-		draw_string(font, Vector2(1000, 912), "Keine zusätzlichen Einheiten- oder Gebäudestufen.", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("9db3c0"))
+		draw_string(font, Vector2(40, 45), "DOT WARS  /  QUADRATISCHE EINHEITEN", HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color("90e4fa"))
+		draw_string(font, Vector2(40, 82), "Freigegebener Entwurf · gleiche Grundform · feste Ausrichtung · Teamrand bleibt sichtbar", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("9db3c0"))
+		var keys := ["worker.idle", "warrior.1", "warrior.2", "warrior.3"]
+		var names := ["ARBEITER", "KRIEGER 1", "KRIEGER 2", "KRIEGER 3"]
+		for column in 4:
+			draw_string(font, Vector2(340 + column * 370, 138), names[column], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color("d0dfe7"))
+		for owner in 3:
+			var y := 160 + owner * 178
+			draw_string(font, Vector2(40, y + 75), ["TEAM GELB", "TEAM ROT", "TEAM BLAU"][owner], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, SpriteCatalog.team_color(owner))
+			for column in 4:
+				var area := Rect2(340 + column * 370, y, 136, 136)
+				draw_rect(area.grow(8), Color("172736"))
+				SpriteCatalog.draw(self, keys[column], area, SpriteCatalog.team_color(owner))
+		draw_string(font, Vector2(40, 750), "LESBARKEIT BEI 32 UND 16 PIXELN", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color("90e4fa"))
+		for owner in 3:
+			for column in 4:
+				SpriteCatalog.draw(self, keys[column], Rect2(340 + owner * 480 + column * 74, 780, 32, 32), SpriteCatalog.team_color(owner))
+				SpriteCatalog.draw(self, keys[column], Rect2(340 + owner * 480 + column * 74, 828, 16, 16), SpriteCatalog.team_color(owner))
+		draw_string(font, Vector2(40, 905), "FORSCHUNGSZENTRUM", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("90e4fa"))
+		var states := ["idle", "active", "waiting", "complete", "construction"]
+		for index in states.size():
+			SpriteCatalog.draw(self, "research." + states[index], Rect2(340 + index * 180, 880, 80, 80), SpriteCatalog.team_color(0))
+		draw_string(font, Vector2(40, 1015), "Krieger 2/3: fertige Grafikvarianten. Reguläre Partien verwenden den vorhandenen Basiskrieger (1).", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("9db3c0"))
 
 func _init() -> void:
 	call_deferred("_run")
@@ -93,23 +95,43 @@ func _run() -> void:
 	check(first.get_data() == paused.get_data(), "pause freezes all sprite frames")
 	view.show_tick(4)
 	var next := await capture("/tmp/sprite-motion.png")
-	check(first.get_data() != next.get_data(), "simulation tick changes working/moving sprite frames")
+	check(first.get_data() != next.get_data(), "simulation tick changes only the working core glint")
 	check(sim.state_hash() == before, "sprite animation preserves simulation hash")
-	# Inspect known helmet/shield pixels: faction tint comes from owner, not old palette.
-	var helmet := first.get_pixel(3 * 64 + 8 * 4 + 2, 3 * 64 + 4 * 4 + 2)
-	check(helmet.r > 0.75 and helmet.g > 0.5 and helmet.b < 0.5, "worker helmet is visible without glow")
-	var visor := first.get_pixel(3 * 64 + 6 * 4 + 2, 3 * 64 + 8 * 4 + 2)
-	check(visor.b > 0.6 and visor.g > 0.5 and visor.r < 0.5, "visor detail remains separate from faction mask")
-	var red_shield := first.get_pixel(6 * 64 + 6 * 4 + 2, 7 * 64 + 11 * 4 + 2)
-	check(red_shield.r > red_shield.g * 2.0, "enemy shield uses red faction mask")
+	# Inspect team band and neutral core in the actual shader without a halo.
+	var band := first.get_pixel(3 * 64 + 3 * 2 + 1, 3 * 64 + 16 * 2 + 1)
+	check(band.r > 0.75 and band.g > 0.5 and band.b < 0.5, "worker team band is visible without glow")
+	var core := first.get_pixel(3 * 64 + 16 * 2 + 1, 3 * 64 + 16 * 2 + 1)
+	check(core.r > 0.65 and core.b > 0.65, "worker keeps a neutral bright square core")
+	var red := first.get_pixel(6 * 64 + 3 * 2 + 1, 7 * 64 + 16 * 2 + 1)
+	check(red.r > red.g * 2.0, "enemy team band uses red faction mask")
+	# Changing targets does not rotate either square; rendering still never mutates sim.
+	view.show_tick(8)
+	army.show_tick(8)
+	var upright := await capture("/tmp/sprite-upright.png")
+	for id in sim.workers.count:
+		sim.workers.target[id] = sim.workers.cell[id] + 1
+		sim.workers.aim[id] = sim.workers.cell[id] + 1
+	for index in sim.army.count: sim.army.goals[index] = sim.army.cells[index] + 1
+	view.show_tick(16)
+	army.show_tick(16)
+	var redirected := await capture("/tmp/sprite-redirected.png")
+	check(upright.get_data() == redirected.get_data(), "target direction does not rotate any unit")
+	# Explicit visual-only tier preview exercises the same batched shader.
+	army.visual_level = 2
+	army.show_tick(17)
+	var tier2 := await capture("/tmp/sprite-warrior-2.png")
+	army.visual_level = 3
+	army.show_tick(18)
+	var tier3 := await capture("/tmp/sprite-warrior-3.png")
+	check(tier2.get_data() != tier3.get_data(), "warrior armor tiers have different rendered details")
 	view.material.set_shader_parameter("sprite_detail", false)
 	army.material.set_shader_parameter("sprite_detail", false)
 	await capture("/tmp/sprite-overview-symbols.png")
 	# Hidden/dead pixels must clear both original and added metadata on the GPU.
 	while sim.workers.count > 0: sim.workers.remove_swap(0)
 	while sim.army.count > 0: sim.army.remove(sim.army.ids[0])
-	view.show_tick(5)
-	army.show_tick(5)
+	view.show_tick(19)
+	army.show_tick(19)
 	var cleared := await capture("/tmp/sprite-cleared.png")
 	check(cleared.get_pixel(3 * 64 + 6 * 4 + 2, 3 * 64 + 5 * 4 + 2).r < 0.2, "removed unit leaves no sprite")
 	# Check the actual building overlay, not only isolated atlas samples.

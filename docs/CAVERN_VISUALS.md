@@ -1,6 +1,6 @@
 # Cavern-Optik – erste Grafikphase
 
-**Fortsetzung:** Nach der ersten Übertragung hat der Nutzer ausdrücklich den austauschbaren Grafikkatalog und die ersten drei Sprite-Beispiele beauftragt. Die ursprünglichen Codezeichnungen für Gebäude/Icons und die einfachen Einheitenmerkmale sind inzwischen durch gemeinsame Atlasgrafiken ergänzt bzw. ersetzt; aktueller Stand in [SPRITE_CATALOG.md](SPRITE_CATALOG.md). Die folgende Beschreibung dokumentiert die erste Übertragung.
+**Fortsetzung:** Nach der ersten Übertragung hat der Nutzer ausdrücklich den austauschbaren Grafikkatalog und die ersten drei Sprite-Beispiele beauftragt. Die ursprünglichen Codezeichnungen für Gebäude/Icons und die einfachen Einheitenmerkmale sind inzwischen durch gemeinsame Atlasgrafiken ergänzt bzw. ersetzt; Nach Merge von #10 in den alten Feature-Branch übernimmt ein neuer PR auf `main` die Basis und den ausdrücklich bestätigten Quadratentwurf; aktueller Stand in [SPRITE_CATALOG.md](SPRITE_CATALOG.md). Die folgende Beschreibung dokumentiert die erste Übertragung.
 
 Der Nutzer beauftragt auf Basis seiner Bildreferenz eine erste Übertragung der neuen Optik auf das aktuelle Spiel: dunkle Höhlen-/Steintexturen, warme und fraktionsbezogene Lichtakzente, eine gemeinsame untere Menü-/Bau-/Infoleiste mit Minimap sowie unterscheidbare Einheitenoberflächen.
 

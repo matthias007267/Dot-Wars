@@ -17,21 +17,36 @@ func _center(sim: Simulation, owner := 0, cell := 100) -> int:
 	return site
 
 func test_atlas_regions_layers_and_icons_share_one_catalog() -> void:
-	var atlas: SpriteAtlas = SpriteCatalog.ATLAS
-	check_eq(atlas.body.get_size(), atlas.team_mask.get_size(), "deckungsgleiche Ebenen")
-	for key in atlas.rows:
-		var first := SpriteCatalog.region(key)
-		var last := SpriteCatalog.region(key, (atlas.frames - 1) * atlas.frame_ticks)
-		check(Rect2(Vector2.ZERO, atlas.body.get_size()).encloses(first.merge(last)), key + " vollständig im Atlas")
+	for atlas: SpriteAtlas in [SpriteCatalog.ATLAS, SpriteCatalog.UNITS]:
+		check_eq(atlas.body.get_size(), atlas.team_mask.get_size(), "deckungsgleiche Ebenen")
+		for key in atlas.rows:
+			var first := SpriteCatalog.region(key)
+			var last := SpriteCatalog.region(key, (atlas.frames - 1) * atlas.frame_ticks)
+			check(Rect2(Vector2.ZERO, atlas.body.get_size()).encloses(first.merge(last)), key + " vollständig im Atlas")
 	check(SpriteCatalog.region("worker.idle") != SpriteCatalog.region("warrior.idle"), "eigene Art-Silhouetten")
-	check_eq(SpriteCatalog.region("worker.mine", 0), SpriteCatalog.region("worker.mine", atlas.frames * atlas.frame_ticks), "Animationszyklus")
+	check_eq(SpriteCatalog.region("worker.mine", 0), SpriteCatalog.region("worker.mine", 16), "Quadrat bleibt beim Arbeiten gleich")
 	check_eq(TacticalArt.icon("research"), SpriteCatalog.icon("research"), "HUD und Welt teilen Katalog")
 	check_eq(SpriteCatalog.icon("worker").get_size(), Vector2(32, 32), "HUD-Porträt")
-	var mask := atlas.team_mask.get_image()
-	var body := atlas.body.get_image()
-	var team_pixel := Vector2i(4, SpriteCatalog.row("worker.idle") * atlas.cell_size + 4)
-	check(mask.get_pixelv(team_pixel).a > 0.0, "Helm trägt separate Fraktionsmaske")
-	check(body.get_pixelv(team_pixel).a == 0.0, "Helmfarbe nicht in Körpergrafik eingebrannt")
+	var mask: Image = SpriteCatalog.UNITS.team_mask.get_image()
+	var body: Image = SpriteCatalog.UNITS.body.get_image()
+	var team_pixel := Vector2i(4, 16)
+	check(mask.get_pixelv(team_pixel).a > 0.0, "Außenrand trägt separate Fraktionsmaske")
+	check(body.get_pixelv(team_pixel).a == 0.0, "Teamfarbe nicht in Körpergrafik eingebrannt")
+
+func test_approved_square_variants_keep_team_band_and_distinct_armor() -> void:
+	var previous := 0
+	for key in ["worker.idle", "warrior.1", "warrior.2", "warrior.3"]:
+		var source := Rect2i(SpriteCatalog.region(key))
+		check_eq(source.size, Vector2i(32, 32), "gleicher quadratischer Fußabdruck")
+		var body: Image = SpriteCatalog.UNITS.body.get_image().get_region(source)
+		var team: Image = SpriteCatalog.UNITS.team_mask.get_image().get_region(source)
+		for point in [Vector2i(3, 16), Vector2i(28, 16), Vector2i(16, 3), Vector2i(16, 28)]:
+			check(team.get_pixelv(point).a > 0.9, key + " durchgehende Teamkennung an allen vier Seiten")
+		var art_hash := hash([body.get_data(), team.get_data()])
+		check(art_hash != previous, key + " unterscheidbare Grafik")
+		previous = art_hash
+	check_eq(SpriteCatalog.worker_row(WorkerStore.STATE_MOVING), SpriteCatalog.worker_row(WorkerStore.STATE_MINING), "keine neue Pose beim Abbau")
+	check_eq(SpriteCatalog.warrior_row(), SpriteCatalog.row("warrior.1"), "bestehender Basiskrieger bleibt Stufe 1")
 
 func test_workers_encode_real_state_faction_and_only_own_upgrades() -> void:
 	var sim := _sim()
@@ -52,6 +67,7 @@ func test_workers_encode_real_state_faction_and_only_own_upgrades() -> void:
 	for state in WorkerStore.STATE_COUNT:
 		var offset := (320 + state) * 4
 		check_eq(view._details[offset], SpriteCatalog.worker_row(state), "tatsächlicher Arbeitszustand")
+		check_eq(view._details[offset + 1], state, "Arbeitszustand statt Blickrichtung")
 		check_eq(view._details[offset + 3], 2, "vorhandene eigene Forschungsmarkierung")
 	check_eq(view._details[sim.workers.cell[enemy] * 4 + 2], 1, "Fraktion unabhängig von Farbgruppe")
 	check_eq(view._details[sim.workers.cell[enemy] * 4 + 3], 0, "keine erfundene Gegnerforschung")
@@ -60,7 +76,7 @@ func test_workers_encode_real_state_faction_and_only_own_upgrades() -> void:
 	check_eq(sim.state_hash(), before, "Darstellung ändert keine Simulation")
 	while sim.workers.count > 0: sim.workers.remove_swap(0)
 	view.show_tick(1)
-	check_eq(view._details[320 * 4], 0, "alte Zustandsdaten entfernt")
+	check_eq(view._details[320 * 4 + 3], 0, "alte Forschungsmarkierung entfernt")
 	check_eq(view._bytes[320 * 4 + 3], 0, "tote Einheit unsichtbar")
 	view.free()
 
@@ -78,12 +94,12 @@ func test_unit_details_do_not_retain_hidden_or_dead_units() -> void:
 	var slot: int = sim.army.slots[uid]
 	sim.army.last_attack[slot] = 1
 	view.show_tick(1)
-	check_eq(view._details[own * 4], SpriteCatalog.row("warrior.attack"), "tatsächlicher Angriff")
+	check_eq(view._details[own * 4 + 1], 2, "tatsächlicher Angriff")
 	view.show_tick(4)
-	check_eq(view._details[own * 4], SpriteCatalog.row("warrior.idle"), "Angriff endet ohne neue Treffer")
+	check_eq(view._details[own * 4 + 1], 0, "Angriff endet ohne neue Treffer")
 	sim.army.next_move[slot] = 8
 	view.show_tick(6)
-	check_eq(view._details[own * 4], SpriteCatalog.row("warrior.move"), "echter Bewegungstimer")
+	check_eq(view._details[own * 4 + 1], 1, "echter Bewegungstimer")
 	sim.army.remove(uid)
 	view.show_tick(7)
 	check_eq(view._details[own * 4], 0, "entfernte Kriegerdetails bereinigt")

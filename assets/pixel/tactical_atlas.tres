@@ -12,25 +12,17 @@ cell_size = 16
 frames = 4
 frame_ticks = 4
 rows = {
-"worker.idle": 0,
-"worker.move": 1,
-"worker.mine": 2,
-"worker.build": 3,
-"worker.blocked": 4,
-"warrior.idle": 5,
-"warrior.move": 6,
-"warrior.attack": 7,
-"research.idle": 8,
-"research.active": 9,
-"research.waiting": 10,
-"research.complete": 11,
-"research.construction": 12,
-"core": 13,
-"outpost": 14,
-"interceptor": 15,
-"network": 16,
-"repair": 17,
-"demolish": 18,
-"research_tree": 19,
-"pause": 20
+"research.idle": 0,
+"research.active": 1,
+"research.waiting": 2,
+"research.complete": 3,
+"research.construction": 4,
+"core": 5,
+"outpost": 6,
+"interceptor": 7,
+"network": 8,
+"repair": 9,
+"demolish": 10,
+"research_tree": 11,
+"pause": 12
 }

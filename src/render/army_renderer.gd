@@ -7,6 +7,8 @@ var sim: Simulation
 var viewer := 0
 @export var sprites_enabled := true
 @export var glow_enabled := true
+## Asset-review override only. Live matches use the existing basic warrior (1).
+@export_range(1, 3) var visual_level := 1
 var _bytes := PackedByteArray()
 var _texture: ImageTexture
 var _painted := PackedInt32Array()
@@ -51,9 +53,10 @@ func show_tick(tick: int) -> void:
 		_bytes[at + 1] = PALETTE[color + 1]
 		_bytes[at + 2] = PALETTE[color + 2]
 		_bytes[at + 3] = 255
-		_details[at] = SpriteCatalog.warrior_row(sim.army, index, tick)
-		_details[at + 1] = SpriteCatalog.facing(positions[index], sim.army.goals[index], sim.world.width)
+		_details[at] = SpriteCatalog.warrior_row(visual_level)
+		_details[at + 1] = SpriteCatalog.warrior_activity(sim.army, index, tick)
 		_details[at + 2] = owners[index]
+		_details[at + 3] = visual_level
 	_painted = positions.duplicate()
 	var image := Image.create_from_data(sim.world.width, sim.world.height, false, Image.FORMAT_RGBA8, _bytes)
 	if _texture == null: _texture = ImageTexture.create_from_image(image)
