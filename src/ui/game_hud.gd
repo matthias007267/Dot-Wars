@@ -243,7 +243,7 @@ func issue_build(cell: int) -> bool:
 		return false
 	if _placing_conduit:
 		if not sim.place_energy_conduit(cell):
-			_notice("Energieleitung: leere Zelle und 2 Energie erforderlich.")
+			_notice("Energieleitung: nur auf freiem Boden platzierbar.")
 			return false
 		_notice("Energieleitung gesetzt. Weitere Zellen anklicken oder Modus wechseln.")
 		refresh()
@@ -320,7 +320,7 @@ func refresh() -> void:
 	if site < 0: site = sim.construction.production_site(0)
 	if sim.construction.sites.valid(site):
 		var row: Dictionary = sim.construction.sites.records[site]
-		var title := "Kern" if row.kind == 0 else "Abfangstation" if row.kind == 2 else "Außenposten"
+		var title := "Kern" if row.kind == 0 else "Abfangstation" if row.kind == 2 else "Forschungszentrum" if row.kind == 3 else "Außenposten"
 		_kern_bar.max_value = 100
 		_kern_bar.value = 100.0 * float(row.hp) / row.max_hp if row.ready else 100.0 * float(row.work) / row.required
 		_kern_value.text = "%s %d/%d HP" % [title, row.hp, row.max_hp] if row.ready else "%s Bau %d %%" % [title, 100 * row.work / row.required]
@@ -528,7 +528,7 @@ func _build_upgrade_panel(layer: Control) -> void:
 	_label(content, "FORSCHUNGSGEBÄUDE", 12, UiTheme.MUTED)
 	_research_center_button = _button(content, "FORSCHUNGSZENTRUM BAUEN · 300", _begin_settlement.bind(3))
 	_label(content, "ENERGIENETZ", 12, UiTheme.MUTED)
-	_button(content, "ENERGIELEITUNG PLATZIEREN · 2 / ZELLE", _begin_conduit)
+	_button(content, "ENERGIELEITUNG PLATZIEREN · KOSTENLOS", _begin_conduit)
 	_label(content, "ENERGIETRANSPORT", 12, UiTheme.MUTED)
 	_interceptor_button = _button(content, "ABFANGSTATION BAUEN · 250", _begin_settlement.bind(2))
 	_build_caption = _label(content, "BAUEN", 12, UiTheme.MUTED)
@@ -958,6 +958,7 @@ func _raise_refinery() -> void:
 
 
 func _arm_build(kind: int) -> void:
+	_placing_conduit = false
 	if not sim.buildings.allowed(sim.config.mode, kind):
 		_notice("In diesem Modus nicht baubar.")
 		return
@@ -1317,7 +1318,7 @@ func _begin_conduit() -> void:
 	_placing_conduit = true
 	_settlement_kind = -1
 	command_mode = Command.BUILD
-	_notice("Energienetz: Leitungszellen nacheinander platzieren. Gebäude müssen durchgehend mit dem Kern verbunden sein.")
+	_notice("Energienetz: kostenlose Leitungen auf freien Zellen platzieren. Dots können darüber laufen.")
 
 func _begin_settlement(kind: int) -> void:
 	_placing_conduit = false
