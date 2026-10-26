@@ -10,6 +10,8 @@ var outposts_unlocked := false # Runtime-only Testlab flag; debug saves remain b
 var selected := -1 # UI only.
 var _fields := {}
 var _terrain := -1
+## Demolition requires 20% of the original building work; workers must reach the perimeter.
+var demolitions: Dictionary = {}
 
 func setup(world: WorldState, factions: int) -> void:
 	sites.setup(world.width, world.height, factions)
@@ -91,6 +93,26 @@ func release(sim: Simulation, id: int) -> void:
 	sim.workers.build_mode[id] = 0
 	if sim.workers.state[id] == WorkerStore.STATE_BUILDING: sim.workers.state[id] = WorkerStore.STATE_WAITING
 
+func start_demolition(sim: Simulation, site: int, owner := 0) -> bool:
+	if not sites.valid(site) or sites.records[site].owner != owner: return false
+	if sites.records[site].kind == Store.Kind.MAIN_CORE: return false
+	if demolitions.has(site): return true
+	var required := maxi(1, ceili(float(sites.records[site].required) * 0.2))
+	var candidates := PackedInt32Array()
+	for worker in sim.workers.count:
+		if sim.workers.faction[worker] == owner and sim.workers.build_site[worker] < 0:
+			candidates.append(worker)
+			if candidates.size() >= 4: break
+	if candidates.is_empty(): return false
+	demolitions[site] = {"work": 0, "required": required}
+	for worker in candidates:
+		sim.workers.build_site[worker] = site
+		sim.workers.build_mode[worker] = 2
+		sim.workers.state[worker] = WorkerStore.STATE_BUILDING
+		sim.workers.target[worker] = -1
+		sim.workers.aim[worker] = -1
+	return true
+
 func step(sim: Simulation) -> void:
 	# Fields are shared by all builders of one site, rebuilt only after terrain changes.
 	if _terrain != sim.world.revision:
@@ -108,7 +130,14 @@ func step(sim: Simulation) -> void:
 		var dist: PackedInt32Array = _fields[site]
 		var c := w.cell[id]
 		if dist[c] == 0:
-			if w.build_mode[id] == 1:
+			if w.build_mode[id] == 2:
+				if demolitions.has(site):
+					var job: Dictionary = demolitions[site]
+					job.work = int(job.work) + 1
+					if job.work >= job.required:
+						demolitions.erase(site)
+						damage(sim, site, int(sites.records[site].hp))
+			elif w.build_mode[id] == 1:
 				if sim.tick_count % REPAIR_PERIOD == 0:
 					var wallet := sim.rules.wallet(sim, w.faction[id])
 					if wallet.energy >= REPAIR_COST and sites.repair(site, w.faction[id], REPAIR_HP) > 0:
@@ -188,6 +217,7 @@ func survives(owner: int) -> bool:
 
 func damage(sim: Simulation, id: int, amount: int) -> void:
 	if not sites.valid(id): return
+	demolitions.erase(id)
 	var rect: Rect2i = sites.records[id].rect
 	sites.damage(id, amount)
 	if not sites.valid(id):
@@ -231,10 +261,18 @@ func _ground(sim: Simulation, rect: Rect2i, material: int) -> void:
 	_fields.clear()
 
 func snapshot(sim: Simulation) -> Dictionary:
-	return {"sites": sites.snapshot(), "worker_sites": sim.spawner.site_queue()}
+	return {"sites": sites.snapshot(), "worker_sites": sim.spawner.site_queue(), "demolitions": demolitions.duplicate(true)}
 
 func restore(sim: Simulation, data: Dictionary) -> bool:
 	if not data.get("sites") is Dictionary or not sites.restore(data.sites): return false
+	var saved_demolitions: Variant = data.get("demolitions", {})
+	if not saved_demolitions is Dictionary: return false
+	for site in saved_demolitions:
+		if typeof(site) != TYPE_INT or not sites.valid(site) or not saved_demolitions[site] is Dictionary: return false
+		var job: Dictionary = saved_demolitions[site]
+		if typeof(job.get("work")) != TYPE_INT or typeof(job.get("required")) != TYPE_INT: return false
+		if job.work < 0 or job.required != maxi(1, ceili(float(sites.records[site].required) * 0.2)) or job.work >= job.required: return false
+	demolitions = saved_demolitions.duplicate(true)
 	for owner in sites.faction_count:
 		if sites.count(owner, Store.Kind.MAIN_CORE) > 1: return false
 	if sites.width != sim.world.width or sites.height != sim.world.height or sites.faction_count != (sim.rules.faction_count if sim._match_live() else 1): return false
@@ -249,7 +287,7 @@ func restore(sim: Simulation, data: Dictionary) -> bool:
 		if site == -1:
 			if sim.workers.state[id] == WorkerStore.STATE_BUILDING: return false
 		elif not _work_valid(site, sim.workers.faction[id], sim.workers.build_mode[id]) or sim.workers.state[id] != WorkerStore.STATE_BUILDING: return false
-		if sim.workers.build_mode[id] > 1 or (site == -1 and sim.workers.build_mode[id] != 0): return false
+		if sim.workers.build_mode[id] > 2 or (site == -1 and sim.workers.build_mode[id] != 0): return false
 	var bindings: Variant = data.get("worker_sites", PackedInt32Array())
 	if not bindings is PackedInt32Array or bindings.size() != sim.spawner.pending(): return false
 	for id in bindings:
@@ -267,6 +305,7 @@ func assign_repair(sim: Simulation, site: int, ids: PackedInt32Array, owner := 0
 func _work_valid(site: int, owner: int, mode: int) -> bool:
 	if not sites.valid(site) or sites.records[site].owner != owner: return false
 	var row: Dictionary = sites.records[site]
+	if mode == 2: return demolitions.has(site)
 	return (row.ready and row.hp < row.max_hp) if mode == 1 else not row.ready
 
 func cancel_refund(site: int, owner := 0) -> int:
