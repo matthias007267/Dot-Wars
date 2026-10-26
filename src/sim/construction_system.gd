@@ -173,7 +173,7 @@ func receivers(sim: Simulation, owner: int) -> PackedInt32Array:
 
 func production_site(owner: int, wanted := -1) -> int:
 	if wanted >= 0:
-		return wanted if sites.valid(wanted) and sites.records[wanted].owner == owner and sites.records[wanted].ready and sites.records[wanted].kind != Store.Kind.INTERCEPTOR else -1
+		return wanted if sites.valid(wanted) and sites.records[wanted].owner == owner and sites.records[wanted].ready and sites.records[wanted].kind != Store.Kind.INTERCEPTOR and sites.records[wanted].kind != Store.Kind.RESEARCH_CENTER else -1
 	var ready: PackedInt32Array = sites.ready_sites(owner)
 	return -1 if ready.is_empty() else ready[0]
 
