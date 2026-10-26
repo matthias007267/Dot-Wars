@@ -78,9 +78,14 @@ static func step(e: EnergyStore, world: WorldState, workers: WorkerStore, gates:
 		var due := tick % e._pace_of(owner, period, periods) == 0
 		if holder < 0 and owner < factions and due:
 			if exits.has(cell * 4 + owner):
-				gained += 1
-				while e.delivered_to.size() <= owner: e.delivered_to.append(0)
-				e.delivered_to[owner] += 1
+				var research_site := sim.research.receiver_site(sim, cell, owner) if sim != null else -1
+				if research_site >= 0:
+					sim.research.deliver(research_site)
+				else:
+					gained += 1
+				if research_site < 0:
+					while e.delivered_to.size() <= owner: e.delivered_to.append(0)
+					e.delivered_to[owner] += 1
 				if e.refined[i] != 0: e.refined_delivered += 1
 				continue
 			if owner < e._routed.size():
@@ -102,7 +107,7 @@ static func step(e: EnergyStore, world: WorldState, workers: WorkerStore, gates:
 	e.no_route.resize(write)
 	e.held_by.resize(write)
 	e.release_at.resize(write)
-	e.delivered += gained
+	e.delivered += original_size - write
 	return gained
 
 static func _catchers(e: EnergyStore, sim: Simulation, world: WorldState) -> Dictionary:
