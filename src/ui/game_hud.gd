@@ -292,6 +292,9 @@ func set_size_all(unit_size: int) -> bool:
 
 
 func refresh() -> void:
+	if renderer != null and sim != null and renderer.energy_network != sim.energy_network:
+		renderer.energy_network = sim.energy_network
+		renderer.queue_redraw()
 	if sim == null or _mass_value == null:
 		return
 	var mass := sim.faction_mass(0) if _match_live() else sim.total_mass()
