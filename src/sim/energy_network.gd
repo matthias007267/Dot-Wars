@@ -2,7 +2,7 @@ class_name EnergyNetwork
 extends RefCounted
 ## Explicitly placed, faction-owned energy conduit cells.
 ## No implicit connection between buildings. Construction and routing use orthogonal adjacency.
-const COST := 2
+const COST := 0
 var width := 0
 var height := 0
 var cells := PackedInt32Array()
@@ -23,11 +23,8 @@ func owner_at(cell: int) -> int:
 func place(sim: Simulation, faction: int, cell: int) -> bool:
 	if cell < 0 or cell >= width * height or faction < 0 or faction >= (sim.rules.faction_count if sim._match_live() else 1): return false
 	if sim.world.cells[cell] != Materials.EMPTY or owner_at(cell) >= 0: return false
-	if sim.construction.at(cell) >= 0: return false
-	if not sim.workers.is_free(cell) or sim.army.occupant[cell] >= 0: return false
-	var wallet := sim.rules.wallet(sim, faction)
-	if wallet.energy < COST: return false
-	wallet.energy -= COST
+	if sim.construction.at(cell) >= 0 or sim.buildings.occupies(cell): return false
+	# Conduits are a non-blocking overlay: workers and warriors may stand on them.
 	cells.append(cell)
 	owners.append(faction)
 	revision += 1
@@ -90,7 +87,7 @@ func restore(data: Dictionary, sim: Simulation) -> bool:
 		var owner: int = data.owners[i]
 		if cell < 0 or cell >= width * height or seen.has(cell): return false
 		if owner < 0 or owner >= (sim.rules.faction_count if sim._match_live() else 1): return false
-		if sim.world.cells[cell] != Materials.EMPTY or sim.construction.at(cell) >= 0: return false
+		if sim.world.cells[cell] != Materials.EMPTY or sim.construction.at(cell) >= 0 or sim.buildings.occupies(cell): return false
 		seen[cell] = true
 	cells = data.cells.duplicate()
 	owners = data.owners.duplicate()
