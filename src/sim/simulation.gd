@@ -528,7 +528,7 @@ func check_invariants() -> PackedStringArray:
 func state_hash() -> int:
 	return hash([
 		tick_count,
-		world.state_hash(), army.state_hash(), worker_losses, construction.sites.state_hash(), hash(spawner.site_queue()),
+		world.state_hash(), army.state_hash(), worker_losses, construction.sites.state_hash(), hash(construction.demolitions), hash(spawner.site_queue()),
 		workers.state_hash(),
 		areas.state_hash(),
 		spawner.pending(),
