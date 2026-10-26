@@ -65,6 +65,8 @@ var _interceptor_button: Button
 var _research_center_button: Button
 var _research_tech_buttons: Array[Button] = []
 var _research_tech_ids: Array[String] = []
+var _research_status: Label
+var _research_tree: VBoxContainer
 var _pause_button: Button
 var _speed_button: Button
 var _swarm_ids: Array[int] = []
@@ -525,11 +527,26 @@ func _build_upgrade_panel(layer: Control) -> void:
 	_research_button = _button(content, "FORSCHUNG", func() -> void: _start_research("victory"))
 	_research_button.custom_minimum_size = Vector2(310, 34)
 	_research_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_label(content, "TECHNOLOGIEN · Forschungszentrum auswählen", 12, UiTheme.MUTED)
-	for tech in ResearchSystem.CATALOG:
-		var tech_button := _button(content, str(ResearchSystem.CATALOG[tech]["label"]), _start_research.bind(tech))
-		_research_tech_buttons.append(tech_button)
-		_research_tech_ids.append(tech)
+	_label(content, "FORSCHUNGSBAUM · Forschungszentrum auswählen", 12, UiTheme.MUTED)
+	_research_status = _label(content, "Kein Forschungszentrum ausgewählt.", 12, UiTheme.MUTED)
+	var tree_scroll := ScrollContainer.new()
+	tree_scroll.custom_minimum_size = Vector2(340, 250)
+	tree_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_child(tree_scroll)
+	_research_tree = _column(tree_scroll, 8)
+	for branch in ["Wirtschaft", "Infrastruktur", "Energietechnik", "Militär"]:
+		var branch_panel := PanelContainer.new()
+		_research_tree.add_child(branch_panel)
+		var branch_content := _column(branch_panel, 5)
+		_label(branch_content, branch.to_upper(), 13, UiTheme.ACCENT)
+		for tech in ResearchSystem.CATALOG:
+			var entry: Dictionary = ResearchSystem.CATALOG[tech]
+			if str(entry["branch"]) != branch: continue
+			var tech_button := _button(branch_content, str(entry["label"]), _start_research.bind(tech))
+			tech_button.custom_minimum_size = Vector2(300, 42)
+			tech_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			_research_tech_buttons.append(tech_button)
+			_research_tech_ids.append(tech)
 	_label(content, "FORSCHUNGSGEBÄUDE", 12, UiTheme.MUTED)
 	_research_center_button = _button(content, "FORSCHUNGSZENTRUM BAUEN · 300", _begin_settlement.bind(3))
 	_label(content, "ENERGIENETZ", 12, UiTheme.MUTED)
@@ -854,6 +871,9 @@ func _start_research(tech: String) -> void:
 	refresh()
 
 func _refresh_research() -> void:
+	var site := _production_site()
+	if _research_status != null:
+		_research_status.text = "Forschungszentrum #%d · Energiepuffer %d" % [site, int(sim.research.supply.get(site, 0))] if site >= 0 and sim.construction.sites.valid(site) and sim.construction.sites.records[site].kind == 3 else "Forschungszentrum auf der Karte auswählen."
 	for i in _research_tech_buttons.size():
 		var tech := _research_tech_ids[i]
 		var entry: Dictionary = ResearchSystem.CATALOG[tech]
@@ -861,11 +881,20 @@ func _refresh_research() -> void:
 		var cost := sim.research.details(tech, level + 1)
 		var button := _research_tech_buttons[i]
 		button.visible = tech != "victory" or (sim.config.victory_mask & MatchRules.VICTORY_RESEARCH) != 0
-		button.disabled = not sim.research.can_start(sim, 0, _production_site(), tech)
-		button.text = "%s · %s · %s" % [entry["label"], str(level) + "/" + str(entry["max"]), "MAX" if cost.is_empty() else str(cost["ticks"]) + " Takte / " + str(cost["energy"]) + " Energie"]
+		button.disabled = not sim.research.can_start(sim, 0, site, tech)
+		var prereqs: Array = entry["requires"]
+		var missing: Array[String] = []
+		for prereq in prereqs:
+			if sim.research.level(0, str(prereq)) < 1:
+				missing.append(str(ResearchSystem.CATALOG[str(prereq)]["label"]))
+		var status := "ABGESCHLOSSEN" if cost.is_empty() else "%d Takte · %d Energie" % [int(cost["ticks"]), int(cost["energy"])]
+		if not missing.is_empty(): status = "Benötigt: " + ", ".join(missing)
+		button.text = "%s  [%d/%d]\n%s" % [str(entry["label"]), level, int(entry["max"]), status]
+		button.tooltip_text = "Zweig: %s | Stufe %d/%d | %s" % [str(entry["branch"]), level, int(entry["max"]), status]
 		for job in sim.research.jobs:
-			if job["faction"] == 0 and job["tech"] == tech:
-				button.text = "%s · %d/%d Takte" % [entry["label"], job["elapsed"], job["ticks"]]
+			if int(job["faction"]) == 0 and str(job["tech"]) == tech:
+				button.text = "%s  [%d/%d]\nFORSCHUNG %d/%d Takte · %d/%d Energie" % [str(entry["label"]), level, int(entry["max"]), int(job["elapsed"]), int(job["ticks"]), int(job["spent"]), int(job["energy"])]
+				button.tooltip_text = "Forschung läuft im Zentrum #%d" % int(job["site"])
 	if _research_button == null or _research_caption == null:
 		return
 	var show := (
