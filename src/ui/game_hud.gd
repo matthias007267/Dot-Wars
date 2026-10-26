@@ -80,6 +80,7 @@ var _build_caption: Label
 var _build_kind := Buildings.KIND_SOURCE
 var _settlement_kind := -1
 var _placing_conduit := false
+var _demolition_mode := false
 var _size_buttons: Array[Button] = []
 var _map: WorldMinimap
 
@@ -961,6 +962,7 @@ func _raise_refinery() -> void:
 
 func _arm_build(kind: int) -> void:
 	_placing_conduit = false
+	_demolition_mode = false
 	if not sim.buildings.allowed(sim.config.mode, kind):
 		_notice("In diesem Modus nicht baubar.")
 		return
@@ -1317,13 +1319,38 @@ func _production_site() -> int:
 	return site if sim.construction.sites.valid(site) and sim.construction.sites.records[site].owner == 0 else -1
 
 func toggle_energy_network() -> void:
-	_placing_conduit = not _placing_conduit
+	var was_active := _placing_conduit
+	_placing_conduit = not was_active
+	_demolition_mode = false
 	_settlement_kind = -1
 	command_mode = Command.BUILD if _placing_conduit else Command.MINE
 	_notice("ENERGIENETZ AKTIV · Linke Maustaste halten und Leitungen ziehen · E zum Beenden" if _placing_conduit else "Energienetz beendet · normale Steuerung aktiv")
 
+func toggle_demolition() -> void:
+	var was_active := _demolition_mode
+	_demolition_mode = not was_active
+	_placing_conduit = false
+	_settlement_kind = -1
+	command_mode = Command.BUILD if _demolition_mode else Command.MINE
+	_notice("ABRISS AKTIV · Leitung sofort, Gebäude mit Arbeitern · Q zum Beenden" if _demolition_mode else "Abrissmodus beendet")
+
+func demolition_active() -> bool:
+	return _demolition_mode
+
 func energy_network_active() -> bool:
 	return _placing_conduit
+
+func demolish_at(cell: int) -> bool:
+	if sim == null: return false
+	if sim.energy_network.remove(0, cell):
+		_notice("Energieleitung sofort entfernt.")
+		return true
+	var site := sim.construction.at(cell)
+	if site >= 0 and sim.construction.start_demolition(sim, site, 0):
+		_notice("Abriss beauftragt: Arbeiter entfernen das Gebäude mit 20 % des Bauaufwands.")
+		return true
+	_notice("Hier gibt es kein eigenes abreißbares Gebäude oder Netz.")
+	return false
 
 func place_energy_network_cell(cell: int) -> bool:
 	if not _placing_conduit or sim == null: return false
@@ -1334,6 +1361,7 @@ func place_energy_network_cell(cell: int) -> bool:
 
 func _begin_settlement(kind: int) -> void:
 	_placing_conduit = false
+	_demolition_mode = false
 	if kind == 2 and not sim.construction.interceptors_unlocked:
 		_notice("Abfangstationen benötigen Forschung. Vorläufig nur im Testlabor freischaltbar.")
 		return
