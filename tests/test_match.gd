@@ -230,8 +230,8 @@ func test_easy_camps_and_hard_digs_toward_the_core() -> void:
 	var workers_before := _count(hard, 1)
 	hard.tick_once()
 	check_eq(_count(hard, 1), workers_before, "Schwer kauft keinen siebten Arbeiter")
-	check_eq(wallet.dig_level, 1, "Schwer kauft Abbau")
-	check_eq(wallet.energy, 0, "50 Energie sind im Abbau")
+	check_eq(wallet.dig_level, 0, "ohne Forschungszentrum kein Abbauupgrade")
+	check_eq(wallet.energy, Upgrades.DIG_BASE, "ohne Forschungsauftrag bleibt Energie erhalten")
 	check_eq(hard.rules.match_bought, 0, "ein Werkzeug ist kein Arbeiter")
 	var lane: Array = hard.areas.rects[hard.rules.group_of[1]]
 	check_eq(lane.size(), 1, "ein Korridor")
