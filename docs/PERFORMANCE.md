@@ -1,5 +1,9 @@
 # Messungen
 
+Aktuelle 10.000er-Fortsetzung: [SCALE_PERFORMANCE.md](SCALE_PERFORMANCE.md) mit aktiver Sicht, Bewegung, Kampf, Wirtschaft und nativer v9-Sichtunion.
+
+Aktueller Nachtrag: [Fog-/Karten-Performance vom 26. Oktober 2026](FOG_PERFORMANCE.md) untersucht die echte Partie nach Fog, Forschung, Netz und neuer Grafik. Ältere Messungen unten gelten weiterhin nur für ihren jeweiligen damaligen Stand.
+
 ## Zielpopulation und Geltung ab 25. Oktober 2026
 
 Das Zielkonzept sieht vorläufig maximal 50 Arbeiter je Spieler und mehrere Tausend Krieger je Spieler vor. Die folgenden historischen Arbeiter- und Darstellungsbenchmarks bleiben technische Stress-/Regressionstests. Sie weisen weder große Kriegerarmeen, Nahkampf, Fog of War noch eine echte Netzwerkpartie nach. Insbesondere ist „10.000 Arbeiter auf einer Karte“ nicht gleichbedeutend mit „mehrere Tausend Krieger pro Spieler“.

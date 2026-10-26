@@ -4,6 +4,9 @@ extends RefCounted
 const WORKER_RADIUS := 7
 const WARRIOR_RADIUS := 9
 const CORE_RADIUS := 12
+const Backend = preload("res://src/sim/native_search.gd")
+var reference_only := false
+var native_updates := 0
 
 var width := 0
 var height := 0
@@ -17,13 +20,11 @@ var alliance := PackedInt32Array()
 var _last_signature := -1
 var _last_terrain_signature := -1
 var _sight_cache: Dictionary = {}
-var _blocker_signature := -1
 
 func setup(world: WorldState, count: int) -> void:
 	_last_signature = -1
 	_last_terrain_signature = -1
 	_sight_cache.clear()
-	_blocker_signature = -1
 	width = world.width
 	height = world.height
 	factions = count
@@ -86,63 +87,75 @@ func update(sim: Simulation) -> void:
 		return
 	_last_signature = signature
 	_last_terrain_signature = terrain_signature
-	var blocking := PackedByteArray()
-	blocking.resize(sim.world.cell_count())
-	for cell in blocking.size():
-		blocking[cell] = 1 if sim.world.cells[cell] != Materials.EMPTY or sim.construction.at(cell) >= 0 else 0
-	var blocker_signature := hash(blocking)
-	if blocker_signature != _blocker_signature:
+	# Materials are already zero for empty / nonzero for opaque. Only building
+	# footprints must be added; never scan the entire map through construction.at().
+	var blocking := sim.world.cells.duplicate()
+	for row in sim.construction.sites.records:
+		if row.destroyed: continue
+		var rect: Rect2i = row.rect
+		for y in range(rect.position.y, rect.end.y):
+			for x in range(rect.position.x, rect.end.x): blocking[y * width + x] = Materials.INDESTRUCTIBLE
+	var own_cells: Array[PackedInt32Array] = []
+	for faction in factions: own_cells.append(PackedInt32Array())
+	var native := Backend.backend() if not reference_only and not "--fog-reference" in OS.get_cmdline_user_args() else null
+	var native_ok := false
+	if native != null and native.has_method("fog_visible"):
+		var packed := PackedInt32Array()
+		for source in sources:
+			if int(source[0]) < 0 or int(source[0]) >= factions: continue
+			packed.append(int(source[0]))
+			packed.append(int(source[1]))
+			packed.append(int(source[2]))
+		var result = native.fog_visible(blocking, packed, factions, width)
+		if result is Array and result.size() == factions:
+			native_ok = true
+			for faction in factions: own_cells[faction] = result[faction]
+			native_updates += 1
+	if not native_ok:
+		var own_sight: Array[PackedByteArray] = []
+		for faction in factions:
+			var mask := PackedByteArray()
+			mask.resize(blocking.size())
+			own_sight.append(mask)
+		var seen_sources: Dictionary = {}
+		var active_keys: Dictionary = {}
+		for source in sources:
+			var owner := int(source[0])
+			if owner < 0 or owner >= factions: continue
+			var origin := int(source[1])
+			var radius := int(source[2])
+			var key := Vector3i(owner, origin, radius)
+			if seen_sources.has(key): continue
+			seen_sources[key] = true
+			active_keys[Vector2i(origin, radius)] = true
+			var mask: PackedByteArray = own_sight[owner]
+			var cells: PackedInt32Array = own_cells[owner]
+			for cell in _visible_cells(blocking, origin, radius):
+				if mask[cell] == 0:
+					mask[cell] = 1
+					cells.append(cell)
+			own_sight[owner] = mask
+			own_cells[owner] = cells
+		# Cache memory is proportional to live origins and sight radius, not map area.
+		for key in _sight_cache.keys():
+			if not active_keys.has(key): _sight_cache.erase(key)
+	else:
 		_sight_cache.clear()
-		_blocker_signature = blocker_signature
-	var own_sight: Array[PackedByteArray] = []
+	var terrain := sim.world.cells
 	for faction in factions:
 		var mask := PackedByteArray()
 		mask.resize(blocking.size())
-		own_sight.append(mask)
-	# Multiple units at the same cell and radius must not trace the same rays twice.
-	var seen_sources: Dictionary = {}
-	for id in sim.workers.count:
-		var owner := int(sim.workers.faction[id])
-		if owner >= 0 and owner < factions:
-			var cell := int(sim.workers.cell[id])
-			var key := Vector3i(owner, cell, WORKER_RADIUS)
-			if not seen_sources.has(key):
-				seen_sources[key] = true
-				_reveal_cached(own_sight[owner], blocking, cell, WORKER_RADIUS)
-	for id in sim.army.count:
-		var owner := int(sim.army.owners[id])
-		if owner >= 0 and owner < factions:
-			var cell := int(sim.army.cells[id])
-			var key := Vector3i(owner, cell, WARRIOR_RADIUS)
-			if not seen_sources.has(key):
-				seen_sources[key] = true
-				_reveal_cached(own_sight[owner], blocking, cell, WARRIOR_RADIUS)
-	for row in sim.construction.sites.records:
-		if row.destroyed or not row.ready: continue
-		var owner := int(row.owner)
-		if owner >= 0 and owner < factions:
-			var cell := sim.construction.center(int(row.id))
-			var key := Vector3i(owner, cell, CORE_RADIUS)
-			if not seen_sources.has(key):
-				seen_sources[key] = true
-				_reveal_cached(own_sight[owner], blocking, cell, CORE_RADIUS)
-	# Evict masks for moved or removed sources; cache stays bounded by live origins.
-	var active_keys: Dictionary = {}
-	for source in seen_sources:
-		var key: Vector3i = source
-		active_keys[Vector2i(key.y, key.z)] = true
-	for key in _sight_cache.keys():
-		if not active_keys.has(key): _sight_cache.erase(key)
-	for faction in factions:
-		visible[faction].fill(0)
+		var explored_mask := explored[faction].duplicate()
+		var memory := known_terrain[faction].duplicate()
 		for ally in factions:
 			if alliance[faction] != alliance[ally]: continue
-			for cell in blocking.size():
-				if own_sight[ally][cell] == 1: visible[faction][cell] = 1
-		for cell in blocking.size():
-			if visible[faction][cell] == 0: continue
-			explored[faction][cell] = 1
-			known_terrain[faction][cell] = sim.world.cells[cell]
+			for cell in own_cells[ally]:
+				mask[cell] = 1
+				explored_mask[cell] = 1
+				memory[cell] = terrain[cell]
+		visible[faction] = mask
+		explored[faction] = explored_mask
+		known_terrain[faction] = memory
 		# Snapshot updates only while a footprint is in view; unseen destruction remains unknown.
 		for row in sim.construction.sites.records:
 			var id := int(row.id)
@@ -167,20 +180,27 @@ func update(sim: Simulation) -> void:
 					if visible[faction][y * width + x] == 1: revisited = true
 			if revisited: known_sites[faction].erase(id)
 
-func _reveal_cached(mask: PackedByteArray, blocking: PackedByteArray, origin: int, radius: int) -> void:
+func _visible_cells(blocking: PackedByteArray, origin: int, radius: int) -> PackedInt32Array:
 	var key := Vector2i(origin, radius)
-	if not _sight_cache.has(key):
-		var cells := PackedByteArray()
-		cells.resize(blocking.size())
-		_reveal(cells, blocking, origin, radius)
-		_sight_cache[key] = cells
-	var cached: PackedByteArray = _sight_cache[key]
 	var x0 := origin % width
 	var y0 := origin / width
-	for y in range(maxi(0, y0 - radius), mini(height, y0 + radius + 1)):
-		for x in range(maxi(0, x0 - radius), mini(width, x0 + radius + 1)):
-			var index := y * width + x
-			if cached[index] == 1: mask[index] = 1
+	var left := maxi(0, x0 - radius)
+	var right := mini(width, x0 + radius + 1)
+	var top := maxi(0, y0 - radius)
+	var bottom := mini(height, y0 + radius + 1)
+	# Exact local bytes, not a hash: any changed blocker on a possible ray
+	# invalidates this origin. Distant mining keeps unrelated origins cached.
+	var patch := PackedByteArray()
+	for y in range(top, bottom): patch.append_array(blocking.slice(y * width + left, y * width + right))
+	if _sight_cache.has(key) and _sight_cache[key].blocking == patch:
+		return _sight_cache[key].cells
+	var cells := PackedInt32Array()
+	for y in range(top, bottom):
+		for x in range(left, right):
+			if (x - x0) * (x - x0) + (y - y0) * (y - y0) > radius * radius: continue
+			if _line_clear(blocking, x0, y0, x, y): cells.append(y * width + x)
+	_sight_cache[key] = {"blocking": patch, "cells": cells}
+	return cells
 
 func _reveal(mask: PackedByteArray, blocking: PackedByteArray, origin: int, radius: int) -> void:
 	if origin < 0 or origin >= mask.size(): return
@@ -209,7 +229,7 @@ func _line_clear(blocking: PackedByteArray, x0: int, y0: int, x1: int, y1: int) 
 			error += dx
 			y += sy
 		if x == x1 and y == y1: return true
-		if blocking[y * width + x] == 1: return false
+		if blocking[y * width + x] != 0: return false
 	return true
 
 func snapshot() -> Dictionary:
@@ -241,5 +261,4 @@ func restore(data: Dictionary, world: WorldState, count: int) -> bool:
 	_last_signature = -1
 	_last_terrain_signature = -1
 	_sight_cache.clear()
-	_blocker_signature = -1
 	return true

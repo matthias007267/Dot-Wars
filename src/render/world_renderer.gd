@@ -38,7 +38,6 @@ var marker_rgb := PackedByteArray()
 var marker_hill := -1
 var marker_relics := PackedInt32Array()
 var marker_relic_rgb := PackedByteArray()
-var _marker_stamp := 0
 const HILL_COLOR := Color8(0xE6, 0xC3, 0x5C)
 const RELIC_COLOR := Color8(0xD7, 0xC4, 0xFF)
 
@@ -283,10 +282,12 @@ func set_buildings(mask: PackedByteArray) -> void:
 func sync_match(sim: Simulation) -> void:
 	if sim.config.mode != SimConfig.MODE_MATCH or sim.rules.cores.is_empty():
 		return
-	var stamp := hash([sim.rules.relic_owner, _site_marker_state(sim), sim.fog.known_sites[0], sim.fog.visible[0]]) if sim._match_live() else hash([sim.rules.relic_owner, _site_marker_state(sim)])
-	if not marker_cores.is_empty() and stamp == _marker_stamp:
-		return
-	_marker_stamp = stamp
+	var old_cores := marker_cores
+	var old_rgb := marker_rgb
+	var old_hill := marker_hill
+	var old_relics := marker_relics
+	var old_relic_rgb := marker_relic_rgb
+	var old_pit := _pit_index()
 	marker_cores = PackedInt32Array()
 	marker_rgb = PackedByteArray()
 	var sites: Array = sim.fog.remembered_sites(0) if sim._match_live() else sim.construction.sites.records
@@ -308,11 +309,26 @@ func sync_match(sim: Simulation) -> void:
 		if owner >= 0 and owner < MatchRules.FACTION_COLORS.size():
 			color = MatchRules.FACTION_COLORS[owner]
 		_append_rgb(marker_relic_rgb, color)
-	if _bytes.is_empty() or world == null:
-		return
-	_paint_everything()
-	_upload()
+	# Visible HP/work/animation state may change without changing terrain markers.
 	queue_redraw()
+	if old_cores == marker_cores and old_rgb == marker_rgb and old_hill == marker_hill and old_relics == marker_relics and old_relic_rgb == marker_relic_rgb:
+		return
+	if _bytes.is_empty() or world == null: return
+	# Only marker cells can change color. Movement / sight never repaints terrain.
+	var changed := {}
+	for cell in old_cores: changed[cell] = true
+	for cell in marker_cores: changed[cell] = true
+	for cell in old_relics: changed[cell] = true
+	for cell in marker_relics: changed[cell] = true
+	changed[old_hill] = true
+	changed[marker_hill] = true
+	changed[old_pit] = true
+	changed[_pit_index()] = true
+	var palette := palette_bytes()
+	for cell in changed:
+		if cell < 0 or cell >= world.cell_count(): continue
+		_write_cell(_bytes, palette, world, cell, world.cells[cell], _pit_index(), core_mask, building_mask, marker_cores, marker_rgb, marker_hill, marker_relics, marker_relic_rgb)
+	_upload()
 
 
 func _paint_everything() -> void:
@@ -522,9 +538,3 @@ static func _paint_indexed(
 		bytes[dst + 3] = 255
 		return true
 	return false
-
-
-func _site_marker_state(sim: Simulation) -> Array:
-	var state := []
-	for row in sim.construction.sites.records: state.append([row.id, row.ready, row.destroyed])
-	return state

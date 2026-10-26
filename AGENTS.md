@@ -1,5 +1,17 @@
 # Regeln für Agenten
 
+## Neuester Auftrag: aktuellen Performance-Stand mergen
+
+Der Nutzer beauftragt ausdrücklich: „Merge den aktuellen stand“. Das erlaubt jetzt das Committen der geprüften Änderungen D-071/D-072, Zusammenführen nach main und einen normalen Push nach origin/main. Die bisherigen Einschränkungen verbieten nur automatische Merges ohne diesen Auftrag. Kein Force-Push, Release oder Beenden laufender Partien. D-073 hält die Freigabe fest.
+
+## Neuester Folgeauftrag: etwa 10.000 Einheiten simulieren und optimieren
+
+Der Nutzer beauftragt nach D-071 ausdrücklich einen Lauf mit etwa 10.000 Einheiten und nötigenfalls weitere Performance-Korrekturen. Derselbe lokale Branch `perf/fog-update` enthält dafür gebündelte native Sichtberechnung mit exakter GDScript-Referenz, gebündelte Minimap-Marker und günstigere Krieger-/Fog-Aufbereitung. Welt, Sicht, Fraktionswissen, Kampf, 50-Arbeiter-Limit, Bilanzen und 20-Hz-Takt bleiben erhalten. Native Windows-Version v9; laufende v8-Prozesse nicht überschreiben oder als bereits aktualisiert ausgeben. Prüfstand in `docs/SCALE_PERFORMANCE.md`, D-072. Kein automatischer Commit/Push/Merge/Release oder Beenden der ursprünglichen Partie.
+
+## Neuester Auftrag: gemessenes Performance-Update
+
+Der Nutzer beauftragt nach der Analyse seiner laufenden Partie ausdrücklich ein Performance-Update. Auf dem lokalen Branch `perf/fog-update` werden die gemessenen Engpässe bei Sichtberechnung, Fog-/Minimap-Aufbereitung und Weltmarker-Aktualisierung optimiert. Sichtreichweiten, sofortiges Verschwinden von Gegnern, Erinnerungswissen, Bündnisse, Takt und Spielregeln bleiben erhalten. Originalpartie sichern und erhalten; Diagnosekopien und taktgenaue Vorher-/Nachher-Vergleiche verwenden. Keine neue Featurephase, kein automatischer Commit, Push, Merge oder Release. Prüfstand in `docs/FOG_PERFORMANCE.md`, D-071. Historische Freigaben unten bleiben auf ihren jeweiligen Auftrag begrenzt.
+
 ## Neuester Auftrag: bestätigte quadratische Einheiten
 
 Der Nutzer übernimmt ausdrücklich den generierten Entwurf einfacher quadratischer Arbeiter und Krieger: feste Ausrichtung, klarer Teamrand, Arbeiterkern und drei verwandte Krieger-Panzerstufen. Figuren mit Helm/Gliedmaßen werden ersetzt. Alle drei Grafikvarianten sind beauftragt; reguläre Partien behalten den existierenden Basiskrieger, keine neuen Stufen-/Kampf-/Schere-Stein-Papier-Regeln daraus ableiten. PR #10 wurde erst nach Merge von #9 in dessen früheren Feature-Branch gemergt und fehlt daher auf `main`. Neuer Branch/PR `feat/square-unit-art` auf `d9fbadb` übernimmt die vorhandene Optikbasis und diese Korrektur. Details: `docs/SPRITE_CATALOG.md`, D-070. Kein automatischer Merge.

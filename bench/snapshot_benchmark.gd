@@ -7,10 +7,12 @@ func _init() -> void:
 
 func _start() -> void:
 	var args := OS.get_cmdline_user_args()
-	if args.size() != 2 or DisplayServer.get_name() == "headless":
+	if args.size() < 2 or DisplayServer.get_name() == "headless":
 		printerr("Erwartet: sichtbares Fenster und -- eingabe.dw ausgabe.json")
 		quit(2)
 		return
+	for arg in args:
+		if arg.begins_with("--fps-cap="): Engine.max_fps = maxi(0, int(arg.trim_prefix("--fps-cap=")))
 	var sim := SaveGame.read_file(args[0])
 	if sim == null:
 		quit(2)

@@ -9,6 +9,9 @@ var fog_view: FogOverlay
 var camera: CameraController
 
 var _elapsed := 0.0
+var _marker_buffer := PackedFloat32Array()
+var _unit_markers: MultiMesh
+static var _unit_mesh: ArrayMesh
 
 
 func _ready() -> void:
@@ -48,16 +51,9 @@ func _draw() -> void:
 			var center := Vector2(rect.position) + Vector2(rect.size) * 0.5
 			var color := MatchRules.FACTION_COLORS[int(site.owner)]
 			draw_circle(origin + center * factor, 2.5, color)
-		for id in sim.workers.count:
-			if int(sim.workers.faction[id]) != fog_view.faction: continue
-			var cell := int(sim.workers.cell[id])
-			if not sim.fog.is_visible(fog_view.faction, cell): continue
-			draw_circle(origin + Vector2(cell % world.width, cell / world.width) * factor, 1.2, Color.WHITE)
-		for id in sim.army.count:
-			if int(sim.army.owners[id]) != fog_view.faction: continue
-			var cell := int(sim.army.cells[id])
-			if not sim.fog.is_visible(fog_view.faction, cell): continue
-			draw_circle(origin + Vector2(cell % world.width, cell / world.width) * factor, 1.5, UiTheme.ACCENT)
+		_sync_unit_markers(sim, fog_view.faction, origin, factor)
+		if _unit_markers.visible_instance_count > 0: draw_multimesh(_unit_markers, null)
+
 
 
 	if camera != null:
@@ -89,3 +85,60 @@ func _gui_input(event: InputEvent) -> void:
 	camera.focus_world(local_pos)
 	accept_event()
 	queue_redraw()
+
+
+func _sync_unit_markers(sim: Simulation, faction: int, origin: Vector2, factor: float) -> void:
+	if _unit_markers == null:
+		if _unit_mesh == null:
+			_unit_mesh = ArrayMesh.new()
+			var vertices := PackedVector3Array()
+			for segment in 16:
+				vertices.append(Vector3.ZERO)
+				var angle := TAU * segment / 16.0
+				vertices.append(Vector3(cos(angle), sin(angle), 0))
+				angle = TAU * (segment + 1) / 16.0
+				vertices.append(Vector3(cos(angle), sin(angle), 0))
+			var arrays := []
+			arrays.resize(Mesh.ARRAY_MAX)
+			arrays[Mesh.ARRAY_VERTEX] = vertices
+			_unit_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		_unit_markers = MultiMesh.new()
+		_unit_markers.transform_format = MultiMesh.TRANSFORM_2D
+		_unit_markers.use_colors = true
+		_unit_markers.mesh = _unit_mesh
+	var needed := sim.workers.count + sim.army.count
+	if _unit_markers.instance_count < needed: _unit_markers.instance_count = needed
+	_marker_buffer.resize(_unit_markers.instance_count * 12)
+	var index := 0
+	var sight: PackedByteArray = sim.fog.visible[faction]
+	for id in sim.workers.count:
+		if int(sim.workers.faction[id]) != faction: continue
+		var cell := int(sim.workers.cell[id])
+		if sight[cell] == 0: continue
+		var at := index * 12
+		_marker_buffer[at] = 1.2
+		_marker_buffer[at + 3] = origin.x + (cell % world.width) * factor
+		_marker_buffer[at + 5] = 1.2
+		_marker_buffer[at + 7] = origin.y + (cell / world.width) * factor
+		_marker_buffer[at + 8] = Color.WHITE.r
+		_marker_buffer[at + 9] = Color.WHITE.g
+		_marker_buffer[at + 10] = Color.WHITE.b
+		_marker_buffer[at + 11] = Color.WHITE.a
+		index += 1
+	for id in sim.army.count:
+		if int(sim.army.owners[id]) != faction: continue
+		var cell := int(sim.army.cells[id])
+		if sight[cell] == 0: continue
+		var at := index * 12
+		_marker_buffer[at] = 1.5
+		_marker_buffer[at + 3] = origin.x + (cell % world.width) * factor
+		_marker_buffer[at + 5] = 1.5
+		_marker_buffer[at + 7] = origin.y + (cell / world.width) * factor
+		_marker_buffer[at + 8] = UiTheme.ACCENT.r
+		_marker_buffer[at + 9] = UiTheme.ACCENT.g
+		_marker_buffer[at + 10] = UiTheme.ACCENT.b
+		_marker_buffer[at + 11] = UiTheme.ACCENT.a
+		index += 1
+	# Godot 4.x public buffer layout: 8 transform floats + RGBA per instance.
+	_unit_markers.buffer = _marker_buffer
+	_unit_markers.visible_instance_count = index

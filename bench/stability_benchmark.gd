@@ -50,7 +50,7 @@ func _init() -> void:
 		"initial_warriors_requested": population, "min_warriors": min_population, "warriors_end": sim.army.count,
 		"min_workers": min_workers, "workers_end": sim.workers.count, "warrior_losses": sim.army.lost,
 		"mean_ms": float(total) / samples.size() / 1000.0, "p95_ms": samples[mini(samples.size() - 1, ceili(samples.size() * 0.95) - 1)] / 1000.0,
-		"max_ms": samples[-1] / 1000.0, "native_steps": sim.army.native_steps, "moved_ticks": moved_ticks,
+		"max_ms": samples[-1] / 1000.0, "p99_ms": samples[mini(samples.size() - 1, ceili(samples.size() * 0.99) - 1)] / 1000.0, "native_fog_updates": sim.fog.native_updates, "native_steps": sim.army.native_steps, "moved_ticks": moved_ticks,
 		"generated": sim.energy_dots.generated, "delivered": sim.energy_dots.delivered, "energy_pending": sim.energy_dots.pending(), "energy_expired": sim.energy_dots.expired,
 		"mined": sim.world.mined_count, "hash": sim.state_hash(), "invariant_errors": errors, "checkpoints": checkpoints}
 	if kind.begins_with("mixed") and (sim.world.mined_count <= 0 or sim.energy_dots.delivered <= 0 or sim.army.lost <= 0):

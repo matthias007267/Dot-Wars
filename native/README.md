@@ -1,5 +1,7 @@
 # Nativer Rechenkern (Godot 4.3)
 
+Aktueller Windows-Stand: **v9**, einschließlich gebündelter exakter Sichtunion. Der v9-Build, Descriptor und GDScript-Ladepfad gehören zusammen. Ein vollständig neuer Godot-Prozess ist erforderlich; ein bereits laufender v8-Prozess lädt v9 nicht nach. `fog_visible(blockers, source_triplets, factions, width)` gibt eine sichtbare Zellliste je Fraktion zurück. Quelle = Besitzer/Zelle/Radius; nichtleeres Material blockiert, Endpunkte selbst bleiben sichtbar. Dieselbe Bresenham-Referenz bleibt über `--fog-reference` verfügbar. Speicherprüfung begrenzt Weltzellen × Fraktionen auf 16.777.216 und Radien auf 64; größere/ungültige Eingaben liefern keine Teilausgabe und der Adapter verwendet die Referenz. Alle aktuellen Spielradien liegen darunter. Nachweise: [SCALE_PERFORMANCE.md](../docs/SCALE_PERFORMANCE.md).
+
 Optionaler GDExtension-Rechenkern für deterministische Rasteroperationen:
 individuelle BFS, Wegfeld-Ausbreitung, nächstmöglicher Marschstandpunkt und
 gebündelte Nachbarschaftsprüfungen, Bewegung normaler Arbeiter und Energie-Dots sowie sequentielle Armee-Arithmetik mit lokaler Zielsuche.
@@ -82,4 +84,4 @@ Der Stabilitätslauf verwendete dot_wars_native.windows.x86_64.v7.dll. Vollstän
 
 ## Bauphase v8
 
-Aktuell baut Windows `dot_wars_native.windows.x86_64.v8.dll`; Descriptor und Fallbackpfad sind gemeinsam umgestellt. Neu ist der Arbeiterzustand 4 (Bau-/Reparaturauftrag): normale Bewegung und frontaler Arbeitertausch überspringen ihn genau wie die GDScript-Referenz. Native Armee-/Fensterstabilitätsfunktionen aus v7 bleiben erhalten. Ein vollständig neu gestarteter Godot-Prozess ist zum Laden der neuen DLL erforderlich. Bauvalidierung: [CONSTRUCTION_PHASE.md](../docs/CONSTRUCTION_PHASE.md).
+In der abgeschlossenen Bauphase baute Windows `dot_wars_native.windows.x86_64.v8.dll`; Descriptor und Fallbackpfad sind gemeinsam umgestellt. Neu ist der Arbeiterzustand 4 (Bau-/Reparaturauftrag): normale Bewegung und frontaler Arbeitertausch überspringen ihn genau wie die GDScript-Referenz. Native Armee-/Fensterstabilitätsfunktionen aus v7 bleiben erhalten. Ein vollständig neu gestarteter Godot-Prozess ist zum Laden der neuen DLL erforderlich. Bauvalidierung: [CONSTRUCTION_PHASE.md](../docs/CONSTRUCTION_PHASE.md).

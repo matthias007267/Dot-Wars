@@ -36,6 +36,7 @@ class Sampler:
 	var caps_start: int
 	var discarded_start: int
 	var max_app_process_ms: float = 0.0
+	var slow_frames := 0
 	var max_title_update_ms := 0.0
 	var stall_frames: Array[Dictionary] = []
 
@@ -64,6 +65,7 @@ class Sampler:
 		var app_ms: float = app.last_app_process_usec / 1000.0
 		frame_ms.append(wall_frame_ms)
 		max_app_process_ms = maxf(max_app_process_ms, app_ms)
+		if wall_frame_ms > 50.0: slow_frames += 1
 		if wall_frame_ms > 50.0 and stall_frames.size() < 50:
 			stall_frames.append({"wall_frame_ms": wall_frame_ms, "app_process_ms": app_ms, "last_tick_ms": sim.last_tick_usec / 1000.0})
 		last_frame_usec = now
@@ -97,8 +99,8 @@ class Sampler:
 		for name in Simulation.Stage.keys():
 			var idx: int = Simulation.Stage[name]
 			stages[name.to_lower()] = (sim.stage_usec[idx] - stage_start[idx]) / 1000.0 / maxi(1, ticks)
-		var states := {"waiting": 0, "moving": 0, "mining": 0, "blocked": 0}
-		var state_names := ["waiting", "moving", "mining", "blocked"]
+		var states := {"waiting": 0, "moving": 0, "mining": 0, "blocked": 0, "building": 0}
+		var state_names := ["waiting", "moving", "mining", "blocked", "building"]
 		for id in sim.workers.count:
 			states[state_names[sim.workers.state[id]]] += 1
 		frame_ms.sort()
@@ -124,6 +126,8 @@ class Sampler:
 			"fps": frames / elapsed, "frames": frames,
 			"p95_frame_ms": frame_ms[mini(frame_ms.size() - 1, int(ceil(frame_ms.size() * 0.95)) - 1)],
 			"max_frame_ms": frame_ms[-1],
+			"p99_frame_ms": frame_ms[mini(frame_ms.size() - 1, ceili(frame_ms.size() * 0.99) - 1)],
+			"frames_over_50ms": slow_frames, "native_fog_updates": sim.fog.native_updates,
 			"max_title_update_ms": max_title_update_ms, "max_app_process_ms": max_app_process_ms, "stall_frames_over_50ms": stall_frames,
 			"stage_avg_ms": stages, "worker_states_end": states,
 			"state_hash_end": sim.state_hash(),

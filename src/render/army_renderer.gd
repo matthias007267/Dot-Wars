@@ -36,25 +36,27 @@ func show_tick(tick: int) -> void:
 	if sim.army.count == 0 and _painted.is_empty(): return
 	if _bytes.is_empty(): _bytes.resize(sim.world.cell_count() * 4)
 	if _details.is_empty(): _details.resize(_bytes.size())
-	for cell in _painted:
-		var at := cell * 4
-		_bytes[at] = 0
-		_bytes[at + 1] = 0
-		_bytes[at + 2] = 0
-		_bytes[at + 3] = 0
-		for channel in 4: _details[at + channel] = 0
+	# Bulk clear is bounded by map area and avoids eight script writes per old dot.
+	_bytes.fill(0)
+	_details.fill(0)
 	var positions := sim.army.cells
 	var owners := sim.army.owners
+	var match_live := sim._match_live()
+	var sight: PackedByteArray = sim.fog.visible[viewer] if match_live else PackedByteArray()
+	var sprite_row := SpriteCatalog.warrior_row(visual_level)
+	var attacks := sim.army.last_attack
+	var moves := sim.army.next_move
 	for index in positions.size():
-		if sim._match_live() and not sim.fog.is_visible(viewer, positions[index]): continue
+		if match_live and sight[positions[index]] == 0: continue
 		var at := positions[index] * 4
 		var color := owners[index] * 4
 		_bytes[at] = PALETTE[color]
 		_bytes[at + 1] = PALETTE[color + 1]
 		_bytes[at + 2] = PALETTE[color + 2]
 		_bytes[at + 3] = 255
-		_details[at] = SpriteCatalog.warrior_row(visual_level)
-		_details[at + 1] = SpriteCatalog.warrior_activity(sim.army, index, tick)
+		_details[at] = sprite_row
+		var attack := attacks[index]
+		_details[at + 1] = 2 if attack >= 0 and tick >= attack and tick - attack < 3 else (1 if moves[index] > tick else 0)
 		_details[at + 2] = owners[index]
 		_details[at + 3] = visual_level
 	_painted = positions.duplicate()
