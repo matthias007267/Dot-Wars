@@ -6,6 +6,7 @@ const DOT_GLOW_SHADER := preload("res://src/render/shaders/dot_glow.gdshader")
 @export var glow_enabled := true
 @export_range(0.0, 1.0, 0.05) var glow_strength := 0.80
 
+var sim: Simulation
 var world: WorldState
 var workers: WorkerStore
 var fog = null
@@ -45,6 +46,8 @@ func show_tick(tick: int) -> void:
 		_bytes[dst + 2] = 0
 		_bytes[dst + 3] = 0
 	_painted.clear()
+	if material is ShaderMaterial and sim != null:
+		material.set_shader_parameter("upgrade_marks", mini(2, maxi(sim.upgrades.dig_level, sim.upgrades.speed_level) / 2))
 	var palette := _palette()
 	var width := world.width
 	for id in workers.count:

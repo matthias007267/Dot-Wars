@@ -37,14 +37,14 @@ jobs:
       - name: Tests
         run: |
           timeout 300s godot --headless --path . -s tests/run_tests.gd -- --require-native 2>&1 | tee /tmp/tests-native.log
-          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" /tmp/tests-native.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|SHADER ERROR|Shader compilation failed|shader_compiler.cpp" /tmp/tests-native.log; then
             exit 1
           fi
 
       - name: GDScript-Fallback testen
         run: |
           timeout 600s godot --headless --path . -s tests/run_tests.gd -- --no-native 2>&1 | tee /tmp/tests-reference.log
-          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" /tmp/tests-reference.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|SHADER ERROR|Shader compilation failed|shader_compiler.cpp" /tmp/tests-reference.log; then
             exit 1
           fi
 
@@ -64,7 +64,7 @@ jobs:
             sudo apt-get install -y xvfb libgl1-mesa-dri
           fi
           LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1600x1000x24" timeout 90s godot --audio-driver Dummy --path . -s bench/p6_live_check.gd 2>&1 | tee /tmp/p6-live.log
-          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" /tmp/p6-live.log; then
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|SHADER ERROR|Shader compilation failed|shader_compiler.cpp" /tmp/p6-live.log; then
             exit 1
           fi
           grep -q "P6 LIVE SUMMARY: 0 failures" /tmp/p6-live.log
@@ -79,4 +79,25 @@ jobs:
             /tmp/p6-research-tree.png
             /tmp/p6-powered.png
             /tmp/p6-world.png
+          if-no-files-found: ignore
+
+      - name: Cavern-Optik und HUD prüfen
+        run: |
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1600x1000x24" timeout 90s godot --audio-driver Dummy --path . -s bench/cavern_visual_check.gd 2>&1 | tee /tmp/cavern-visual.log
+          if grep -E "SCRIPT ERROR|Parse Error|SHADER ERROR|Shader compilation failed|shader_compiler.cpp" /tmp/cavern-visual.log; then
+            exit 1
+          fi
+          grep -q "CAVERN SUMMARY: 0 failures" /tmp/cavern-visual.log
+
+      - name: Cavern-Screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cavern-visual-check
+          path: |
+            /tmp/cavern-visual.log
+            /tmp/cavern-overview.png
+            /tmp/cavern-research.png
+            /tmp/cavern-detail.png
+            /tmp/cavern-compact.png
           if-no-files-found: ignore

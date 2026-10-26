@@ -2,12 +2,20 @@ class_name ArmyRenderer
 extends Node2D
 ## Eine Textur für alle Krieger; keine Szene pro Dot.
 const PALETTE := [245, 78, 80, 255, 255, 122, 89, 255, 126, 182, 255, 255, 93, 222, 154, 255]
+const DOT_SHADER := preload("res://src/render/shaders/dot_glow.gdshader")
 var sim: Simulation
 var viewer := 0
 var _bytes := PackedByteArray()
 var _texture: ImageTexture
 var _painted := PackedInt32Array()
 var _tick := -1
+
+func _ready() -> void:
+	var effect := ShaderMaterial.new()
+	effect.shader = DOT_SHADER
+	effect.set_shader_parameter("unit_kind", 1)
+	effect.set_shader_parameter("glow_strength", 0.45)
+	material = effect
 
 func show_tick(tick: int) -> void:
 	if tick == _tick: return
