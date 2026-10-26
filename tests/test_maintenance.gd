@@ -380,18 +380,19 @@ func test_repair_approach_with_intelligence_four_resumes_exactly_after_loading()
 	check_no_errors(copy.check_invariants(), "Bilanzen")
 
 
-func test_legacy_upgraded_core_repairs_from_outside_reserved_energy_area() -> void:
+func test_legacy_core_repairs_without_obsolete_upgrade_purchase() -> void:
 	var config := TestHelpers.default_config()
 	config.world_size = 32
 	config.initial_workers = 5
 	var sim := TestHelpers.legacy_core_sim(config)
 	sim.upgrades.energy = 1000
-	check(sim.buy(Upgrades.KIND_CORE), "historischer Flächenausbau")
+	check(not sim.buy(Upgrades.KIND_CORE), "Kernausbau nicht mehr direkt kaufbar")
 	sim.construction.damage(sim, 0, 20)
 	var ids := PackedInt32Array()
 	for id in sim.workers.count: ids.append(id)
-	check(sim.construction.assign_repair(sim, 0, ids) > 0, "Altbau reparierbar")
+	check(sim.construction.assign_repair(sim, 0, ids) > 0, "Kern bleibt reparierbar")
 	for tick in 100:
 		sim.tick_once()
-		check_no_errors(sim.check_invariants(), "Reparatur betritt keine reservierte Kernzelle")
-	check_eq(sim.construction.sites.records[0].hp, 600, "Altbau vollständig repariert")
+		check_no_errors(sim.check_invariants(), "Reparatur wahrt Invarianten")
+	check_eq(sim.construction.sites.records[0].hp, 600, "Kern vollständig repariert")
+
