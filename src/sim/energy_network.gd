@@ -39,7 +39,12 @@ func connected_path(sim: Simulation, faction: int, source: int, target: int) -> 
 	# Start and end must be actual network cells adjacent to their buildings.
 	var queue := PackedInt32Array()
 	var parents := {}
-	for c in neighbors(source):
+	var source_site := sim.construction.at(source)
+	var target_site := sim.construction.at(target)
+	if source_site < 0 or target_site < 0: return empty
+	var start_cells := sim.construction.sites.perimeter(source_site)
+	var target_cells := sim.construction.sites.perimeter(target_site)
+	for c in start_cells:
 		if owner_at(c) == faction:
 			queue.append(c)
 			parents[c] = -1
@@ -48,7 +53,7 @@ func connected_path(sim: Simulation, faction: int, source: int, target: int) -> 
 	while head < queue.size():
 		var current := queue[head]
 		head += 1
-		if neighbors(target).has(current):
+		if target_cells.has(current):
 			end = current
 			break
 		for next in neighbors(current):
