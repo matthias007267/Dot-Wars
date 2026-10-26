@@ -63,6 +63,8 @@ var _repair_button: Button
 var _cancel_build_button: Button
 var _interceptor_button: Button
 var _research_center_button: Button
+var _research_tech_buttons: Array[Button] = []
+var _research_tech_ids: Array[String] = []
 var _pause_button: Button
 var _speed_button: Button
 var _swarm_ids: Array[int] = []
@@ -507,9 +509,14 @@ func _build_upgrade_panel(layer: Control) -> void:
 	_add_upgrade_button(content, Upgrades.KIND_DIG, 0)
 	_add_upgrade_button(content, Upgrades.KIND_SWARM, 0)
 	_research_caption = _label(content, "FORSCHUNG", 12, UiTheme.MUTED)
-	_research_button = _button(content, "FORSCHUNG", func() -> void: _buy(Upgrades.KIND_RESEARCH))
+	_research_button = _button(content, "FORSCHUNG", func() -> void: _start_research("victory"))
 	_research_button.custom_minimum_size = Vector2(310, 34)
 	_research_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_label(content, "TECHNOLOGIEN · Forschungszentrum auswählen", 12, UiTheme.MUTED)
+	for tech in ResearchSystem.CATALOG:
+		var tech_button := _button(content, str(ResearchSystem.CATALOG[tech]["label"]), _start_research.bind(tech))
+		_research_tech_buttons.append(tech_button)
+		_research_tech_ids.append(tech)
 	_label(content, "FORSCHUNGSGEBÄUDE", 12, UiTheme.MUTED)
 	_research_center_button = _button(content, "FORSCHUNGSZENTRUM BAUEN · 300", _begin_settlement.bind(3))
 	_label(content, "ENERGIETRANSPORT", 12, UiTheme.MUTED)
@@ -770,7 +777,8 @@ func _refresh_upgrades() -> void:
 					button.text = "VERSCHMELZUNG 3×3   FREIGESCHALTET"
 				else:
 					button.text = "VERSCHMELZUNG 3×3    •    %d Energie" % cost
-		button.disabled = locked or cost < 0 or u.energy < cost
+		button.disabled = true
+		button.tooltip_text = "Alte Sofortkäufe deaktiviert: Forschung im Forschungszentrum starten."
 	_refresh_buildings()
 	_refresh_research()
 
@@ -823,15 +831,35 @@ func _refresh_match_goals() -> void:
 		_victory.text = MatchRules.outcome_text(sim.rules.winner_faction, sim.rules.win_kind) + " – weiterspielen möglich"
 
 
+func _start_research(tech: String) -> void:
+	var site := _production_site()
+	if sim.research.start(sim, 0, site, tech):
+		_notice("Forschung gestartet: %s" % ResearchSystem.CATALOG[tech]["label"])
+	else:
+		_notice("Forschungszentrum wählen und Voraussetzungen prüfen.")
+	refresh()
+
 func _refresh_research() -> void:
+	for i in _research_tech_buttons.size():
+		var tech := _research_tech_ids[i]
+		var entry: Dictionary = ResearchSystem.CATALOG[tech]
+		var level := sim.research.level(0, tech)
+		var cost := sim.research.details(tech, level + 1)
+		var button := _research_tech_buttons[i]
+		button.visible = tech != "victory" or (sim.config.victory_mask & MatchRules.VICTORY_RESEARCH) != 0
+		button.disabled = not sim.research.can_start(sim, 0, _production_site(), tech)
+		button.text = "%s · %s · %s" % [entry["label"], str(level) + "/" + str(entry["max"]), "MAX" if cost.is_empty() else str(cost["ticks"]) + " Takte / " + str(cost["energy"]) + " Energie"]
+		for job in sim.research.jobs:
+			if job["faction"] == 0 and job["tech"] == tech:
+				button.text = "%s · %d/%d Takte" % [entry["label"], job["elapsed"], job["ticks"]]
 	if _research_button == null or _research_caption == null:
 		return
 	var show := (
 		sim.config.mode == SimConfig.MODE_MATCH
 		and (sim.config.victory_mask & MatchRules.VICTORY_RESEARCH) != 0
 	)
-	_research_caption.visible = show
-	_research_button.visible = show
+	_research_caption.visible = false
+	_research_button.visible = false
 	if not show:
 		return
 	var cost := sim.upgrades.research_cost()
