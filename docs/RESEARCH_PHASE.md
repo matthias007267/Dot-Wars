@@ -134,7 +134,7 @@ Inkrementelle PRs mit Tests/CI, keine ungefragten Balancingzahlen, vorhandene Sp
 ### Umsetzungsstand (2026-10-26)
 | ID | Status | Ziel und Abnahmekriterien |
 | --- | --- | --- |
-| P6.1 | TODO | Forschungszentrum von Anfang an baubar, korrekt platziert, konstruiert, selektiert, gerendert, UI erreichbar; KI/Save/Load berücksichtigen |
+| P6.1 | IN PROGRESS | Forschungszentrum von Anfang an baubar, korrekt platziert, konstruiert, selektiert, gerendert, UI erreichbar; KI/Save/Load berücksichtigen |
 | P6.2 | TODO | Zeitbasierte, gebäudegebundene Forschungsjobs, mehrere Zentren/Parallelität, globale Fraktionswirkung, Unterversorgung pausiert, alte Sofortkäufe im normalen Spiel ersetzt, Fusion entfernt, Save/Load/AI/Tests |
 | P6.3 | TODO | Energie-Dots werden bei aktivem Bedarf vom Kern/Netz zum Ziel transportiert; keine reine Wallet-Simulation; Energiefluss und Unterbrechungen deterministisch |
 | P6.4 | TODO | Glow **nur** bei tatsächlicher energieverbrauchender Tätigkeit oder dauerhaftem Buff; je Gebäudetyp angemessene Buffs; Dauerverbrauch und Unterversorgung |
@@ -158,3 +158,9 @@ Beim Beginn Status auf `IN PROGRESS` setzen; bei Abschluss `CODE COMPLETE` erst 
 3. Godot-Debugger/Fehler, UI-Klickwege, Darstellungsfehler, Performance bei 1k/10k Dots, Framerate, Speicher und deterministische Simulation dokumentieren.
 4. Pixelart-Kohärenz und Lesbarkeit verbessern, ohne Simulationsregeln neu zu implementieren; fehlende Funktionen/Regressionen als konkrete Tickets mit Repro-Schritten und Screenshots erfassen.
 5. `WORK VERIFIED` nur für tatsächlich getestete Schritte setzen. Keine ungefragten Balance- oder Designänderungen.
+
+### P6.1 Implementierungsjournal (2026-10-26)
+- Commits: `90d3bff` (`src/sim/settlement_store.gd`), `5b2550e` (`src/sim/construction_system.gd`), `f2dc3db` (`src/ui/game_hud.gd`).
+- Forschungszentrum als neuer `SettlementStore.Kind.RESEARCH_CENTER = 3`; Bauplatz 3×3, 200 HP, 300 Energie und 300 Arbeitertakte **vorläufige Prototypwerte**, noch kein finales Balancing. Bauen über das Fähigkeitenfenster von Anfang an, normale Bau-/Baustellenlogik und bestehende Site-Snapshot-Serialisierung.
+- **Status IN PROGRESS:** Kein Godot-Lauf/CI-Nachweis vorhanden; Bau, Rendering, Auswahl, Speicherung und KI müssen geprüft werden. Forschungsaufträge, Energiefluss, Buffs und Baum sind **noch nicht implementiert**.
+- Work-Prüfung: Gebäude setzen, Arbeiter zuweisen, Fertigstellung, Auswahl, Render-Farbe, Abbruch, Save/Load und alle Spielmodi; sicherstellen, dass Forschungszentren nicht versehentlich als Krieger-Produktionsstandort oder Sieg-/Überlebens-Kern gelten.
