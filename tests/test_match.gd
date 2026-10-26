@@ -40,18 +40,15 @@ func test_elimination_removes_the_faction_and_keeps_mass() -> void:
 	check_no_errors(sim.check_invariants(), "Masse nach dem Entfernen")
 
 
-func test_research_bought_by_the_ai_wins_the_same_tick() -> void:
+func test_research_requires_center_and_cannot_win_instantly() -> void:
 	var sim := _match(MatchRules.VICTORY_RESEARCH, 4)
 	var ai := sim.rules.ai_upgrades[0]
 	ai.research_level = 4
-	ai.energy = ai.research_cost()
+	ai.energy = 5000
 	sim.tick_once()
-	check_eq(ai.research_level, 5, "die fünfte Stufe ist gekauft")
-	check(sim.won, "Forschungssieg im selben Takt")
-	check_eq(sim.rules.winner_faction, 1, "die KI hat geforscht")
-	check_eq(sim.rules.win_kind, MatchRules.VICTORY_RESEARCH, "Forschung")
+	check_eq(ai.research_level, 4, "ohne Forschungszentrum kein Sofortkauf")
+	check(not sim.won, "Siegforschung benötigt Energieübertragung und Forschungszeit")
 	check_no_errors(sim.check_invariants(), "Bilanzen")
-
 
 func test_relics_need_three_and_a_channel() -> void:
 	var sim := _match(MatchRules.VICTORY_RELICS)
