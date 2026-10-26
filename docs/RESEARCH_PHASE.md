@@ -220,3 +220,6 @@ GitHub Actions run 40326586935 (#248), job 121585122594 (headless), failed. Logs
 
 ### P6 research test migration (2026-10-26)
 Legacy instantaneous-upgrade test cases were replaced for core, dig and AI victory research. Added tests/test_research_p6.gd covering finished research centers, prerequisite unlocking, one job per center, energy delivery gating, multi-tick completion, energy consumption, state restoration and catalog dependencies. Hard AI no longer directly buys victory research; it submits a research job when an eligible center exists. Remaining older test suites include non-research regressions and must be investigated separately; this migration is not yet a verified all-green CI run. Do not treat removed legacy instant-purchase expectations as production requirements.
+
+### P6 test migration follow-up (2026-10-26)
+The remaining maintenance regression for legacy core repair no longer assumes instant core upgrade purchases. Research test fixtures now guard failed building placements before indexing construction sites. CI run #258 was cancelled by subsequent pushes; run #260 (40329973599) was queued at the time of this update. A green complete test suite is not yet verified. Unrelated fog-of-war and construction failures still require independent diagnosis, not removal of assertions.
