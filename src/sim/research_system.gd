@@ -43,8 +43,8 @@ func can_start(sim: Simulation, faction: int, site: int, tech: String) -> bool:
 	if level(faction, tech) >= int(entry["max"]): return false
 	for dependency in entry["requires"]:
 		if level(faction, str(dependency)) < 1: return false
-	if tech == "core" and not sim.legacy_core_upgrades(): return false
-	if tech == "victory" and (sim.config.victory_mask & MatchRules.VICTORY_RESEARCH) == 0: return false
+	if tech == "core" and (faction != 0 or not sim.legacy_core_upgrades()): return false
+	if tech == "victory" and (sim.config.mode != SimConfig.MODE_MATCH or (sim.config.victory_mask & MatchRules.VICTORY_RESEARCH) == 0): return false
 	return true
 
 func start(sim: Simulation, faction: int, site: int, tech: String) -> bool:
@@ -68,7 +68,7 @@ func step(sim: Simulation) -> void:
 			continue
 		var remaining_ticks: int = int(job["ticks"]) - int(job["elapsed"])
 		var remaining_energy: int = int(job["energy"]) - int(job["spent"])
-		var charge := ceili(float(remaining_energy) / float(remaining_ticks))
+		var charge := (remaining_energy + remaining_ticks - 1) / remaining_ticks
 		var wallet: Upgrades = sim.rules.wallet(sim, faction)
 		if wallet.energy < charge: continue
 		wallet.energy -= charge
@@ -77,7 +77,10 @@ func step(sim: Simulation) -> void:
 		if int(job["elapsed"]) >= int(job["ticks"]):
 			if _apply(sim, faction, str(job["tech"])):
 				levels[faction][str(job["tech"])] = level(faction, str(job["tech"])) + 1
-			jobs.remove_at(i)
+				jobs.remove_at(i)
+			else:
+				# Core expansion can be temporarily blocked; retry without extra charge.
+				job["elapsed"] = int(job["ticks"]) - 1
 
 func _apply(sim: Simulation, faction: int, tech: String) -> bool:
 	var wallet: Upgrades = sim.rules.wallet(sim, faction)
