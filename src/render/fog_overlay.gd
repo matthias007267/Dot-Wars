@@ -9,6 +9,9 @@ var _minimap_texture: ImageTexture
 var _minimap_bytes := PackedByteArray()
 var _bytes := PackedByteArray()
 var _tick := -1
+var _last_visible := PackedByteArray()
+var _last_explored := PackedByteArray()
+var _last_terrain := PackedByteArray()
 const UNEXPLORED := Color8(8, 10, 17)
 const MEMORY_SHADE := 0.38
 
