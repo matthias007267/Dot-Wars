@@ -295,10 +295,10 @@ func refresh() -> void:
 	_energy_value.tooltip_text = "Erzeugt %d = geliefert %d + verfallen %d + unterwegs %d. Davon Puffer %d, neutral %d; Abfangvorgänge %d." % [ledger.generated, ledger.delivered, ledger.expired, ledger.pending, ledger.buffered, ledger.neutral, ledger.captures]
 	if _opponent_value != null:
 		_opponent_value.visible = _match_live()
-		_opponent_value.text = "Gegner  %d" % sim.opponent_mass()
+		_opponent_value.text = "Gegner: unbekannt" if _match_live() else "Gegner  %d" % sim.opponent_mass()
 	if _approach != null:
-		_approach.text = sim.approach_text
-		_approach.visible = not sim.approach_text.is_empty()
+		_approach.text = "" if _match_live() else sim.approach_text
+		_approach.visible = not _approach.text.is_empty()
 	_mined_value.text = "%d %%" % percent
 	_kern_value.text = "Stufe %d" % sim.upgrades.core_level
 	_mass_bar.value = minf(100.0, float(mass))
