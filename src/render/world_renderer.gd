@@ -26,6 +26,7 @@ var energy_network: EnergyNetwork
 var energy_sim: Simulation
 var _network_revision := -1
 var _shipment_signature := -1
+var _research_power_signature := -1
 var preview_cells := PackedInt32Array()
 var preview_remove := false
 ## Fraktionskerne, Hügel und Reliquien. Leer lässt die Einzelspieler-Ansicht unverändert.
@@ -73,6 +74,10 @@ func _process(_delta: float) -> void:
 		var signature := hash(energy_sim.research.shipments)
 		if signature != _shipment_signature:
 			_shipment_signature = signature
+			queue_redraw()
+		var power_signature := hash(energy_sim.research.powered_tick)
+		if power_signature != _research_power_signature:
+			_research_power_signature = power_signature
 			queue_redraw()
 	if energy_network != null and _network_revision != energy_network.revision:
 		_network_revision = energy_network.revision
