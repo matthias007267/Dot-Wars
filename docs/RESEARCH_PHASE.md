@@ -1,6 +1,6 @@
-# P6 – Globale Forschung: Bestandsanalyse und Implementierungsplan
+# P6 – Gebäudegebundene Forschung, Energieversorgung und Implementierung
 
-Status: Planung auf eigenem Branch. **Keine neuen Technologie- oder Balancingwerte freigegeben.**
+Status: Umsetzung auf Branch `feat/p6-research-foundation` / Draft-PR #8. **Ältere Abschnitte dokumentieren historische, inzwischen überholte Planungsstände. Maßgeblich sind die neuesten Beschlüsse am Dokumentende und der Implementierungsstatus.**
 
 ## Beschlossene Regeln (D-048)
 - Forschung gilt global pro Fraktion, ohne Forschungsgebäude.
@@ -119,3 +119,42 @@ Reihenfolge für kleine testbare Änderungen:
 7. Reliquien-Energieerzeugung, Transport/Diebstahl und neuer Siegmodus als eigenes nachgelagertes Arbeitspaket.
 
 Inkrementelle PRs mit Tests/CI, keine ungefragten Balancingzahlen, vorhandene Spielmechaniken möglichst stabil halten. Dies ist die Implementierungsreihenfolge, noch keine Behauptung, dass Code implementiert sei.
+
+## WORK_HANDOFF – verbindliches Umsetzungs- und Prüfprotokoll
+
+**Ziel:** In **demselben Draft-PR #8** P6.1 bis P6.6 entwickeln. Kein separater PR. Nutzer kann aktuell nicht selbst testen; nach vollständiger Umsetzung wird ChatGPT Work gezielt zum Prüfen, Optimieren und visuellen Polieren beauftragt. **Work soll das vorhandene System prüfen, nicht neu entwerfen oder von vorn bauen.** Bei Widerspruch haben die neuesten Beschlüsse Vorrang vor dem historischen Planungsabschnitt oben.
+
+### Statuslegende
+- `TODO`: nicht implementiert
+- `IN PROGRESS`: in Arbeit, noch nicht integriert/validiert
+- `CODE COMPLETE`: integriert, automatisierte Tests bestanden, aber kein manueller Live-Test
+- `WORK VERIFIED`: in Godot live geprüft
+- `BLOCKED`: konkrete Nutzerentscheidung nötig
+
+### Umsetzungsstand (2026-10-26)
+| ID | Status | Ziel und Abnahmekriterien |
+| --- | --- | --- |
+| P6.1 | TODO | Forschungszentrum von Anfang an baubar, korrekt platziert, konstruiert, selektiert, gerendert, UI erreichbar; KI/Save/Load berücksichtigen |
+| P6.2 | TODO | Zeitbasierte, gebäudegebundene Forschungsjobs, mehrere Zentren/Parallelität, globale Fraktionswirkung, Unterversorgung pausiert, alte Sofortkäufe im normalen Spiel ersetzt, Fusion entfernt, Save/Load/AI/Tests |
+| P6.3 | TODO | Energie-Dots werden bei aktivem Bedarf vom Kern/Netz zum Ziel transportiert; keine reine Wallet-Simulation; Energiefluss und Unterbrechungen deterministisch |
+| P6.4 | TODO | Glow **nur** bei tatsächlicher energieverbrauchender Tätigkeit oder dauerhaftem Buff; je Gebäudetyp angemessene Buffs; Dauerverbrauch und Unterversorgung |
+| P6.5 | TODO | Datengetriebener vierzweigiger Forschungsbaum (Wirtschaft/Militär/Infrastruktur/Energietechnik) mit Abhängigkeiten, Freischaltungen, Fortschritt; zunächst funktionale UI, anschließend pixelartgerechte Visualisierung, Pan/Zoom |
+| P6.6 | TODO | Energienetz/Netzansicht, Energieeffizienzforschung, erweiterbare Gebäude-/Versorgungsregeln; Balancing-Konfiguration statt ungeprüfter endgültiger Werte |
+
+### Entscheidungen und Nichtziele
+- Arbeitstitel Gebäude: **Forschungszentrum**; **von Anfang an baubar**.
+- Forschung **findet in Gebäuden statt**, globaler Technologieeffekt pro Fraktion. Forschungsdauer und Verbrauch steigen mit Technologiekomplexität; Energie wird **während** der Tätigkeit verbraucht, nicht pauschal vorab. Bei fehlender Energie pausiert der Fortschritt ohne Verlust.
+- Gebäude können auch ohne Buff funktionieren; nur aktive Verbraucher glühen. Dauerhafte Gebäudebuffs kosten laufend Energie. Gebäude nach Versetzen erneut anschließen. Energieeffizienz als erforschbare Verbesserung; Energieerzeuger-Buff darf keine unkontrollierte positive Rückkopplung auslösen.
+- **Keine Fusion** (2×2/3×3), keine alten Sofortkauf-Forschungsbuttons, keine automatischen Verteidigungstürme als stillschweigende Erweiterung.
+- Krieger T1/T2/T3 und weitere Technologien als datengetriebene spätere Erweiterungen; keine unbeschlossenen endgültigen Werte erfinden.
+- Reliquien: **nur ein Typ**, begrenzte Anzahl, transportierbar/stehlbar, speisen nur bei Netzanschluss Energie ein. Reliquiensieg: alle Reliquien in eigener Basis -> 10:00 Countdown; global sichtbare Reliquien; bei Verlust Countdown pausiert und 60 Sekunden Kulanz, Wiederbeschaffung vor 60 Sekunden setzt Countdown fort, ab 60 Sekunden kompletter Reset. **Reliquien-Umsetzung ist ein eigenes Folgepaket, nicht stillschweigend Teil von P6.1–P6.6.**
+
+### Pflichtprotokoll für jeden Implementierungsschritt
+Beim Beginn Status auf `IN PROGRESS` setzen; bei Abschluss `CODE COMPLETE` erst nach nachvollziehbarer Integration und erfolgreichen relevanten Tests. Unter jedem Schritt dokumentieren: geänderte Dateien, technische Architektur/öffentliche APIs, Tests und deren Ergebnis/CI-Link, bekannte Einschränkungen, verbleibende Work-Prüfaufgaben, Commit-SHA. Ungetestete Funktionen niemals als geprüft markieren. PR #8 bis zur Abnahme Draft lassen; kein Merge.
+
+### Work-Auftrag nach Code-Abschluss
+1. **Zuerst dieses Dokument und PR #8 lesen**, Implementierungsstatus und Commit-Historie erfassen; vorhandene Implementierung nutzen.
+2. Godot-Projekt starten, normale Spielrunde und Debug/Testlabor durchspielen: Forschungszentrum bauen, mehrere Forschungsaufträge, Energiefluss und Unterversorgung, Aktivitäts-Glow, Gebäudebuffs, Forschungsbaum, Save/Load, KI.
+3. Godot-Debugger/Fehler, UI-Klickwege, Darstellungsfehler, Performance bei 1k/10k Dots, Framerate, Speicher und deterministische Simulation dokumentieren.
+4. Pixelart-Kohärenz und Lesbarkeit verbessern, ohne Simulationsregeln neu zu implementieren; fehlende Funktionen/Regressionen als konkrete Tickets mit Repro-Schritten und Screenshots erfassen.
+5. `WORK VERIFIED` nur für tatsächlich getestete Schritte setzen. Keine ungefragten Balance- oder Designänderungen.
