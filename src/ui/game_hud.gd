@@ -242,10 +242,10 @@ func issue_build(cell: int) -> bool:
 	if sim == null:
 		return false
 	if _placing_conduit:
-		if not sim.place_energy_conduit(cell):
+		if not place_energy_network_cell(cell):
 			_notice("Energieleitung: nur auf freiem Boden platzierbar.")
 			return false
-		_notice("Energieleitung gesetzt. Weitere Zellen anklicken oder Modus wechseln.")
+		_notice("Energieleitung gesetzt. Weitere Zellen ziehen oder E zum Beenden.")
 		refresh()
 		return true
 	if _settlement_kind >= 0:
@@ -531,7 +531,6 @@ func _build_upgrade_panel(layer: Control) -> void:
 	_label(content, "FORSCHUNGSGEBÄUDE", 12, UiTheme.MUTED)
 	_research_center_button = _button(content, "FORSCHUNGSZENTRUM BAUEN · 300", _begin_settlement.bind(3))
 	_label(content, "ENERGIENETZ", 12, UiTheme.MUTED)
-	_button(content, "ENERGIELEITUNG PLATZIEREN · KOSTENLOS", _begin_conduit)
 	_label(content, "ENERGIETRANSPORT", 12, UiTheme.MUTED)
 	_interceptor_button = _button(content, "ABFANGSTATION BAUEN · 250", _begin_settlement.bind(2))
 	_build_caption = _label(content, "BAUEN", 12, UiTheme.MUTED)
@@ -1317,11 +1316,21 @@ func _production_site() -> int:
 	var site: int = sim.construction.selected
 	return site if sim.construction.sites.valid(site) and sim.construction.sites.records[site].owner == 0 else -1
 
-func _begin_conduit() -> void:
-	_placing_conduit = true
+func toggle_energy_network() -> void:
+	_placing_conduit = not _placing_conduit
 	_settlement_kind = -1
-	command_mode = Command.BUILD
-	_notice("Energienetz: kostenlose Leitungen auf freien Zellen platzieren. Dots können darüber laufen.")
+	command_mode = Command.BUILD if _placing_conduit else Command.MINE
+	_notice("ENERGIENETZ AKTIV · Linke Maustaste halten und Leitungen ziehen · E zum Beenden" if _placing_conduit else "Energienetz beendet · normale Steuerung aktiv")
+
+func energy_network_active() -> bool:
+	return _placing_conduit
+
+func place_energy_network_cell(cell: int) -> bool:
+	if not _placing_conduit or sim == null: return false
+	if sim.energy_network.owner_at(cell) == 0: return true
+	var placed := sim.place_energy_conduit(cell)
+	if placed and renderer != null: renderer.queue_redraw()
+	return placed
 
 func _begin_settlement(kind: int) -> void:
 	_placing_conduit = false
