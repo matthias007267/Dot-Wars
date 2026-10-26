@@ -14,6 +14,7 @@ var sim: Simulation
 var clock: TickClock
 var camera: CameraController
 var renderer: WorldRenderer
+var fog_view: FogOverlay
 var command_mode: int = Command.MINE
 
 var _mass_value: Label
@@ -123,10 +124,13 @@ func select_at(cell: int) -> void:
 	if cell < 0 or cell >= sim.world.cell_count():
 		_set_selection(PackedInt32Array())
 		return
-	var site: int = sim.construction.at(cell)
+	var site: int = sim.construction.at(cell) if not _match_live() or sim.fog.is_visible(0, cell) else -1
 	if site >= 0 and sim.construction.sites.records[site].owner == 0:
 		sim.construction.selected = site
 		_notice("Standort gewählt. Rechtsklick mit Arbeitern: bauen bzw. reparieren. Abbruch nur bei Baustellen.")
+		return
+	if _match_live() and not sim.fog.is_visible(0, cell):
+		_set_selection(PackedInt32Array())
 		return
 	var warrior := sim.army.occupant[cell]
 	if warrior >= 0 and sim.army.owners[sim.army.slots[warrior]] == 0:
@@ -160,7 +164,7 @@ static func pointer_gesture(button: int, ctrl: bool, dragged: bool) -> int:
 func issue_march(cell: int) -> bool:
 	if sim == null or cell < 0 or cell >= sim.world.cell_count():
 		return false
-	var site: int = sim.construction.at(cell) if not sim._match_live() or sim.fog.is_visible(0, cell) else -1
+	var site: int = sim.construction.at(cell) if not _match_live() or sim.fog.is_visible(0, cell) else -1
 	if site >= 0 and sim.construction.assign_repair(sim, site, selection) > 0:
 		_notice("Arbeiter reparieren: bis zu 2 HP für 1 Energie je 4 Takte (Testwerte).")
 		return true
@@ -516,8 +520,6 @@ func _build_upgrade_panel(layer: Control) -> void:
 
 
 func _build_minimap(layer: Control) -> void:
-	# The existing minimap consumes the unfiltered world texture; suppress it until fog-aware.
-	if sim != null and sim._match_live(): return
 	if renderer == null or camera == null:
 		return
 	var frame := _panel(layer)
@@ -532,6 +534,7 @@ func _build_minimap(layer: Control) -> void:
 	_map.custom_minimum_size = Vector2(164, 164)
 	_map.world = sim.world
 	_map.renderer = renderer
+	_map.fog_view = fog_view
 	_map.camera = camera
 	content.add_child(_map)
 
