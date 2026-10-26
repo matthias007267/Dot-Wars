@@ -58,7 +58,7 @@ func plan_path(sim: Simulation, faction: int, start: int, goal: int) -> PackedIn
 	parents.fill(-1)
 	var visited := PackedByteArray()
 	visited.resize(width * height)
-	var frontier: Array[Vector2i] = [Vector2i(_heuristic(start, goal), start)]
+	var frontier: Array[Vector2i] = [Vector2i(_heuristic(start, goal) * 10, start)]
 	costs[start] = 0
 	while not frontier.is_empty():
 		var best := 0
@@ -75,7 +75,7 @@ func plan_path(sim: Simulation, faction: int, start: int, goal: int) -> PackedIn
 			if cost < costs[next]:
 				costs[next] = cost
 				parents[next] = current
-				frontier.append(Vector2i(cost + _heuristic(next, goal), next))
+				frontier.append(Vector2i(cost + _heuristic(next, goal) * 10, next))
 	if costs[goal] == 2147483647: return result
 	var cursor := goal
 	while cursor >= 0:
@@ -85,7 +85,7 @@ func plan_path(sim: Simulation, faction: int, start: int, goal: int) -> PackedIn
 	return result
 
 func _heuristic(cell: int, goal: int) -> int:
-	return absi(cell % width - goal % width) + absi(cell / width - goal / width)
+	return absi(cell % width - goal % width) + absi(int(cell / width) - int(goal / width))
 
 func _placeable(sim: Simulation, faction: int, cell: int) -> bool:
 	if cell < 0 or cell >= width * height: return false
