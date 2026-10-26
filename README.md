@@ -1,5 +1,7 @@
 # DOT WARS
 
+Die Grafik verwendet jetzt einen austauschbaren Pixelatlas mit separater Fraktionsfarbe: Arbeiter mit Helm/Werkzeug, gepanzerte Krieger und Forschungszentren mit sichtbaren Betriebszuständen. Weltgrafik und Menüporträts kommen aus demselben Katalog; Animationen folgen der pausierbaren Simulationszeit. Assetformat und Grafikprüfungen: [SPRITE_CATALOG.md](docs/SPRITE_CATALOG.md).
+
 Erste neue Höhlenoptik: texturierte Stein-/Tunneloberflächen, fraktionsbezogene Lichtfelder, metallische Gebäudesilhouetten, unterscheidbare Dot-Arten und eine gemeinsame untere Bau-/Infoleiste mit Minimap. Diese Darstellung baut auf PR #9 auf und ändert keine Spielregeln. Stand, Grenzen und Grafikprüfungen: [CAVERN_VISUALS.md](docs/CAVERN_VISUALS.md).
 
 P6-Folgeauftrag: KI-Netzversorgung, reguläre Außenposten-/Abfangstationsforschung, Energieeffizienz und grafischer Forschungsbaum. **E**: Leitungszug mit Vorschau, Platzierung beim Loslassen; **Q**: Leitungs-/Arbeiterabriss. Im Fähigkeitenfenster ein Forschungszentrum wählen, Knoten inspizieren und Forschung starten; Mausrad/−/+ zoomen, mittlere Maustaste verschiebt den Baum. Regeln, vorläufige Werte und Prüfungen: [P6_PLAYABLE_RESEARCH.md](docs/P6_PLAYABLE_RESEARCH.md). Historische Beschreibungen unten sind teilweise überholt.

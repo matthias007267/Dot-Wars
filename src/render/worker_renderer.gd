@@ -4,6 +4,7 @@ extends Node2D
 
 const DOT_GLOW_SHADER := preload("res://src/render/shaders/dot_glow.gdshader")
 @export var glow_enabled := true
+@export var sprites_enabled := true
 @export_range(0.0, 1.0, 0.05) var glow_strength := 0.80
 
 var sim: Simulation
@@ -21,18 +22,28 @@ var _image: Image
 var _texture: ImageTexture
 var _drawn_tick := -1
 var _painted := PackedInt32Array()
+var _details := PackedByteArray()
+var _detail_texture: ImageTexture
 
 
 func _ready() -> void:
 	texture_filter = TEXTURE_FILTER_NEAREST
-	if glow_enabled:
+	if glow_enabled or sprites_enabled:
 		var shader_material := ShaderMaterial.new()
 		shader_material.shader = DOT_GLOW_SHADER
-		shader_material.set_shader_parameter("glow_strength", glow_strength)
+		shader_material.set_shader_parameter("glow_strength", glow_strength if glow_enabled else 0.0)
 		shader_material.set_shader_parameter("dot_brightness", 1.13)
+		SpriteCatalog.configure_units(shader_material)
+		shader_material.set_shader_parameter("sprites_enabled", sprites_enabled)
 		material = shader_material
 	_bytes.resize(world.cell_count() * 4)
+	_details.resize(_bytes.size())
 	_upload()
+
+
+func _process(_delta: float) -> void:
+	if material is ShaderMaterial:
+		material.set_shader_parameter("sprite_detail", get_canvas_transform().get_scale().x >= 10.0)
 
 
 ## Baut die Textur neu, wenn ein neuer Simulationstakt gezeichnet werden soll.
@@ -45,11 +56,13 @@ func show_tick(tick: int) -> void:
 		_bytes[dst + 1] = 0
 		_bytes[dst + 2] = 0
 		_bytes[dst + 3] = 0
+		for channel in 4: _details[dst + channel] = 0
 	_painted.clear()
 	if material is ShaderMaterial and sim != null:
 		material.set_shader_parameter("upgrade_marks", mini(2, maxi(sim.upgrades.dig_level, sim.upgrades.speed_level) / 2))
 	var palette := _palette()
 	var width := world.width
+	var marks := mini(2, maxi(sim.upgrades.dig_level, sim.upgrades.speed_level) / 2) if sim != null else 0
 	for id in workers.count:
 		if fog != null and not fog.is_visible(viewer, workers.cell[id]): continue
 		var group_id := int(workers.group[id])
@@ -57,6 +70,12 @@ func show_tick(tick: int) -> void:
 		var src := color_index * 4
 		var unit_size := int(workers.size[id])
 		var anchor := workers.cell[id]
+		var state := int(workers.state[id])
+		var sprite_row := SpriteCatalog.worker_row(state)
+		var target := workers.target[id] if state == WorkerStore.STATE_MINING else workers.aim[id]
+		if state == WorkerStore.STATE_BUILDING and sim != null and sim.construction.sites.valid(workers.build_site[id]):
+			target = sim.construction.center(workers.build_site[id])
+		var facing := SpriteCatalog.facing(anchor, target, width)
 		for dy in unit_size:
 			var row := anchor + dy * width
 			for dx in unit_size:
@@ -66,8 +85,13 @@ func show_tick(tick: int) -> void:
 				_bytes[dst + 1] = palette[src + 1]
 				_bytes[dst + 2] = palette[src + 2]
 				_bytes[dst + 3] = 255
+				_details[dst] = sprite_row
+				_details[dst + 1] = facing
+				_details[dst + 2] = workers.faction[id]
+				_details[dst + 3] = marks if workers.faction[id] == 0 else 0
 				_painted.append(cell)
 	_upload()
+	if material is ShaderMaterial: material.set_shader_parameter("simulation_tick", tick)
 	_drawn_tick = tick
 	queue_redraw()
 
@@ -83,6 +107,10 @@ func _upload() -> void:
 		_texture = ImageTexture.create_from_image(_image)
 	else:
 		_texture.update(_image)
+	var detail_image := Image.create_from_data(world.width, world.height, false, Image.FORMAT_RGBA8, _details)
+	if _detail_texture == null: _detail_texture = ImageTexture.create_from_image(detail_image)
+	else: _detail_texture.update(detail_image)
+	if material is ShaderMaterial: material.set_shader_parameter("unit_details", _detail_texture)
 
 
 func _palette() -> PackedByteArray:

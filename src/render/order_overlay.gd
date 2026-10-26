@@ -6,6 +6,7 @@ var sim: Simulation
 var drag_rect := Rect2i()
 var drag_active := false
 var drag_conquer := false
+var research_visuals := ResearchVisualState.new()
 
 
 func _process(_delta: float) -> void:
@@ -94,6 +95,7 @@ func _draw_bases(width: int) -> void:
 
 
 func _draw_sites() -> void:
+	research_visuals.sync(sim)
 	var rows: Array = sim.fog.remembered_sites(0) if sim._match_live() else sim.construction.sites.records
 	for row in rows:
 		if row.destroyed: continue
@@ -101,7 +103,10 @@ func _draw_sites() -> void:
 		var tint := TacticalArt.tint(row.owner)
 		var art_tint := TacticalArt.tint(row.owner)
 		var brightness := 1.0 if CavernLighting.site_visible(sim, row) else 0.35
-		TacticalArt.building(self, row.kind, Rect2(rect), art_tint, row.ready, brightness)
+		var visible := CavernLighting.site_visible(sim, row)
+		var state := research_visuals.state(sim, row) if row.kind == 3 else "idle"
+		# Remembered enemies use a frozen base sprite, without live activity/frame reads.
+		TacticalArt.building(self, row.kind, Rect2(rect), art_tint, row.ready, brightness, state, sim.tick_count if visible else 0)
 		if row.owner == 0 and row.id == sim.construction.selected:
 			draw_rect(Rect2(rect).grow(0.15), Color.WHITE, false, 0.1)
 		var fraction := float(row.hp) / float(row.max_hp) if row.ready else float(row.work) / float(row.required)
