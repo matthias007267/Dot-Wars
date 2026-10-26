@@ -91,3 +91,12 @@ Die frühere Vorgabe D-048 „globale Forschung ohne Forschungsgebäude“ ist *
 - Damit entstehen umkämpfte externe Versorgungsorte und transportierbare strategische Ressourcen.
 
 **Abgrenzung/Prüfpunkte:** Die vorhandenen Reliquien sind bisher auch Teil eines Siegmodus (Gebietskontrolle); dessen genaue zukünftige Beziehung zu transportierbaren Energie-Reliquien ist noch zu entscheiden. Energieertrag, Verbindung/Anschluss, Transportkapazität, Abladen, Diebstahl, Neutralität/Besitz und Save/Load müssen vor Implementierung präzisiert werden. Keine Zahlen oder automatische Umdeutung der bisherigen Siegmechanik annehmen.
+
+## Beschlossen: Forschungsgebäude ab Start; ein Reliquientyp und neuer Siegmodus (2026-10-26)
+
+- **Forschungsgebäude ist ab Spielbeginn baubar**, ohne vorgelagerte Technologie. Übliche Baukosten/-dauer bleiben zu bestimmen.
+- Es gibt **genau einen Reliquientyp**: transportierbare, stehlbare Energiequelle und zugleich Siegobjekt. Der bisherige Gebietskontroll-Reliquiensieg wird durch den neuen Mechanismus ersetzt.
+- Sobald **alle** auf der Karte vorhandenen Reliquien **innerhalb der eigenen Basis** einer Fraktion liegen, beginnt ein Countdown von **ca. 10 Minuten** (vorläufig 600 Sekunden Spielzeit). Bleibt die Bedingung bis zum Ende bestehen, gewinnt diese Fraktion.
+- **Während des Countdowns sind alle Reliquien für alle Spieler sichtbar**, trotz Fog of War, damit gegnerische Spieler den Sieg noch verhindern können. Eine eindeutige globale Sieg-Warnung mit verbleibender Zeit ist vorzusehen.
+- Ein Wegtransport/Diebstahl einer Reliquie lässt die Bedingung entfallen. **Noch offen:** Countdown bei Unterbrechung zurücksetzen oder pausieren? Was genau zählt als Basisfläche (Kern, Außenposten, Mauereinfassung)? Was bedeutet Sichtbarkeit (Positionen immer live oder nur aktuelle Sicht)? Timer bei Spielpause/Spielgeschwindigkeit und Siegkonflikten deterministisch in Ticks abbilden.
+- 600 Sekunden entsprechen bei 20 Simulations-Ticks pro Sekunde vorläufig 12.000 Ticks; Taktfrequenz im aktuellen Code vor Umsetzung verifizieren. Keine alte 100-Takt-Besetzungsregel als neue Reliquienbedingung übernehmen.
