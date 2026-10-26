@@ -148,6 +148,7 @@ func _attach(next: Simulation) -> void:
 	hud.clock = clock
 	hud.camera = camera
 	hud.renderer = renderer
+	hud.fog_view = fog_view
 	hud.load_requested.connect(_boot_from_save)
 	hud.restart_requested.connect(_restart)
 	hud.leave_requested.connect(_leave)
