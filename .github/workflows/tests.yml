@@ -14,6 +14,10 @@ jobs:
   headless:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    defaults:
+      run:
+        # Explicit bash enables pipefail, preserving Godot/timeout failures through tee.
+        shell: bash
     steps:
       - uses: actions/checkout@v5
 

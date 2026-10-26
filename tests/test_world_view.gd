@@ -63,8 +63,9 @@ func test_core_plaza_is_tinted_and_the_pit_stays_bright() -> void:
 	var config := TestHelpers.default_config()
 	config.world_size = 32
 	var sim := TestHelpers.legacy_core_sim(config)
-	sim.upgrades.energy = 40
-	check(sim.buy(Upgrades.KIND_CORE), "Kernkauf")
+	# Renderer fixture, independent of the removed instant-purchase workflow.
+	check(sim._bind_core(1, true), "Kernfläche für Darstellungsprüfung")
+	sim.upgrades.core_level = 1
 	var palette := WorldRenderer.palette_bytes()
 	var bytes := PackedByteArray()
 	bytes.resize(sim.world.cell_count() * 4)

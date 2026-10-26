@@ -1,7 +1,7 @@
 class_name ResearchSystem
 extends RefCounted
 ## Deterministic per-faction, per-research-center research jobs.
-## Energy is charged incrementally each tick from the faction wallet.
+## Energy travels from the faction core through conduits into a delivered buffer.
 const Store = preload("res://src/sim/settlement_store.gd")
 const CATALOG := {
 	"dig": {"branch": "Wirtschaft", "label": "Abbaueffizienz", "kind": Upgrades.KIND_DIG, "max": 5, "ticks": 180, "energy": 60, "requires": []},
@@ -17,7 +17,7 @@ var jobs: Array[Dictionary] = []
 var supply: Dictionary = {}
 ## Conduit-bound shipments: one paid energy unit travels along a placed path.
 var shipments: Array[Dictionary] = []
-## Last simulation tick at which a site actually consumed energy.
+## Completed simulation tick at which a site actually consumed energy.
 var powered_tick: Dictionary = {}
 
 func setup(factions: int) -> void:
@@ -105,7 +105,8 @@ func step(sim: Simulation) -> void:
 		var remaining_energy: int = int(job["energy"]) - int(job["spent"])
 		var charge: int = ceili(float(remaining_energy) / float(maxi(1, remaining_ticks)))
 		if int(supply.get(site, 0)) < charge: continue
-		if charge > 0: powered_tick[site] = sim.tick_count
+		# Simulation publishes tick_count + 1 after this step, before rendering.
+		if charge > 0: powered_tick[site] = sim.tick_count + 1
 		supply[site] = int(supply[site]) - charge
 		job["spent"] = int(job["spent"]) + charge
 		job["elapsed"] = int(job["elapsed"]) + 1
@@ -219,9 +220,6 @@ func restore(sim: Simulation, data: Dictionary) -> bool:
 		if typeof(site) != TYPE_INT or typeof(stored_supply[site]) != TYPE_INT or stored_supply[site] < 0: return false
 		if not sim.construction.sites.valid(site) or sim.construction.sites.records[site].kind != Store.Kind.RESEARCH_CENTER: return false
 		candidate_supply[site] = stored_supply[site]
-	levels = candidate_levels
-	jobs = candidate_jobs
-	supply = candidate_supply
 	var stored_shipments: Variant = data.get("shipments", [])
 	if not stored_shipments is Array: return false
 	var candidate_shipments: Array[Dictionary] = []
@@ -230,11 +228,21 @@ func restore(sim: Simulation, data: Dictionary) -> bool:
 		for key in ["site", "faction", "source", "index", "cell"]:
 			if typeof(shipment.get(key)) != TYPE_INT: return false
 		if not sim.construction.sites.valid(shipment["site"]): return false
-		if shipment["faction"] != sim.construction.sites.records[shipment["site"]].owner or shipment["index"] < 0: return false
-		var route := sim.energy_network.connected_path(sim, shipment["faction"], shipment["source"], sim.construction.center(shipment["site"]))
-		if route.is_empty() or not route.has(shipment["cell"]): return false
+		var target: Dictionary = sim.construction.sites.records[shipment["site"]]
+		if target.kind != Store.Kind.RESEARCH_CENTER or not target.ready: return false
+		if shipment["faction"] != target.owner or shipment["index"] < 0 or shipment["index"] >= sim.world.cell_count(): return false
+		if shipment["source"] < 0 or shipment["source"] >= sim.world.cell_count(): return false
+		if shipment["cell"] < 0 or shipment["cell"] >= sim.world.cell_count(): return false
+		# A removed conduit (including under the shipment) is a valid paused state.
+		# Loading must not require the route whose absence caused that pause.
+		var conduit_owner := sim.energy_network.owner_at(shipment["cell"])
+		if conduit_owner >= 0 and conduit_owner != target.owner: return false
 		candidate_shipments.append(shipment.duplicate(true))
+	levels = candidate_levels
+	jobs = candidate_jobs
+	supply = candidate_supply
 	shipments = candidate_shipments
+	powered_tick.clear()
 	return true
 
 func state_hash() -> int:

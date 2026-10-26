@@ -223,3 +223,10 @@ Legacy instantaneous-upgrade test cases were replaced for core, dig and AI victo
 
 ### P6 test migration follow-up (2026-10-26)
 The remaining maintenance regression for legacy core repair no longer assumes instant core upgrade purchases. Research test fixtures now guard failed building placements before indexing construction sites. CI run #258 was cancelled by subsequent pushes; run #260 (40329973599) was queued at the time of this update. A green complete test suite is not yet verified. Unrelated fog-of-war and construction failures still require independent diagnosis, not removal of assertions.
+
+
+### CI-Testmigration und Soll/Ist-Abgleich (26. Oktober 2026)
+
+Der aktuelle Auftrag vervollständigt die Testmigration direkt auf `feat/p6-research-foundation`, erhält gültige Regressionen und behebt nachgewiesene Implementierungsfehler. Er stellt keine alte Sofortkauf-Kompatibilität wieder her und führt keinen weiteren Forschungs-/Gebäudekatalog ein. PR #8 bleibt Draft, kein Merge.
+
+[STATUS_AUDIT_2026-10-26.md](STATUS_AUDIT_2026-10-26.md) dokumentiert die Ursachen des zuvor abgebrochenen CI-Laufs, die Änderungen je Datei, die neuen Nachweise und die noch offenen Visionspunkte. Insbesondere sind nicht alle P6.1–P6.6-Abnahmekriterien durch die vorhandene Implementierung abgedeckt; CI-Erfolg ersetzt weder Live-Abnahme noch fehlende Funktionen. Der endgültige Actions-Link und Commit werden im PR-Abschlussprotokoll festgehalten.

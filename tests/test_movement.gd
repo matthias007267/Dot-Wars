@@ -122,9 +122,8 @@ func test_worker_speed_upgrade_covers_more_ground() -> void:
 	slow.assign_area(0, Rect2i(7, 1, 1, 1))
 	fast.assign_area(0, Rect2i(7, 1, 1, 1))
 	check_eq(slow.upgrades.worker_period(slow.config.move_period_ticks), 8, "Start ist langsam")
-	fast.upgrades.energy = 1000
-	while fast.upgrades.speed_cost() >= 0:
-		check(fast.buy(Upgrades.KIND_SPEED), "Arbeiterstufe")
+	# Isolate the movement effect; the P6 suite verifies how research earns it.
+	fast.upgrades.speed_level = Upgrades.SPEED_MAX
 	check_eq(fast.upgrades.worker_period(fast.config.move_period_ticks), 1, "letzte Stufe jeden Takt")
 	slow.run_ticks(16)
 	fast.run_ticks(16)
