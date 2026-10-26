@@ -30,6 +30,20 @@ func place(sim: Simulation, faction: int, cell: int) -> bool:
 	revision += 1
 	return true
 
+func remove(faction: int, cell: int) -> bool:
+	var index := cells.find(cell)
+	if index < 0 or owners[index] != faction: return false
+	cells.remove_at(index)
+	owners.remove_at(index)
+	revision += 1
+	return true
+
+func place_path(sim: Simulation, faction: int, path: PackedInt32Array) -> int:
+	var placed := 0
+	for cell in path:
+		if place(sim, faction, cell): placed += 1
+	return placed
+
 func connected_path(sim: Simulation, faction: int, source: int, target: int) -> PackedInt32Array:
 	var empty := PackedInt32Array()
 	if source < 0 or target < 0 or source >= width * height or target >= width * height: return empty
