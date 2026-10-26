@@ -21,6 +21,14 @@ func show_tick(tick: int) -> void:
 	if tick == _tick: return
 	_tick = tick
 	var fog = sim.fog
+	var current_visible: PackedByteArray = fog.visible[faction]
+	var current_explored: PackedByteArray = fog.explored[faction]
+	var current_terrain: PackedByteArray = fog.known_terrain[faction]
+	# Avoid full-map CPU repaint and GPU uploads on unchanged player knowledge.
+	if _last_visible == current_visible and _last_explored == current_explored and _last_terrain == current_terrain: return
+	_last_visible = current_visible.duplicate()
+	_last_explored = current_explored.duplicate()
+	_last_terrain = current_terrain.duplicate()
 	var count := sim.world.cell_count()
 	if _bytes.size() != count * 4: _bytes.resize(count * 4)
 	if _minimap_bytes.size() != count * 4: _minimap_bytes.resize(count * 4)
