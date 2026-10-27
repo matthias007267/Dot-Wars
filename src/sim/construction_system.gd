@@ -19,6 +19,7 @@ func setup(world: WorldState, factions: int) -> void:
 func price(kind: int, owner: int) -> int:
 	if kind == Store.Kind.INTERCEPTOR: return 250
 	if kind == Store.Kind.RESEARCH_CENTER: return 300
+	if kind == Store.Kind.WAR_TOWER: return 250
 	return 500 if kind == Store.Kind.MAIN_CORE else 200 + 100 * sites.count(owner, Store.Kind.OUTPOST)
 
 func at(cell: int) -> int:
@@ -46,10 +47,11 @@ func initial(sim: Simulation, cell: int, owner: int, legacy := false) -> int:
 func unlocked(sim: Simulation, kind: int, owner := 0) -> bool:
 	if kind == Store.Kind.OUTPOST: return outposts_unlocked or sim.research.level(owner, "outpost") > 0
 	if kind == Store.Kind.INTERCEPTOR: return interceptors_unlocked or sim.research.level(owner, "interceptor") > 0
+	if kind == Store.Kind.WAR_TOWER: return sim.research.level(owner, "defense") > 0
 	return true
 
 func place(sim: Simulation, kind: int, cell: int, builders: PackedInt32Array, owner := 0, dry_run := false) -> int:
-	if kind < 0 or kind > Store.Kind.RESEARCH_CENTER or owner < 0 or owner >= sites.faction_count: return -1
+	if kind < 0 or kind > Store.Kind.WAR_TOWER or owner < 0 or owner >= sites.faction_count: return -1
 	if sim._match_live() and sim.rules.alive[owner] == 0: return -1
 	if not unlocked(sim, kind, owner): return -1
 	if kind == Store.Kind.MAIN_CORE and sites.count(owner, kind) > 0: return -1
@@ -216,12 +218,12 @@ func receivers(sim: Simulation, owner: int) -> PackedInt32Array:
 
 func production_site(owner: int, wanted := -1) -> int:
 	if wanted >= 0:
-		return wanted if sites.valid(wanted) and sites.records[wanted].owner == owner and sites.records[wanted].ready and sites.records[wanted].kind != Store.Kind.INTERCEPTOR and sites.records[wanted].kind != Store.Kind.RESEARCH_CENTER else -1
+		return wanted if sites.valid(wanted) and sites.records[wanted].owner == owner and sites.records[wanted].ready and sites.records[wanted].kind in [Store.Kind.MAIN_CORE, Store.Kind.OUTPOST] else -1
 	var ready: PackedInt32Array = sites.ready_sites(owner)
 	return -1 if ready.is_empty() else ready[0]
 
 func origin(sim: Simulation, site: int) -> int:
-	if not sites.valid(site) or not sites.records[site].ready or sites.records[site].kind == Store.Kind.INTERCEPTOR: return -1
+	if not sites.valid(site) or not sites.records[site].ready or sites.records[site].kind not in [Store.Kind.MAIN_CORE, Store.Kind.OUTPOST]: return -1
 	var cells := receivers_for(sim, site)
 	return -1 if cells.is_empty() else cells[0]
 
@@ -233,6 +235,9 @@ func damage(sim: Simulation, id: int, amount: int) -> void:
 	var rect: Rect2i = sites.records[id].rect
 	sites.damage(id, amount)
 	if not sites.valid(id):
+		sim.defense.remove_site(id)
+		sim.research.remove_site(id)
+		if sites.records[id].kind == Store.Kind.WAR_TOWER: sites.records[id].weapon_upgrade = -1
 		demolitions.erase(id)
 		if sites.records[id].kind == Store.Kind.INTERCEPTOR: sim.energy_dots.neutralize_station(id)
 		sim.rules.removed_mass += sim.spawner.cancel_site(id)

@@ -1,5 +1,7 @@
 # Kampfimpulse und Pixelzerfall
 
+Ergänzung D-082/D-083: Echte Gebäudegeschosse und Turmstrahlen nutzen denselben sichtgefilterten Renderer und dessen Gesamtgrenze von 2.048 Quads. Die folgende Nahkampfoptik bleibt erhalten; neue Waffenregeln und Unterhalt stehen in [GRID_DEFENSE.md](GRID_DEFENSE.md).
+
 Auftrag D-081, Umsetzung auf `feat/combat-pixel-effects` ab `main`/`0646fa0` nach Merge von PR #13. Reine Kampfoptik; Schaden, Reichweite, Produktion, Taktung, Bilanzen und gespeicherter Zustand bleiben erhalten.
 
 ## Darstellung

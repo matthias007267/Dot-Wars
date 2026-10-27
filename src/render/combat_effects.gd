@@ -101,9 +101,10 @@ func _on_death(cell: int, owner: int, warrior: bool) -> void:
 
 func compose() -> void:
 	if _mesh == null: return
-	if effects.is_empty() and quad_count == 0: return
+	if effects.is_empty() and quad_count == 0 and sim.defense.projectiles.is_empty() and sim.defense.beams.is_empty(): return
 	_sight = sim.fog.visible[viewer] if sim._match_live() else PackedByteArray()
 	quad_count = 0
+	_compose_defense()
 	for e in effects:
 		if not _seen(int(e.cell)): continue
 		var p := _center(int(e.cell))
@@ -142,6 +143,34 @@ func compose() -> void:
 	_mesh.buffer = _buffer
 	_mesh.visible_instance_count = quad_count
 	queue_redraw()
+
+func _compose_defense() -> void:
+	var shown := 0
+	for shot in sim.defense.projectiles:
+		if not _seen(int(shot.cell)) or not _on_screen(int(shot.cell)): continue
+		var p := _center(int(shot.cell))
+		var tint := SpriteCatalog.team_color(int(shot.owner))
+		var direction := (p - _center(int(shot.previous))).normalized()
+		for tail in 3: _square(p - direction * (tail + 1) * 0.12, 0.10, Color(tint, 0.65 / (tail + 1)))
+		_square(p, 0.22, tint)
+		_square(p, 0.09, Color.WHITE)
+		shown += 1
+		if shown >= 64: break
+	shown = 0
+	for beam in sim.defense.beams:
+		if not sim.construction.sites.valid(int(beam.site)): continue
+		var origin: int = sim.construction.center(int(beam.site))
+		if not _seen(origin) or not _seen(int(beam.cell)) or not _on_screen(int(beam.cell)): continue
+		var start := _center(origin)
+		var end := _center(int(beam.cell))
+		var tint := SpriteCatalog.team_color(int(beam.owner))
+		var steps := maxi(1, ceili(start.distance_to(end) / 0.12))
+		for point in steps + 1:
+			var p := start.lerp(end, float(point) / steps)
+			_square(p, 0.19, Color(tint, 0.85))
+			_clipped(Rect2(p - Vector2.ONE * 0.035, Vector2.ONE * 0.07), Color(0.9, 1, 1, 0.95))
+		shown += 1
+		if shown >= 16: break
 
 func _ring(center: Vector2, size: float, color: Color) -> void:
 	var r := Rect2(center - Vector2.ONE * size * 0.5, Vector2.ONE * size)

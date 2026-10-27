@@ -82,7 +82,7 @@ func update(sim: Simulation) -> void:
 		sources.append([int(sim.army.owners[id]), int(sim.army.cells[id]), WARRIOR_RADIUS])
 	var sites_state: Array = []
 	for row in sim.construction.sites.records:
-		sites_state.append([row.id, row.owner, row.rect, row.ready, row.destroyed, row.hp, row.work])
+		sites_state.append([row.id, row.owner, row.rect, row.ready, row.destroyed, row.hp, row.work, row.get("weapon_level", 0), row.get("weapon_upgrade", -1)])
 		if not row.destroyed and (row.ready or row.started):
 			sources.append([int(row.owner), sim.construction.center(int(row.id)), CORE_RADIUS, row.rect])
 	var terrain_signature := hash([hash(sim.world.cells), hash(sim.world.excavated)])

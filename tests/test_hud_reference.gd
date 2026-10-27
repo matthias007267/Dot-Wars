@@ -31,6 +31,8 @@ func _research(sim: Simulation, owner: int, cell: int, tech: String) -> int:
 	var site: int = sim.construction.place(sim, 3, cell, PackedInt32Array(), owner)
 	if site >= 0:
 		sim.construction.sites.contribute(site, owner, 300)
+		var path := sim.energy_network.plan_connection(sim, owner, owner, site)
+		sim.energy_network.place_path(sim, owner, path)
 		sim.research.start(sim, owner, site, tech)
 		sim.fog.update(sim)
 	return site

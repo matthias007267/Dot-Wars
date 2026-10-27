@@ -24,11 +24,13 @@ static func step(sim: Simulation, owner: int) -> bool:
 	var pending_main := -1
 	var pending_outpost := -1
 	var pending_research := -1
+	var pending_tower := -1
 	for row in store.records:
 		if row.destroyed or row.owner != owner or row.ready: continue
 		if row.kind == 0: pending_main = row.id
 		elif row.kind == 1 and pending_outpost < 0: pending_outpost = row.id
 		elif row.kind == 3 and pending_research < 0: pending_research = row.id
+		elif row.kind == 4 and pending_tower < 0: pending_tower = row.id
 	if pending_main >= 0:
 		if workers.is_empty(): sim.rules._buy_worker(sim, owner)
 		if due: _staff(sim, pending_main, workers, level)
@@ -41,6 +43,25 @@ static func step(sim: Simulation, owner: int) -> bool:
 	if pending_outpost >= 0:
 		if due: _staff(sim, pending_outpost, workers, level)
 		return false
+	if pending_tower >= 0:
+		if due: _staff(sim, pending_tower, workers, level)
+		return false
+	if due and system.unlocked(sim, 4, owner):
+		for row in store.records:
+			if row.destroyed or row.owner != owner or row.kind != 4 or not row.ready: continue
+			if sim.research.source_for(sim, owner, row.id) >= 0: continue
+			for source in store.ready_sites(owner):
+				var route := sim.energy_network.plan_connection(sim, owner, source, row.id)
+				if not route.is_empty():
+					sim.energy_network.place_path(sim, owner, route)
+					break
+		var tower_cap := 1 if level == SimConfig.DIFFICULTY_EASY else 3 if level == SimConfig.DIFFICULTY_HARD else 2
+		if workers.size() >= 3 and store.count(owner, 4) < tower_cap and sim.rules.wallet(sim, owner).energy >= system.price(4, owner) + 100:
+			if _place(sim, owner, 4, workers, level): return true
+		for row in store.records:
+			if row.destroyed or row.owner != owner or row.kind != 4 or not row.ready: continue
+			var price := sim.defense.upgrade_cost(row)
+			if price >= 0 and sim.rules.wallet(sim, owner).energy >= price + 100 and sim.defense.upgrade(sim, row.id, owner): return true
 	if not due or not system.unlocked(sim, 1, owner): return false
 	# Provisional easy/normal/hard expansion caps: 1/2/3, at 3/4/6 workers.
 	var cap := 1 if level == SimConfig.DIFFICULTY_EASY else 3 if level == SimConfig.DIFFICULTY_HARD else 2

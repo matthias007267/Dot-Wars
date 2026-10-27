@@ -64,15 +64,15 @@ func refresh(p_sim: Simulation, p_site: int) -> void:
 		var entry: Dictionary = ResearchSystem.CATALOG[tech]
 		var level := sim.research.level(0, tech)
 		var cost := sim.research.details(tech, level + 1, 0)
-		var status := "ABGESCHLOSSEN" if cost.is_empty() else "%d Takte · %d Energie" % [int(cost.ticks), int(cost.energy)]
+		var status := "ABGESCHLOSSEN" if cost.is_empty() else "%.1f s · %d Energie einmalig" % [int(cost.ticks) / 20.0, int(cost.energy)]
 		var missing: Array[String] = []
 		for dep in entry.requires:
 			if sim.research.level(0, dep) == 0: missing.append(ResearchSystem.CATALOG[dep].label)
 		if not missing.is_empty(): status = "Benötigt: " + ", ".join(missing)
 		for job in sim.research.jobs:
 			if job.faction == 0 and job.tech == tech:
-				status = "FORSCHUNG %d/%d · Energie %d/%d" % [job.elapsed, job.ticks, job.spent, job.energy]
-				if int(sim.research.supply.get(job.site, 0)) == 0 and job.spent < job.energy: status += " · Zufuhr fehlt"
+				status = "FORSCHUNG %d %% · %.1f s · %d bezahlt" % [roundi(100.0 * job.elapsed / job.ticks), (job.ticks - job.elapsed) / 20.0, job.paid]
+				if not sim.research.running(sim, job): status += " · PAUSIERT"
 		var button: Button = buttons[tech]
 		button.text = "%s [%d/%d]\n%s" % [entry.label, level, entry.max, status]
 		button.tooltip_text = status + " · Klicken für Details"
@@ -81,14 +81,10 @@ func refresh(p_sim: Simulation, p_site: int) -> void:
 		UiTheme.style_button(button, tech == selected)
 	if detail != null:
 		var text: String = buttons[selected].text if buttons.has(selected) else "Technologie wählen"
-		var supply := int(sim.research.supply.get(site, 0))
-		var incoming := 0
-		for shipment in sim.research.shipments:
-			if shipment.site == site and shipment.faction == 0: incoming += 1
-		text += "\nZentrum #%d · Puffer %d · unterwegs %d" % [site, supply, incoming] if site >= 0 else "\nEigenes fertiges Forschungszentrum auf der Karte wählen."
+		text += "\nZentrum #%d · Kosten werden beim Start vollständig bezahlt." % site if site >= 0 else "\nEigenes fertiges Forschungszentrum auf der Karte wählen."
 		for job in sim.research.jobs:
 			if job.faction == 0:
-				text += "\n#%d %s: %d/%d Takte" % [job.site, ResearchSystem.CATALOG[job.tech].label, job.elapsed, job.ticks]
+				text += "\n#%d %s: %.1f s verbleibend" % [job.site, ResearchSystem.CATALOG[job.tech].label, (job.ticks - job.elapsed) / 20.0]
 		detail.text = text
 	if start_button != null:
 		start_button.disabled = not available(selected)

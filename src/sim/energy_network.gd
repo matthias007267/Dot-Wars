@@ -9,8 +9,81 @@ var cells := PackedInt32Array()
 var owners := PackedInt32Array()
 var revision := 0
 var _owner_index := {}
-var _route_fields := {}
-var _route_stamp := ""
+## Topology cache only: no individual energy units or per-unit pathfinding.
+var _power_key := PackedInt64Array()
+var _power_geometry: Array = []
+var _components: Dictionary = {}
+var _component_sources: Dictionary = {}
+var _site_sources: Dictionary = {}
+var power_rebuilds := 0
+
+func prepare_power(sim: Simulation) -> void:
+	var key := PackedInt64Array([revision, sim.world.revision, sim.construction.sites.revision])
+	if key == _power_key: return
+	_power_key = key
+	var geometry: Array = [revision]
+	for cell in cells:
+		if sim.world.cells[cell] != Materials.EMPTY: geometry.append(cell)
+	for row in sim.construction.sites.records:
+		geometry.append([row.id, row.kind, row.owner, row.rect, row.ready, row.destroyed])
+	if geometry == _power_geometry: return
+	_power_geometry = geometry
+	_components.clear()
+	_component_sources.clear()
+	_site_sources.clear()
+	power_rebuilds += 1
+	var component := 0
+	for start in cells:
+		if _components.has(start) or sim.world.cells[start] != Materials.EMPTY: continue
+		var owner := owner_at(start)
+		var queue := PackedInt32Array([start])
+		_components[start] = component
+		var head := 0
+		while head < queue.size():
+			var cell := queue[head]
+			head += 1
+			for next in neighbors(cell):
+				if _components.has(next) or owner_at(next) != owner or sim.world.cells[next] != Materials.EMPTY: continue
+				_components[next] = component
+				queue.append(next)
+		component += 1
+	# Prefer main cores before outposts, then stable site IDs.
+	for kind in [0, 1]:
+		for row in sim.construction.sites.records:
+			if row.destroyed or not row.ready or int(row.kind) != kind: continue
+			_site_sources[row.id] = int(row.id)
+			for edge in sim.construction.sites.perimeter(row.id):
+				if owner_at(edge) != int(row.owner) or not _components.has(edge): continue
+				var group: int = _components[edge]
+				if not _component_sources.has(group): _component_sources[group] = int(row.id)
+	for row in sim.construction.sites.records:
+		if row.destroyed or not row.ready or _site_sources.has(row.id): continue
+		for edge in sim.construction.sites.perimeter(row.id):
+			if owner_at(edge) != int(row.owner) or not _components.has(edge): continue
+			var group: int = _components[edge]
+			if _component_sources.has(group):
+				_site_sources[row.id] = int(_component_sources[group])
+				break
+
+func source_site(sim: Simulation, site: int) -> int:
+	prepare_power(sim)
+	return int(_site_sources.get(site, -1))
+
+func cell_source(sim: Simulation, cell: int) -> int:
+	prepare_power(sim)
+	return int(_component_sources.get(int(_components.get(cell, -1)), -1))
+
+func energized_factions(sim: Simulation) -> PackedByteArray:
+	var count := sim.rules.faction_count if sim._match_live() else 1
+	var active := PackedByteArray()
+	active.resize(count)
+	for owner in count:
+		if sim.rules.wallet(sim, owner).energy > 0: active[owner] = 1
+	for job in sim.research.jobs:
+		if sim.research.running(sim, job): active[int(job.faction)] = 1
+	for site in sim.defense.weapons:
+		if sim.defense.is_powered(sim, site): active[int(sim.construction.sites.records[site].owner)] = 1
+	return active
 
 func setup(p_width: int, p_height: int) -> void:
 	width = p_width
@@ -19,7 +92,6 @@ func setup(p_width: int, p_height: int) -> void:
 	owners.clear()
 	revision = 0
 	_owner_index.clear()
-	_route_fields.clear()
 
 func owner_at(cell: int) -> int:
 	return int(_owner_index.get(cell, -1))
@@ -171,38 +243,6 @@ func connected_path(sim: Simulation, faction: int, source: int, target: int) -> 
 	reverse.reverse()
 	return reverse
 
-func route_to_site(sim: Simulation, faction: int, cell: int, site: int) -> PackedInt32Array:
-	if owner_at(cell) != faction or not sim.construction.sites.valid(site): return PackedInt32Array()
-	if sim.construction.sites.records[site].owner != faction: return PackedInt32Array()
-	var stamp := "%d:%d:%d" % [revision, sim.world.revision, sim.construction.sites.revision]
-	if stamp != _route_stamp:
-		_route_fields.clear()
-		_route_stamp = stamp
-	var key := Vector2i(faction, site)
-	if not _route_fields.has(key):
-		var parents := {}
-		var queue := PackedInt32Array()
-		for edge in sim.construction.sites.perimeter(site):
-			if owner_at(edge) == faction:
-				parents[edge] = -1
-				queue.append(edge)
-		var head := 0
-		while head < queue.size():
-			var current := queue[head]
-			head += 1
-			for next in neighbors(current):
-				if parents.has(next) or owner_at(next) != faction: continue
-				parents[next] = current
-				queue.append(next)
-		_route_fields[key] = parents
-	var field: Dictionary = _route_fields[key]
-	var result := PackedInt32Array()
-	if not field.has(cell): return result
-	while cell >= 0:
-		result.append(cell)
-		cell = field[cell]
-	return result
-
 func neighbors(cell: int) -> PackedInt32Array:
 	var result := PackedInt32Array()
 	if cell >= width: result.append(cell - width)
@@ -230,8 +270,10 @@ func restore(data: Dictionary, sim: Simulation) -> bool:
 	owners = data.owners.duplicate()
 	_owner_index.clear()
 	for i in cells.size(): _owner_index[cells[i]] = owners[i]
-	_route_fields.clear()
-	_route_stamp = ""
+	_power_key = PackedInt64Array()
+	_power_geometry.clear()
+	_power_key = PackedInt64Array()
+	_power_geometry.clear()
 	revision = data.revision
 	return true
 

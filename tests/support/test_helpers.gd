@@ -79,12 +79,19 @@ static func legacy_core_sim(config: SimConfig) -> Simulation:
 	return sim
 
 
-## Scheduler fixture with already delivered energy. Physical delivery is tested separately.
-## Bounded loop: a rejected start fails the test instead of hanging CI.
-static func complete_buffered_research(sim: Simulation, site: int, tech: String, faction := 0) -> bool:
-	if not sim.research.start(sim, faction, site, tech): return false
+## Funded scheduler fixture. Network failure and pricing have dedicated tests.
+static func complete_research(sim: Simulation, site: int, tech: String, faction := 0) -> bool:
 	var cost := sim.research.details(tech, sim.research.level(faction, tech) + 1, faction)
-	sim.research.supply[site] = int(sim.research.supply.get(site, 0)) + int(cost.energy)
+	if cost.is_empty(): return false
+	var wallet := sim.rules.wallet(sim, faction)
+	wallet.energy = maxi(wallet.energy, int(cost.energy))
+	if sim.research.source_for(sim, faction, site) < 0:
+		for source in sim.construction.sites.ready_sites(faction):
+			var path := sim.energy_network.plan_connection(sim, faction, source, site)
+			if not path.is_empty():
+				sim.energy_network.place_path(sim, faction, path)
+				break
+	if not sim.research.start(sim, faction, site, tech): return false
 	var expected := sim.research.level(faction, tech) + 1
 	for tick in int(cost.ticks):
 		sim.tick_count += 1

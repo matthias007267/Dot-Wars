@@ -99,7 +99,7 @@ func test_ai_buys_a_worker_and_remote_does_not() -> void:
 	var held := remote.workers.count
 	remote.tick_once()
 	check_eq(remote.workers.count, held, "ein ferner Slot kauft nicht")
-	check_eq(remote.rules.ai_upgrades[0].energy, 100, "das Guthaben bleibt")
+	check_eq(remote.rules.ai_upgrades[0].energy, 75, "kein KI-Kauf, nur eigener Kernunterhalt")
 
 
 func test_energy_reaches_only_the_owning_core() -> void:
@@ -229,7 +229,7 @@ func test_easy_camps_and_hard_digs_toward_the_core() -> void:
 	check_no_errors(easy.check_invariants(), "Bilanzen Leicht")
 	var hard := _match(MatchRules.VICTORY_ELIMINATION, 6, 1, SimConfig.DIFFICULTY_HARD)
 	var wallet := hard.rules.ai_upgrades[0]
-	wallet.energy = Upgrades.DIG_BASE
+	wallet.energy = Upgrades.DIG_BASE + 25 # Same purchase budget after core upkeep.
 	var workers_before := _count(hard, 1)
 	hard.tick_once()
 	check_eq(_count(hard, 1), workers_before + 1, "ohne verfügbaren Forschungsauftrag kauft Schwer Nachwuchs")

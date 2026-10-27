@@ -1,5 +1,7 @@
 # DOT WARS
 
+Kriegstürme mit drei Ausbaustufen: Einzelschuss, Schnellfeuer und Strahl. Hauptkern/Außenposten verteidigen sich schwächer. Forschung bezahlt ihren Gesamtpreis beim Start und pausiert nur bei Netzabriss; Waffen bezahlen ihren Unterhalt pro Minute im Voraus. Das Gebäudenetz zeigt einen pulsierenden Lichtfluss ohne einzelne Leitungssendungen. Abbau-Energiedots bleiben erhalten. Bedienung, vorläufige Werte, Speicherübernahme und Messgrenzen: [GRID_DEFENSE.md](docs/GRID_DEFENSE.md). Native v11 bleibt kompatibel; Spiel neu starten.
+
 Kampfoptik: kurze teamfarbene Nahkampfimpulse, weißer Trefferblitz innerhalb des Teamrands und quadratischer Pixelzerfall bei besiegten Dots. Arbeiter zerfallen in acht, Krieger in zwölf Splitter. Nebel, Pause und Tempo gelten auch für die Effekte; Partikel erzeugen keine Energie. Darstellung und Vorschau: [COMBAT_EFFECTS.md](docs/COMBAT_EFFECTS.md). Spiel neu starten; das vorhandene Native-Modul v11 bleibt kompatibel.
 
 Nebel überarbeitet: Fertige und begonnene Gebäude geben eigenes Grundlicht und Sicht, ohne vom eigenen Fundament verdeckt zu werden. Ressourcen und fremde Fundamente lassen die Sicht vier Rasterfelder ab der ersten Barriere weiterreichen; danach bleibt unbekanntes Gebiet schwarz. Erkundete Flächen sind heller dargestellt. Regeln und Grafiknachweise: [FOG_DEPTH.md](docs/FOG_DEPTH.md). Windows-Native-Modul **v11** neu bauen und das Spiel vollständig neu starten.

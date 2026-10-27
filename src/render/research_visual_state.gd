@@ -39,11 +39,5 @@ func state(sim: Simulation, site: Dictionary) -> String:
 	if not CavernLighting.site_visible(sim, site): return "idle"
 	if not site.ready: return "construction"
 	if _jobs.has(site.id):
-		var job: Dictionary = _jobs[site.id].job
-		if sim.research.is_powered(site.id, sim.tick_count): return "active"
-		# Paid research also progresses on zero-charge ticks; absence of consumption
-		# on those ticks is not a supply outage. Environmental light still requires a charge.
-		var remaining: int = int(job.energy) - int(job.spent)
-		if remaining == 0 and int(job.elapsed) > 0: return "active"
-		return "waiting"
+		return "active" if sim.research.running(sim, _jobs[site.id].job) else "waiting"
 	return "complete" if _completed_until.has(site.id) else "idle"

@@ -1,7 +1,7 @@
 extends RefCounted
 ## Current construction phase: pure state for owned production buildings/sites.
 ## Geometry, prices, research and defeat policy are supplied by the controller.
-enum Kind { MAIN_CORE, OUTPOST, INTERCEPTOR, RESEARCH_CENTER }
+enum Kind { MAIN_CORE, OUTPOST, INTERCEPTOR, RESEARCH_CENTER, WAR_TOWER }
 const PLANNED := 1
 const STARTED := 2
 const READY := 4
@@ -39,12 +39,15 @@ func space_free(rect: Rect2i) -> bool:
 	return true
 
 func add(kind: int, owner: int, rect: Rect2i, max_hp: int, initial_hp: int, required_work: int, finished: bool) -> int:
-	if kind < Kind.MAIN_CORE or kind > Kind.RESEARCH_CENTER or owner < 0 or owner >= faction_count: return -1
+	if kind < Kind.MAIN_CORE or kind > Kind.WAR_TOWER or owner < 0 or owner >= faction_count: return -1
 	if max_hp <= 0 or initial_hp <= 0 or initial_hp > max_hp or required_work <= 0 or not space_free(rect): return -1
 	var id := records.size()
 	records.append({"id": id, "kind": kind, "owner": owner, "rect": rect, "hp": initial_hp,
 		"paid": 0, "max_hp": max_hp, "required": required_work, "work": required_work if finished else 0,
 		"started": finished, "ready": finished, "destroyed": false})
+	if kind == Kind.WAR_TOWER:
+		records[id].weapon_level = 1
+		records[id].weapon_upgrade = -1
 	_claim(id, rect, true)
 	revision += 1
 	return id
@@ -94,7 +97,7 @@ func has_begun_core(owner: int) -> bool:
 func ready_sites(owner: int, production_only := true) -> PackedInt32Array:
 	var result := PackedInt32Array()
 	for id in records.size():
-		if records[id].owner == owner and phase(id) == READY and (not production_only or records[id].kind != Kind.INTERCEPTOR and records[id].kind != Kind.RESEARCH_CENTER): result.append(id)
+		if records[id].owner == owner and phase(id) == READY and (not production_only or records[id].kind in [Kind.MAIN_CORE, Kind.OUTPOST]): result.append(id)
 	return result
 
 func perimeter(id: int) -> PackedInt32Array:
@@ -124,7 +127,7 @@ func restore(data: Dictionary) -> bool:
 		for key in ["started", "ready", "destroyed"]:
 			if typeof(value.get(key)) != TYPE_BOOL: return false
 		if not value.get("rect") is Rect2i: return false
-		if value.id != candidate.records.size() or value.kind < Kind.MAIN_CORE or value.kind > Kind.RESEARCH_CENTER or value.owner < 0 or value.owner >= data.factions: return false
+		if value.id != candidate.records.size() or value.kind < Kind.MAIN_CORE or value.kind > Kind.WAR_TOWER or value.owner < 0 or value.owner >= data.factions: return false
 		if not candidate.rect_inside(value.rect) or value.max_hp <= 0 or value.required <= 0 or value.work < 0 or value.work > value.required: return false
 		if value.started != (value.work > 0) or value.ready != (value.work == value.required): return false
 		if value.hp < 0 or value.hp > value.max_hp or value.destroyed != (value.hp == 0): return false
@@ -134,6 +137,12 @@ func restore(data: Dictionary) -> bool:
 		if typeof(value.get("paid", 0)) != TYPE_INT or int(value.get("paid", 0)) < 0 or int(value.get("paid", 0)) > 2147483647: return false
 		var row: Dictionary = value.duplicate(true)
 		row.paid = int(value.get("paid", 0))
+		if row.kind == Kind.WAR_TOWER:
+			if typeof(row.get("weapon_level", 1)) != TYPE_INT or int(row.get("weapon_level", 1)) < 1 or int(row.get("weapon_level", 1)) > 3: return false
+			if typeof(row.get("weapon_upgrade", -1)) != TYPE_INT or int(row.get("weapon_upgrade", -1)) < -1: return false
+			row.weapon_level = int(row.get("weapon_level", 1))
+			row.weapon_upgrade = int(row.get("weapon_upgrade", -1))
+			if row.weapon_upgrade >= 0 and (not row.ready or row.destroyed or row.weapon_level == 3): return false
 		candidate.records.append(row)
 	width = candidate.width
 	height = candidate.height

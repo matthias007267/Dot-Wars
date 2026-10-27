@@ -106,7 +106,7 @@ func _draw_sites() -> void:
 		var visible := CavernLighting.site_visible(sim, row)
 		var state := research_visuals.state(sim, row) if row.kind == 3 else "idle"
 		# Remembered enemies use a frozen base sprite, without live activity/frame reads.
-		TacticalArt.building(self, row.kind, Rect2(rect), art_tint, row.ready, brightness, state, sim.tick_count if visible else 0)
+		TacticalArt.building(self, row.kind, Rect2(rect), art_tint, row.ready, brightness, state, sim.tick_count if visible else 0, int(row.get("weapon_level", 1)))
 		if row.owner == 0 and row.id == sim.construction.selected:
 			draw_rect(Rect2(rect).grow(0.15), Color.WHITE, false, 0.1)
 		var fraction := float(row.hp) / float(row.max_hp) if row.ready else float(row.work) / float(row.required)

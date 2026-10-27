@@ -119,14 +119,15 @@ func test_researched_swarm_effect_and_worker_wait_state_are_saved() -> void:
 	var config := TestHelpers.default_config()
 	config.world_size = 32
 	var sim := Simulation.from_world(config, WorldState.new(32, 32, 8, Materials.EMPTY))
+	sim.construction.initial(sim, sim.pit_index(), 0, true)
 	sim.upgrades.energy = 5000
 	var site := sim.construction.place(sim, 3, 100, PackedInt32Array())
 	check(site >= 0, "Forschungszentrum")
 	if site < 0: return
 	sim.construction.sites.contribute(site, 0, 300)
-	check(TestHelpers.complete_buffered_research(sim, site, "dig"), "Abbau als Voraussetzung erforscht")
+	check(TestHelpers.complete_research(sim, site, "dig"), "Abbau als Voraussetzung erforscht")
 	for stage in Upgrades.SWARM_MAX:
-		check(TestHelpers.complete_buffered_research(sim, site, "swarm"), "Schwarmstufe erforscht")
+		check(TestHelpers.complete_research(sim, site, "swarm"), "Schwarmstufe erforscht")
 	check(not sim.research.start(sim, 0, site, "swarm"), "Stufe 4 ist voll")
 	check_eq(sim.upgrades.swarm_level, Upgrades.SWARM_MAX, "Anschlag")
 	sim.workers.aim[0] = sim.workers.cell[0]
