@@ -1,5 +1,9 @@
 # Regeln für Agenten
 
+## Neuester Folgeauftrag: ausschließlich markierte HUD-Vorschläge übernehmen
+
+Der Nutzer beauftragt aus seiner beschrifteten RTS-Referenz ausdrücklich nur die HUD-Änderungen: Energie/Arbeiter/Krieger oben links, darunter laufende eigene Forschung/Bau/Produktion als Icons, Menü oben rechts, auswahlabhängige Aktionen unten links, Produktions-/Auswahlinfo und Hover-Erklärungen daneben sowie Minimap mit Team-Zielständen unten rechts. Bestehender Grafikstil, Welt, Ressourcen, Einheiten, Simulation und Spielregeln bleiben erhalten. Eigene und verbündete vorhandene Zielstände verwenden, keine neue Punkteformel oder gegnerischen Warteschlangen offenlegen. Umsetzung im offenen PR #13 auf `feat/ore-veins-world`; kein automatischer Merge. Details und Nachweise: `docs/HUD_REFERENCE.md`, D-078.
+
 ## Neuester Folgeauftrag: bestätigte Energie-Dot-Grafik übernehmen
 
 Der Nutzer übernimmt den zuvor gezeigten Energie-Dot-Entwurf ausdrücklich: kleines symmetrisches Lichtquadrat, weißer Kern, cyanfarbenes Innenlicht, schmaler Teamrand und dezentes Leuchten. Darstellung als Pixel-Shader im bestehenden PR #13; keine neue Spielregel. Alle vier Teamfarben bleiben auch bei gepufferter Energie erkennbar; neutrale Energie bleibt grau. Glow darf abschaltbar sein, ohne die Form zu entfernen. Sichtfilter und Bilanz bleiben erhalten, keine Node pro Dot. Entwurf, Größenverhalten und Prüfungen: `docs/ENERGY_DOT_ART.md`, D-077. Kein automatischer Merge.

@@ -178,3 +178,26 @@ jobs:
             /tmp/energy-dot-compact.png
             /tmp/energy-dot-game.png
           if-no-files-found: ignore
+
+      - name: Referenz-HUD, Kontextaktionen und Auftragsübersicht prüfen
+        run: |
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1920x1080x24" timeout 90s godot --audio-driver Dummy --path . -s bench/hud_reference_check.gd 2>&1 | tee /tmp/hud-reference.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|SHADER ERROR|Shader compilation failed|shader_compiler.cpp" /tmp/hud-reference.log; then
+            exit 1
+          fi
+          grep -q "HUD REF SUMMARY: 0 failures" /tmp/hud-reference.log
+
+      - name: HUD-Grafiknachweise
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hud-reference-check
+          path: |
+            /tmp/hud-reference.log
+            /tmp/hud-workers.png
+            /tmp/hud-hover.png
+            /tmp/hud-core.png
+            /tmp/hud-research.png
+            /tmp/hud-orders.png
+            /tmp/hud-compact.png
+          if-no-files-found: ignore
