@@ -290,7 +290,7 @@ static func _seek(sim: Simulation, id: int, level: int, claimed: Dictionary, ban
 						next = cell - 1
 			budget -= 1
 			var material := int(cells[next])
-			if material >= Materials.SOFT and material <= Materials.HARD and mask[next] == 1 and next != ban and not claimed.has(owner_key + next):
+			if Materials.is_mineable(material) and mask[next] == 1 and next != ban and not claimed.has(owner_key + next):
 				return next
 			if visited[next] != stamp and material == Materials.EMPTY and (next >= blocked_count or blocked[next] == 0) and int(occupancy[next]) == WorkerStore.NO_WORKER:
 				visited[next] = stamp

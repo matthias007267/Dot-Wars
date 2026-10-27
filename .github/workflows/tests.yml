@@ -137,3 +137,87 @@ jobs:
             /tmp/floor-visual.log
             /tmp/floor-comparison.png
           if-no-files-found: ignore
+
+      - name: Erzadern, Tunnel und Energiefluss prüfen
+        run: |
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1920x1080x24" timeout 90s godot --audio-driver Dummy --path . -s bench/ore_world_check.gd 2>&1 | tee /tmp/ore-visual.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|SHADER ERROR|Shader compilation failed|shader_compiler.cpp" /tmp/ore-visual.log; then
+            exit 1
+          fi
+          grep -q "ORE SUMMARY: 0 failures" /tmp/ore-visual.log
+
+      - name: Erz- und Karten-Grafiknachweise
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ore-visual-check
+          path: |
+            /tmp/ore-visual.log
+            /tmp/ore-catalog.png
+            /tmp/ore-map-overview.png
+            /tmp/ore-map-detail.png
+            /tmp/ore-diamond-flow.png
+          if-no-files-found: ignore
+
+      - name: Energie-Dot-Grafik und Sichtschutz prüfen
+        run: |
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1920x1080x24" timeout 90s godot --audio-driver Dummy --path . -s bench/energy_dot_visual_check.gd 2>&1 | tee /tmp/energy-dot-visual.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|SHADER ERROR|Shader compilation failed|shader_compiler.cpp" /tmp/energy-dot-visual.log; then
+            exit 1
+          fi
+          grep -q "ENERGY ART SUMMARY: 0 failures" /tmp/energy-dot-visual.log
+
+      - name: Energie-Dot-Grafiknachweise
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: energy-dot-visual-check
+          path: |
+            /tmp/energy-dot-visual.log
+            /tmp/energy-dot-colors.png
+            /tmp/energy-dot-compact.png
+            /tmp/energy-dot-game.png
+          if-no-files-found: ignore
+
+      - name: Referenz-HUD, Kontextaktionen und Auftragsübersicht prüfen
+        run: |
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1920x1080x24" timeout 90s godot --audio-driver Dummy --path . -s bench/hud_reference_check.gd 2>&1 | tee /tmp/hud-reference.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|SHADER ERROR|Shader compilation failed|shader_compiler.cpp" /tmp/hud-reference.log; then
+            exit 1
+          fi
+          grep -q "HUD REF SUMMARY: 0 failures" /tmp/hud-reference.log
+
+      - name: HUD-Grafiknachweise
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hud-reference-check
+          path: |
+            /tmp/hud-reference.log
+            /tmp/hud-workers.png
+            /tmp/hud-hover.png
+            /tmp/hud-core.png
+            /tmp/hud-research.png
+            /tmp/hud-orders.png
+            /tmp/hud-compact.png
+          if-no-files-found: ignore
+
+      - name: Gebäudelicht und Vier-Felder-Nebel prüfen
+        run: |
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1920x1080x24" timeout 90s godot --audio-driver Dummy --path . -s bench/fog_depth_check.gd 2>&1 | tee /tmp/fog-depth.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|SHADER ERROR|Shader compilation failed|shader_compiler.cpp" /tmp/fog-depth.log; then
+            exit 1
+          fi
+          grep -q "FOG DEPTH SUMMARY: 0 failures" /tmp/fog-depth.log
+
+      - name: Nebel-Grafiknachweise
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fog-depth-check
+          path: |
+            /tmp/fog-depth.log
+            /tmp/fog-four-cells.png
+            /tmp/fog-memory-before.png
+            /tmp/fog-memory-after.png
+          if-no-files-found: ignore

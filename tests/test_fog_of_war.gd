@@ -11,7 +11,7 @@ func _sim(workers := 1) -> Simulation:
 	sim.rules.control.fill(MatchRules.CONTROL_REMOTE)
 	return sim
 
-func test_blocker_is_visible_but_cell_behind_is_hidden() -> void:
+func test_four_cells_from_first_blocker_are_visible_then_sight_stops() -> void:
 	var sim := _sim()
 	var fog := Fog.new()
 	fog.setup(sim.world, 2)
@@ -22,7 +22,9 @@ func test_blocker_is_visible_but_cell_behind_is_hidden() -> void:
 	mask.resize(blockers.size())
 	fog._reveal(mask, blockers, 10 * 32 + 10, 5)
 	check_eq(mask[10 * 32 + 11], 1, "blocker itself visible")
-	check_eq(mask[10 * 32 + 12], 0, "no sight through blocker")
+	check_eq(mask[10 * 32 + 12], 1, "sight continues behind first blocker")
+	check_eq(mask[10 * 32 + 14], 1, "fourth cell visible")
+	check_eq(mask[10 * 32 + 15], 0, "fifth cell stays hidden even in a free tunnel")
 	check_eq(mask[10 * 32 + 9], 1, "unblocked side visible")
 
 func test_remembers_terrain_only_when_seen_again() -> void:

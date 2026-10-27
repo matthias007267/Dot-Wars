@@ -5,8 +5,8 @@ const Fog = preload("res://src/sim/fog_of_war.gd")
 func _backend():
 	var native = Backend.backend()
 	if "--require-native" in OS.get_cmdline_user_args():
-		check(native != null and native.has_method("fog_visible"), "v9 fog backend required")
-	return native if native != null and native.has_method("fog_visible") else null
+		check(native != null and native.has_method("fog_visible_depth"), "v11 fog backend required")
+	return native if native != null and native.has_method("fog_visible_depth") else null
 
 func test_native_union_matches_independent_rays_with_overlaps_edges_and_opaque_origins() -> void:
 	var native = _backend()
@@ -28,7 +28,7 @@ func test_native_union_matches_independent_rays_with_overlaps_edges_and_opaque_o
 			sources.append(rng.randi_range(0,1023))
 			sources.append(rng.randi_range(0,12))
 		var before := blockers.duplicate()
-		var result: Array = native.fog_visible(blockers, sources, 3, 32)
+		var result: Array = native.fog_visible_depth(blockers, _pack(sources), 3, 32)
 		check_eq(result.size(), 3, "one sparse list per faction")
 		for owner in 3:
 			var expected := PackedByteArray()
@@ -48,14 +48,14 @@ func test_invalid_native_fog_payloads_fail_without_partial_output() -> void:
 	if native == null:
 		check(true,"reference mode")
 		return
-	check_eq(native.fog_visible(PackedByteArray(),PackedInt32Array(),2,32),null,"empty world")
-	check_eq(native.fog_visible(PackedByteArray([0]),PackedInt32Array([0,0]),2,1),null,"incomplete source")
-	check_eq(native.fog_visible(PackedByteArray([0]),PackedInt32Array([2,0,7]),2,1),null,"invalid owner")
-	check_eq(native.fog_visible(PackedByteArray([0]),PackedInt32Array([0,1,7]),2,1),null,"invalid origin")
-	check_eq(native.fog_visible(PackedByteArray([0]),PackedInt32Array([0,0,-1]),2,1),null,"invalid radius")
-	check_eq(native.fog_visible(PackedByteArray([0]),PackedInt32Array(),0,1),null,"invalid faction count")
-	check_eq(native.fog_visible(PackedByteArray([0,0,0]),PackedInt32Array(),2,2),null,"nonrectangular grid")
-	check_eq(native.fog_visible(PackedByteArray([0]),PackedInt32Array(),2,1),[PackedInt32Array(),PackedInt32Array()],"empty source set gives empty sight")
+	check_eq(native.fog_visible_depth(PackedByteArray(),PackedInt32Array(),2,32),null,"empty world")
+	check_eq(native.fog_visible_depth(PackedByteArray([0]),PackedInt32Array([0,0]),2,1),null,"incomplete source")
+	check_eq(native.fog_visible_depth(PackedByteArray([0]),_pack(PackedInt32Array([2,0,7])),2,1),null,"invalid owner")
+	check_eq(native.fog_visible_depth(PackedByteArray([0]),_pack(PackedInt32Array([0,1,7])),2,1),null,"invalid origin")
+	check_eq(native.fog_visible_depth(PackedByteArray([0]),_pack(PackedInt32Array([0,0,-1])),2,1),null,"invalid radius")
+	check_eq(native.fog_visible_depth(PackedByteArray([0]),PackedInt32Array(),0,1),null,"invalid faction count")
+	check_eq(native.fog_visible_depth(PackedByteArray([0,0,0]),PackedInt32Array(),2,2),null,"nonrectangular grid")
+	check_eq(native.fog_visible_depth(PackedByteArray([0]),PackedInt32Array(),2,1),[PackedInt32Array(),PackedInt32Array()],"empty source set gives empty sight")
 
 func test_native_and_reference_preserve_complete_faction_knowledge_each_tick() -> void:
 	var native = _backend()
@@ -87,3 +87,10 @@ func test_native_and_reference_preserve_complete_faction_knowledge_each_tick() -
 		check_eq(sim.fog.snapshot(),other.fog.snapshot(),"all knowledge at tick %d" % tick)
 	check(sim.fog.native_updates>0,"native path actually executed")
 	check_eq(other.fog.native_updates,0,"reference remains independent")
+
+func _pack(triplets: PackedInt32Array) -> PackedInt32Array:
+	var result := PackedInt32Array()
+	for index in range(0, triplets.size(), 3):
+		result.append_array(triplets.slice(index, index + 3))
+		result.append_array(PackedInt32Array([0, 0, 0, 0]))
+	return result

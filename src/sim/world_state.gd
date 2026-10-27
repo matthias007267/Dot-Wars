@@ -8,11 +8,15 @@ var chunk_size: int
 var chunks_x: int
 var chunks_y: int
 
+# Generation-only metadata used while initial cores clear their starting rooms.
+var start_regions: Array[Vector2i] = []
 var cells := PackedByteArray()
 ## Visual mining history, retained under foundations and independent of resources.
 var excavated := PackedByteArray()
 ## Abbaufortschritt je Zelle in Arbeitspunkten (immer kleiner als die Haltbarkeit).
 var progress := PackedInt32Array()
+## Energy already emitted by this unfinished block; persisted to prevent duplicates.
+var released := PackedInt32Array()
 ## Niederes Glied des Restbruchs, Basis 2^31. Kleiner als der Nenner, solange der Rest hier hineinpasst.
 var progress_frac := PackedInt32Array()
 ## Weitere Glieder desselben Restbruchs. Leer, solange `progress_frac` den ganzen Rest trägt.
@@ -53,6 +57,7 @@ func _init(p_width: int, p_height: int, p_chunk_size: int = 32, fill_material: i
 	cells.resize(width * height)
 	cells.fill(fill_material)
 	excavated.resize(width * height)
+	released.resize(width * height)
 	progress.resize(width * height)
 	progress.fill(0)
 	progress_frac.resize(width * height)
@@ -99,6 +104,7 @@ func set_material(idx: int, material: int) -> void:
 		indestructible_count += 1
 	cells[idx] = material
 	progress[idx] = 0
+	released[idx] = 0
 	progress_frac[idx] = 0
 	if progress_frac_high.has(idx):
 		progress_frac_high.erase(idx)
@@ -290,7 +296,7 @@ func _chunk_index(idx: int) -> int:
 
 
 func state_hash() -> int:
-	var base := hash([hash(cells), hash(excavated), hash(progress), hash(progress_frac), mined_count, opened_count, solid_count])
+	var base := hash([hash(cells), hash(excavated), hash(progress), hash(released), hash(progress_frac), mined_count, opened_count, solid_count])
 	if progress_frac_high.is_empty():
 		return base
 	var keys: Array = progress_frac_high.keys()

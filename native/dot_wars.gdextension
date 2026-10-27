@@ -4,5 +4,5 @@ compatibility_minimum = "4.3"
 reloadable = false
 
 [libraries]
-windows.x86_64 = "res://native/bin/dot_wars_native.windows.x86_64.v9.dll"
+windows.x86_64 = "res://native/bin/dot_wars_native.windows.x86_64.v11.dll"
 linux.x86_64 = "res://native/bin/libdot_wars_native.linux.x86_64.so"

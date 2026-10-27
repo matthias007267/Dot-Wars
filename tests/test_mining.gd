@@ -31,8 +31,8 @@ func test_material_hardness_values() -> void:
 	check_eq(Materials.hardness(Materials.HARD), 8, "hart")
 	var config := SimConfig.new()
 	check_eq(config.seconds_for_hardness(1), 1.0, "Härte 1 dauert 1 Sekunde")
-	check_eq(config.seconds_for_hardness(3), 3.0, "Härte 3 dauert 3 Sekunden")
-	check_eq(config.seconds_for_hardness(8), 8.0, "Härte 8 dauert 8 Sekunden")
+	check_eq(config.seconds_for_hardness(3), 4.0, "Erzhärte 3 dauert 4 Sekunden")
+	check_eq(config.seconds_for_hardness(8), 128.0, "Erzhärte 8 dauert 128 Sekunden")
 	check_eq(Materials.durability(Materials.HARD, config.work_per_hardness), 160, "8 × 20 Punkte")
 
 

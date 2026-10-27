@@ -28,6 +28,7 @@ Zielplattform bleibt Windows/Steam. Deterministische Simulation, Trennung von Si
 - **W04 – Verbindlich:** Es gibt unzerstörbare Felsen und natürliche Höhlen.
 - **W05 – Verbindlich:** Versteckte gegnerische Außenposten werden ausschließlich durch Erkundung gefunden. Eine globale Gegner- oder Gebäudeliste darf ihren Standort nicht vorweg verraten.
 - **W06 – Verbindlich:** Verbündete teilen aktuelle Sicht und Erkundung vollständig. Ihre Energiekonten bleiben getrennt. Kontozusammenlegung folgt nicht aus geteilter Sicht.
+- **W07 – Verbindlich, 27. Oktober 2026:** Je Spieler ein Startgebiet mit anfangs getrenntem freien Tunnelnetz. Die Gebiete müssen durch Abbau verbindbar bleiben. Gewöhnliches Gestein, seltenere wertvollere Erzadern und dauerhaftes Obsidian bilden die Karte; Adern dürfen gemischt sein, nicht jede Erzart muss vorhanden sein. Unzerstörbares Material wird niemals als Abbauziel gewählt. Bestätigte vorläufige Werte und Implementierung: [ORE_WORLD.md](ORE_WORLD.md), D-075.
 
 ## Dots und Kampf
 
@@ -59,6 +60,7 @@ Es wird weder ein automatischer Ablauf unfertiger Kernbauten noch eine automatis
 
 - **E01 – Verbindlich:** Abgebaute Energie bewegt sich physisch über freie Wege zu einem eigenen Kern. Fertige eigene Außenposten sind ausdrücklich ebenfalls Empfänger (D-059). Der Bauprototyp routet über freie Wege zu einem nächstgelegenen erreichbaren eigenen Empfangsrand. Endgültige Routingprioritäten bleiben offen.
 - **E02 – Verbindlich:** Gutschrift erfolgt erst bei Ankunft. Abbau oder Abfangen schreibt nicht unmittelbar auf das Energiekonto gut.
+- **E02a – Verbindlich, 27. Oktober 2026:** Ein Energiepunkt entspricht einem physischen Dot. Alle Ressourcen geben ihre Energie bereits während des Abbaus anteilig ab; keine zusammengefassten Wertpakete und keine zusätzliche Abschlusszahlung. Einzelne Punkte werden auf ganze Dots gerundet. Dauer und Energieertrag sind eigenständige Materialwerte (D-075/D-076).
 - **E03 – Verbindlich:** Ohne erreichbaren Empfänger verschwindet Energie nach **60 Sekunden ohne Route**. Der Prototyp nach D-062 konkretisiert dies vorläufig als 1.200 aufeinanderfolgende Simulationstakte ohne Terrainroute zum eigenen Empfänger. Einheitenstau zählt nicht; wieder verfügbare Route setzt zurück. Die angebotenen Timerregeln sind durch D-063 ausdrücklich für die Testfassung bestätigt; endgültiges Balancing bleibt offen. Details in ENERGY_PHASE.md.
 - **E04 – Verbindlich:** Nur Abfanggebäude können gegnerische Energie stehlen. Kontakt mit Dots oder gewöhnlichen Gebäuden genügt nicht.
 - **E05 – Verbindlich:** Energie kann unbegrenzt oft erneut abgefangen werden. Ein einmaliger Diebstahlschutz oder ein maximales Abfanglimit ist nicht beschlossen.
@@ -69,7 +71,7 @@ Neutralisierung, Eigentumswechsel und Pufferung erzeugen keine zusätzliche Ener
 
 ## Fog of War
 
-- **F01 – Verbindlich:** Solide Pixel und Gebäude blockieren die Sicht.
+- **F01 – Verbindlich, präzisiert am 27. Oktober 2026:** Solide Pixel und Gebäude begrenzen die Sicht nach vier Rasterfeldern ab der ersten Barriere, einschließlich der Barriere selbst. Freie Lücken danach setzen die Zählung nicht zurück. Gebäudequellen ignorieren nur ihre eigene Grundfläche; fertige und begonnene Gebäude liefern eigene Sicht und Grundlicht. Unbegonnene Pläne sind keine Aufklärungsquellen. Die normale Sichtweite gilt weiterhin. Details: [FOG_DEPTH.md](FOG_DEPTH.md), D-079.
 - **F02 – Verbindlich:** Gegnerische Dots verschwinden sofort aus der Darstellung, sobald sie außerhalb der aktuellen Sicht liegen. Sie bleiben nicht als letzte bekannte Einheitenposition stehen.
 - **F03 – Verbindlich:** Entdeckte gegnerische Gebäude bleiben im zuletzt bekannten Zustand sichtbar.
 - **F04 – Verbindlich:** Veränderungen außerhalb der Sicht werden erst bei erneuter Erkundung aktualisiert. Dazu gehören insbesondere Gebäudeänderungen und Veränderungen des bekannten Geländes.

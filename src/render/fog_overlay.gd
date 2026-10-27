@@ -10,6 +10,7 @@ var _chunks: Array[Sprite2D] = []
 var _chunk_pixels: Array[PackedByteArray] = []
 var _chunk_floor_pixels: Array[PackedByteArray] = []
 var _chunk_floor_textures: Array[ImageTexture] = []
+var _chunk_id_textures: Array[ImageTexture] = []
 var _chunk_width := 0
 var _chunk_height := 0
 var _chunk_style := true
@@ -24,8 +25,8 @@ var _last_explored := PackedByteArray()
 var _last_terrain := PackedByteArray()
 var _last_floor := PackedByteArray()
 var _last_style := true
-const UNEXPLORED := Color8(8, 10, 17)
-const MEMORY_SHADE := 0.38
+const UNEXPLORED := Color8(0, 0, 0)
+const MEMORY_SHADE := 0.55
 
 func _ready() -> void:
 	texture_filter = TEXTURE_FILTER_NEAREST
@@ -103,6 +104,7 @@ func _update_chunks(dirty: Dictionary) -> void:
 		_chunk_pixels.clear()
 		_chunk_floor_pixels.clear()
 		_chunk_floor_textures.clear()
+		_chunk_id_textures.clear()
 		_chunk_width = cols
 		_chunk_height = rows
 		_chunk_style = cavern_style
@@ -115,6 +117,7 @@ func _update_chunks(dirty: Dictionary) -> void:
 				var effect := ShaderMaterial.new()
 				effect.shader = WorldRenderer.TERRAIN_SHADER
 				effect.set_shader_parameter("stone_floor", WorldRenderer.FLOOR_TEXTURE)
+				effect.set_shader_parameter("ore_tiles", WorldRenderer.ORE_TEXTURE)
 				effect.set_shader_parameter("ambient_multiplier", MEMORY_SHADE)
 				effect.set_shader_parameter("vignette_strength", 0.0)
 				effect.set_shader_parameter("cell_origin", sprite.position)
@@ -124,6 +127,7 @@ func _update_chunks(dirty: Dictionary) -> void:
 				_chunk_pixels.append(PackedByteArray())
 				_chunk_floor_pixels.append(PackedByteArray())
 				_chunk_floor_textures.append(null)
+				_chunk_id_textures.append(null)
 	for index in dirty:
 		var cx: int = index % cols
 		var cy: int = index / cols
@@ -131,10 +135,20 @@ func _update_chunks(dirty: Dictionary) -> void:
 		var ch := mini(CHUNK_SIZE, h - cy * CHUNK_SIZE)
 		var pixels := PackedByteArray()
 		var floor_pixels := PackedByteArray()
+		var id_pixels := PackedByteArray()
 		for y in ch:
 			var start := ((cy * CHUNK_SIZE + y) * w + cx * CHUNK_SIZE) * 4
 			pixels.append_array(_bytes.slice(start, start + cw * 4))
 			floor_pixels.append_array(_floor_bytes.slice(start / 4, start / 4 + cw))
+			id_pixels.append_array(_last_terrain.slice(start / 4, start / 4 + cw))
+		# Building foundations use remembered sites, never hidden live construction.
+		for row in sim.fog.known_sites[faction].values():
+			if row.destroyed: continue
+			var area: Rect2i = row.rect.intersection(Rect2i(cx * CHUNK_SIZE, cy * CHUNK_SIZE, cw, ch))
+			for y in range(area.position.y, area.end.y):
+				for x in range(area.position.x, area.end.x):
+					var cell := (y - cy * CHUNK_SIZE) * cw + x - cx * CHUNK_SIZE
+					if id_pixels[cell] == Materials.INDESTRUCTIBLE: id_pixels[cell] = 254
 		if pixels == _chunk_pixels[index] and floor_pixels == _chunk_floor_pixels[index]: continue
 		_chunk_pixels[index] = pixels
 		_chunk_floor_pixels[index] = floor_pixels
@@ -148,6 +162,11 @@ func _update_chunks(dirty: Dictionary) -> void:
 		if sprite.material is ShaderMaterial:
 			sprite.material.set_shader_parameter("floor_history", _chunk_floor_textures[index])
 			sprite.material.set_shader_parameter("floor_history_enabled", true)
+			var ids := Image.create_from_data(cw, ch, false, Image.FORMAT_R8, id_pixels)
+			if _chunk_id_textures[index] == null: _chunk_id_textures[index] = ImageTexture.create_from_image(ids)
+			else: _chunk_id_textures[index].update(ids)
+			sprite.material.set_shader_parameter("material_ids", _chunk_id_textures[index])
+			sprite.material.set_shader_parameter("material_ids_enabled", true)
 
 func minimap_texture() -> Texture2D:
 	return _minimap_texture

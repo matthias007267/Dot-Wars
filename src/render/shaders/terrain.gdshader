@@ -12,6 +12,9 @@ uniform vec2 cell_origin = vec2(0.0);
 uniform sampler2D stone_floor : source_color, filter_nearest, repeat_enable;
 uniform sampler2D floor_history : filter_nearest, repeat_disable;
 uniform bool floor_history_enabled = false;
+uniform sampler2D ore_tiles : source_color, filter_nearest, repeat_disable;
+uniform sampler2D material_ids : filter_nearest, repeat_disable;
+uniform bool material_ids_enabled = false;
 const vec3 TUNNEL = vec3(22.0, 28.0, 36.0) / 255.0;
 const vec3 SOFT = vec3(87.0, 201.0, 109.0) / 255.0;
 const vec3 MEDIUM = vec3(211.0, 130.0, 44.0) / 255.0;
@@ -39,7 +42,13 @@ void fragment() {
     bool rock = distance(source.rgb, BEDROCK) < 0.10;
     vec3 light = lighting_enabled ? texture(cavern_light, UV).rgb : vec3(0.0);
     vec3 color = source.rgb;
-    if (corridor) {
+    float material_id = material_ids_enabled ? floor(texture(material_ids, UV).r * 255.0 + 0.5) : -1.0;
+    if (material_ids_enabled && (material_id == 1.0 || material_id == 4.0 || (material_id >= 5.0 && material_id <= 12.0))) {
+        float row = material_id == 1.0 ? 0.0 : (material_id == 4.0 ? 9.0 : material_id - 4.0);
+        vec2 local = (floor(fract(world) * 32.0) + 0.5) / 32.0;
+        vec3 art = texture(ore_tiles, vec2(local.x, (row + local.y) / 10.0)).rgb;
+        color = art * 0.64 + light * 0.18;
+    } else if (corridor) {
         // World-aligned, flat slate floor, with a subtle persistent mining tint.
         vec2 floor_uv = floor((world + cell_origin) * 12.0) / 96.0;
         vec3 slate = texture(stone_floor, floor_uv).rgb;

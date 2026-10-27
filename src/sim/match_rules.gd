@@ -745,23 +745,8 @@ func _attack_cell(sim: Simulation, core: int, faction: int) -> int:
 
 
 func _base_origins(size: int, count: int) -> Array[Vector2i]:
-	# Kernzentren liegen symmetrisch mindestens ein Fünftel der Weltbreite vom Rand.
-	# Auch auf 32×32 bleiben zwischen Lichtung und Kartenrand mindestens sieben Zellen.
-	var inset := maxi(WorldGenerator.START_CLEARING_RADIUS + 7, size / 5)
-	if size == 32 and count == 4: inset = 8
-	var mid := size / 2
-	# _carve_base platziert den Kern jeweils eine Zelle rechts/unten vom Ursprung.
-	var spots: Array[Vector2i] = [
-		Vector2i(inset - 1, mid - 1),
-		Vector2i(size - 2 - inset, mid - 1),
-		Vector2i(mid - 1, inset - 1),
-		Vector2i(mid - 1, size - 2 - inset),
-	]
 	var result: Array[Vector2i] = []
-	if count > spots.size():
-		return result
-	for index in count:
-		result.append(spots[index])
+	for center in CavernGenerator.match_centers(size, count): result.append(center - Vector2i.ONE)
 	return result
 
 

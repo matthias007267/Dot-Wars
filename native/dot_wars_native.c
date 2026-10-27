@@ -117,7 +117,7 @@ static void search_call(void *data, void *instance, const void *const *args, int
             int32_t next=neighbor(c,d,w,(int32_t)n); if(next<0) continue;
             budget--;
             if(target<0) {
-                if(cells[next]>=1 && cells[next]<=3 && mask[next]==1 && next!=ban) {
+                if(cells[next]>=1 && cells[next]<=12 && cells[next]!=4 && mask[next]==1 && next!=ban) {
                     Value key; int64_t raw=faction*16777216+next; from_int(&key,&raw);
                     GDExtensionBool valid=0; int claimed=has_key(args[4],&key,&valid); variant_destroy(&key);
                     if(valid && !claimed) { result=next; goto cleanup; }
@@ -305,7 +305,7 @@ static void initialize(void *data,GDExtensionInitializationLevel level) {
     bind_method("energy_next",energy_call,energy_types,5,I);
     bind_method("army_step",army_call,army_types,5,GDEXTENSION_VARIANT_TYPE_ARRAY);
     bind_method("army_step_cached",army_cached_call,army_types,5,GDEXTENSION_VARIANT_TYPE_ARRAY);
-    bind_method("fog_visible",fog_call,fog_types,4,GDEXTENSION_VARIANT_TYPE_ARRAY);
+    bind_method("fog_visible_depth",fog_call,fog_types,4,GDEXTENSION_VARIANT_TYPE_ARRAY);
     bind_method("army_route_stats",army_route_stats_call,NULL,0,GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY);
     bind_method("trace_window",window_probe_call,window_probe_types,2,GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY);
     bind_method("device_change_guard",device_guard_call,window_probe_types,2,GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY);

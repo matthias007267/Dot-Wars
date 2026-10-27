@@ -99,6 +99,25 @@ var _selection_caption: Label
 var _selection_detail: Label
 var _selection_cards: Array[TextureRect] = []
 var _unit_icons: Array[Texture2D] = []
+var _warrior_value: Label
+var _top_menu: PanelContainer
+var _tasks_row: HBoxContainer
+var _context_jobs: HBoxContainer
+var _task_icons: Array[HudTaskIcon] = []
+var _context_icons: Array[HudTaskIcon] = []
+var _team_rows: VBoxContainer
+var _team_labels: Array[Label] = []
+var _orders_panel: PanelContainer
+var _orders_rows: VBoxContainer
+var _action_caption: Label
+var _action_hint: Label
+var _info_title: Label
+var _info_description: Label
+var _hovered_action: Control
+var _context_buttons: Dictionary = {}
+var _own_jobs: Array[Dictionary] = []
+var _orders_signature := 0
+var _order_buttons: Array[Button] = []
 
 var _last_size_style := -1
 var _last_mine_area := Rect2i()
@@ -130,6 +149,8 @@ func _resize_hud() -> void:
 	var factor := clampf(minf(screen.x / 1920.0, screen.y / 1080.0), 0.5, 1.5)
 	_hud_root.scale = Vector2.ONE * factor
 	_hud_root.size = screen / factor
+	if _bottom_strip != null:
+		_bottom_strip.offset_right = minf(1120, _hud_root.size.x - 354)
 
 func select_in_rect(rect: Rect2i) -> void:
 	if sim == null:
@@ -155,10 +176,13 @@ func select_at(cell: int) -> void:
 	if cell < 0 or cell >= sim.world.cell_count():
 		_set_selection(PackedInt32Array())
 		return
-	var site: int = sim.construction.at(cell) if not _match_live() or sim.fog.is_visible(0, cell) else -1
+	# Own placed sites are already known, including plans awaiting the next fog tick.
+	# Foreign sites still pass through the visibility guard below.
+	var site: int = sim.construction.at(cell)
 	if site >= 0 and sim.construction.sites.records[site].owner == 0:
 		sim.construction.selected = site
 		_notice("Standort gewählt. Rechtsklick mit Arbeitern: bauen bzw. reparieren. Abbruch nur bei Baustellen.")
+		if _buy_worker_button != null: refresh()
 		return
 	if _match_live() and not sim.fog.is_visible(0, cell):
 		_set_selection(PackedInt32Array())
@@ -336,12 +360,18 @@ func refresh() -> void:
 	var energy := sim.upgrades.energy
 	var mined := sim.world.mined_fraction()
 	var percent := clampi(int(round(mined * 100.0)), 0, 100)
-	var transit := sim.energy_dots.pending_owned(0) if _match_live() else sim.energy_dots.pending()
+	var transit := sim.energy_dots.pending_owned(0)
+	var living_workers := sim.worker_population() - sim.spawner.pending()
+	var living_warriors := sim.army.owners.count(0)
+	var warrior_population := sim.army.population(0)
 
-	_mass_value.text = str(mass)
-	_energy_value.text = "%d (+%d)" % [energy, transit]
-	var ledger := sim.energy_dots.ledger()
-	_energy_value.tooltip_text = "Erzeugt %d = geliefert %d + verfallen %d + unterwegs %d. Davon Puffer %d, neutral %d; Abfangvorgänge %d." % [ledger.generated, ledger.delivered, ledger.expired, ledger.pending, ledger.buffered, ledger.neutral, ledger.captures]
+	_mass_value.text = str(living_workers)
+	_mass_value.tooltip_text = "%d Arbeiter im Feld · %d bezahlt und wartend · Limit 50 einschließlich Warteschlange." % [living_workers, sim.spawner.pending()]
+	_energy_value.text = _grouped(energy)
+	_energy_value.tooltip_text = "%d verfügbare Energie · %d eigene Energiepunkte unterwegs. Nur gelieferte Energie ist ausgebbar." % [energy, transit]
+	if _warrior_value != null:
+		_warrior_value.text = _grouped(living_warriors)
+		_warrior_value.tooltip_text = "%d Krieger im Feld · %d bezahlt in Produktion." % [living_warriors, warrior_population - living_warriors]
 	if _opponent_value != null:
 		_opponent_value.visible = _match_live()
 		_opponent_value.text = "Gegner: unbekannt" if _match_live() else "Gegner  %d" % sim.opponent_mass()
@@ -383,7 +413,7 @@ func refresh() -> void:
 	if _buy_warrior_button != null:
 		_buy_warrior_button.disabled = sim.upgrades.energy < ArmyState.COST or sim.construction.production_site(0, _production_site()) < 0
 		_buy_warrior_button.text = "KRIEGER
-%d · %d E" % [sim.army.population(0), ArmyState.COST]
+%d · %d E" % [warrior_population, ArmyState.COST]
 
 	_refresh_build_actions()
 	_refresh_selection()
@@ -393,6 +423,7 @@ func refresh() -> void:
 			_upgrade_buttons[i].disabled = true
 			_upgrade_buttons[i].tooltip_text = "Historischer Kernflächenausbau gilt nur für alte Ein-Zellen-Kerne."
 	_refresh_test_lab()
+	_refresh_reference_hud()
 	if _perf_overlay != null:
 		_perf_overlay.visible = sim.debug_mode
 		if sim.debug_mode:
@@ -421,73 +452,104 @@ func _build_perf_overlay(layer: Control) -> void:
 func _ensure_bottom(layer: Control) -> void:
 	if _bottom_strip != null: return
 	_bottom_strip = _panel(layer)
-	_bottom_strip.name = "TacticalDock"
-	_bottom_strip.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_bottom_strip.name = "ContextDock"
+	_bottom_strip.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_bottom_strip.offset_left = 10
-	_bottom_strip.offset_right = -10
-	_bottom_strip.offset_top = -236
+	_bottom_strip.offset_right = 1120
+	_bottom_strip.offset_top = -260
 	_bottom_strip.offset_bottom = -10
 	_bottom_row = HBoxContainer.new()
 	_bottom_row.add_theme_constant_override("separation", 8)
 	_bottom_strip.add_child(_bottom_row)
-	_map_slot = _panel(_bottom_row)
-	_map_slot.custom_minimum_size = Vector2(216, 0)
-	_selection_slot = _panel(_bottom_row)
-	_selection_slot.custom_minimum_size = Vector2(282, 0)
 	_actions_slot = _panel(_bottom_row)
-	_actions_slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_stats_slot = _panel(_bottom_row)
-	_stats_slot.custom_minimum_size = Vector2(260, 0)
-	_goals_slot = _panel(_bottom_row)
-	_goals_slot.custom_minimum_size = Vector2(242, 0)
-	var selected := _column(_selection_slot, 7)
-	_selection_caption = _label(selected, "AUSWAHL · KEINE EINHEITEN", 13, UiTheme.ACCENT)
+	_actions_slot.custom_minimum_size.x = 322
+	_selection_slot = _panel(_bottom_row)
+	_selection_slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_stats_slot = _panel(layer)
+	_stats_slot.name = "ResourceBar"
+	_stats_slot.position = Vector2(10, 10)
+	_stats_slot.custom_minimum_size = Vector2(640, 52)
+	_tasks_row = HBoxContainer.new()
+	_tasks_row.position = Vector2(10, 70)
+	_tasks_row.add_theme_constant_override("separation", 5)
+	_tasks_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(_tasks_row)
+	_map_slot = _panel(layer)
+	_map_slot.name = "TeamMinimap"
+	_map_slot.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_map_slot.offset_left = -336
+	_map_slot.offset_right = -10
+	_map_slot.offset_top = -340
+	_map_slot.offset_bottom = -10
+	_goals_slot = _panel(layer)
+	_goals_slot.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_goals_slot.offset_left = -380
+	_goals_slot.offset_right = -10
+	_goals_slot.offset_top = 76
+	_goals_slot.offset_bottom = 350
+	_goals_slot.visible = false
+	_build_top_menu(layer)
+	_build_orders_panel(layer)
+	var info := HBoxContainer.new()
+	info.add_theme_constant_override("separation", 14)
+	_selection_slot.add_child(info)
+	var selected := _column(info, 7)
+	selected.custom_minimum_size.x = 230
+	_selection_caption = _label(selected, "KEINE AUSWAHL", 13, UiTheme.ACCENT)
 	var portraits := HBoxContainer.new()
-	portraits.add_theme_constant_override("separation", 5)
+	portraits.add_theme_constant_override("separation", 4)
 	selected.add_child(portraits)
 	_unit_icons = [TacticalArt.icon("worker"), TacticalArt.icon("warrior")]
 	for i in 7:
 		var card := TextureRect.new()
-		card.custom_minimum_size = Vector2(30, 38)
+		card.custom_minimum_size = Vector2(28, 34)
 		card.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		card.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		card.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		card.modulate = Color(0.25, 0.38, 0.44)
 		portraits.add_child(card)
 		_selection_cards.append(card)
-	_selection_detail = _label(selected, "Linksklick / Ziehen: auswählen
-Rechtsklick: Marschbefehl", 12, UiTheme.MUTED)
+	_selection_detail = _label(selected, "Einheit oder Gebäude auswählen.", 12, UiTheme.MUTED)
 	_selection_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	var controls := HBoxContainer.new()
-	selected.add_child(controls)
-	var pause := _button(controls, "MENÜ", toggle_pause_menu)
-	pause.tooltip_text = "Escape · Pause, Speichern, Laden, Einstellungen"
-	_pause_button = _button(controls, "PAUSE", func() -> void: clock.paused = not clock.paused; refresh())
-	_speed_button = _button(controls, "1×", _cycle_speed)
+	_context_jobs = HBoxContainer.new()
+	_context_jobs.add_theme_constant_override("separation", 4)
+	selected.add_child(_context_jobs)
+	var details := _column(info, 7)
+	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_info_title = _label(details, "AUSWAHL & INFORMATION", 15, UiTheme.ACCENT)
+	_info_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_info_description = _label(details, "Fahre über ein Aktionssymbol, um seine Funktion zu sehen.", 13, UiTheme.TEXT)
+	_info_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_info_description.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_message = _label(details, _opening_hint(), 11, UiTheme.MUTED)
+	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_approach = _label(details, "", 11, UiTheme.ACCENT)
+	_approach.visible = false
+	_opponent_value = _label(details, "", 11, UiTheme.MUTED)
+	_opponent_value.visible = false
+
 
 func _build_stats(layer: Control) -> void:
 	_ensure_bottom(layer)
-	var content := _column(_stats_slot, 4)
-	_label(content, "DOT WARS  /  VERSORGUNG", 13, UiTheme.ACCENT)
-	var mass := _stat_row(content, "Arbeiter", UiTheme.ACCENT, 100)
-	_mass_value = mass[0]
-	_mass_bar = mass[1]
-	var energy := _stat_row(content, "Energie", Color8(0x53, 0xC7, 0xFF), 250)
-	_energy_value = energy[0]
-	_energy_bar = energy[1]
-	var mined := _stat_row(content, "Abbau", Materials.COLORS[Materials.SOFT], 100)
-	_mined_value = mined[0]
-	_mined_bar = mined[1]
-	var kern := _stat_row(content, "Standort", Materials.PIT_COLOR, Upgrades.CORE_MAX)
-	_kern_value = kern[0]
-	_kern_bar = kern[1]
-	_kern_value.custom_minimum_size.x = 78
-	_message = _label(content, _opening_hint(), 11, UiTheme.MUTED)
-	_message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_approach = _label(content, "", 11, UiTheme.ACCENT)
-	_approach.visible = false
-	_opponent_value = _label(content, "", 11, Color("e5866e"))
-	_opponent_value.visible = false
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 22)
+	_stats_slot.add_child(row)
+	_energy_value = _resource_counter(row, "ENERGIE", "energy", Color("70deee"))
+	_mass_value = _resource_counter(row, "ARBEITER", "worker", UiTheme.ACCENT)
+	_warrior_value = _resource_counter(row, "KRIEGER", "warrior", Color("b2c5dc"))
+	# Existing status bindings remain available in the contextual info, not a global bar.
+	_mined_value = _label(_selection_slot, "", 11, UiTheme.MUTED)
+	_mined_value.visible = false
+	_kern_value = Label.new()
+	_kern_value.visible = false
+	_selection_slot.add_child(_kern_value)
+	_mass_bar = ProgressBar.new()
+	_energy_bar = ProgressBar.new()
+	_mined_bar = ProgressBar.new()
+	_kern_bar = ProgressBar.new()
+	for bar in [_mass_bar, _energy_bar, _mined_bar, _kern_bar]:
+		bar.visible = false
+		_selection_slot.add_child(bar)
+
 
 func _build_goals(layer: Control) -> void:
 	_ensure_bottom(layer)
@@ -537,34 +599,30 @@ func _command_button(parent: Node, title: String, kind: String, action: Callable
 
 func _build_dock(layer: Control) -> void:
 	_ensure_bottom(layer)
-	var content := _column(_actions_slot, 5)
-	_label(content, "BAUEN & BEFEHLE", 13, UiTheme.MUTED)
+	var content := _column(_actions_slot, 6)
+	_action_caption = _label(content, "AKTIONEN", 13, UiTheme.ACCENT)
 	var grid := GridContainer.new()
-	grid.columns = 4
+	grid.columns = 3
 	_dock_row = grid
 	grid.add_theme_constant_override("h_separation", 5)
 	grid.add_theme_constant_override("v_separation", 5)
 	content.add_child(grid)
-	_buy_worker_button = _command_button(grid, "ARBEITER
-10 Energie", "worker", _buy_worker)
-	_buy_worker_button.tooltip_text = "10 Energie · gewählter fertiger Kern/Außenposten · maximal 50 je Spieler"
-	_buy_warrior_button = _command_button(grid, "KRIEGER
-20 Energie", "warrior", func() -> void: sim.buy_warrior(0, _production_site()); refresh())
-	_command_button(grid, "KERN
-500 Energie", "core", _begin_settlement.bind(0))
-	_command_button(grid, "AUSSENPOSTEN", "outpost", _begin_settlement.bind(1))
-	_research_center_button = _command_button(grid, "FORSCHUNG
-Zentrum · 300", "research", _begin_settlement.bind(3))
-	_interceptor_button = _command_button(grid, "ABFANGEN
-Station · 250", "interceptor", _begin_settlement.bind(2))
-	_command_button(grid, "LEITUNGEN
-E", "network", toggle_energy_network)
-	_repair_button = _command_button(grid, "REPARIEREN", "repair", _repair_selected)
-	_command_button(grid, "ABRISS
-Q", "demolish", toggle_demolition)
-	_cancel_build_button = _command_button(grid, "BAU ABBRECHEN", "demolish", _cancel_selected)
-	_command_button(grid, "TECHNOLOGIE
-Forschungsbaum", "research_tree", _toggle_upgrades)
+	_buy_worker_button = _context_button(grid, "worker", "ARBEITER\n10 Energie", "worker", _buy_worker)
+	_buy_worker_button.tooltip_text = "10 Energie · Arbeiter am ausgewählten fertigen Kern/Außenposten bestellen. Maximal 50 einschließlich Warteschlange."
+	_buy_warrior_button = _context_button(grid, "warrior", "KRIEGER\n20 Energie", "warrior", func() -> void: sim.buy_warrior(0, _production_site()); refresh())
+	_buy_warrior_button.tooltip_text = "20 Energie · Nahkämpfer am ausgewählten fertigen Kern/Außenposten produzieren."
+	_context_button(grid, "core", "HAUPTKERN\n500 Energie", "core", _begin_settlement.bind(0)).tooltip_text = "Hauptkern bauen: 5×5 Felder, 500 Energie. Ausgewählte Arbeiter errichten den Kern."
+	_context_button(grid, "outpost", "AUSSENPOSTEN", "outpost", _begin_settlement.bind(1)).tooltip_text = "Außenposten bauen. Produziert Einheiten und empfängt Energie; benötigt die entsprechende Forschung."
+	_research_center_button = _context_button(grid, "research", "FORSCHUNG\nZentrum · 300", "research", _begin_settlement.bind(3))
+	_interceptor_button = _context_button(grid, "interceptor", "ABFANGEN\nStation · 250", "interceptor", _begin_settlement.bind(2))
+	_context_button(grid, "network", "LEITUNGEN\nE", "network", toggle_energy_network).tooltip_text = "Energieleitungen ziehen: verbindet eigene Gebäude mit einem Kern oder Außenposten. E beendet das Werkzeug."
+	_repair_button = _context_button(grid, "repair", "REPARIEREN", "repair", _repair_selected)
+	_context_button(grid, "demolish", "ABRISS\nQ", "demolish", toggle_demolition).tooltip_text = "Q: Leitungen sofort entfernen oder Arbeiterabriss eines eigenen Gebäudes beauftragen."
+	_cancel_build_button = _context_button(grid, "cancel", "BAU ABBRECHEN", "demolish", _cancel_selected)
+	_context_button(grid, "technology", "TECHNOLOGIE\nForschungsbaum", "research_tree", _toggle_upgrades).tooltip_text = "Technologien am gewählten Forschungszentrum ansehen und bei erfüllten Voraussetzungen starten."
+	_action_hint = _label(content, "Einheit oder eigenes Gebäude auswählen.", 12, UiTheme.MUTED)
+	_action_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
 
 func _build_upgrade_panel(layer: Control) -> void:
 	var center := CenterContainer.new()
@@ -584,7 +642,7 @@ func _build_upgrade_panel(layer: Control) -> void:
 	var content := _column(_upgrade_panel, 7)
 	var head := HBoxContainer.new()
 	content.add_child(head)
-	var caption := _label(head, "FÄHIGKEITEN", 16, UiTheme.ACCENT)
+	var caption := _label(head, "FORSCHUNG", 16, UiTheme.ACCENT)
 	caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_button(head, "SCHLIESSEN", _toggle_upgrades)
 	_label(content, "FORSCHUNGSBAUM · Zentrum auf der Karte auswählen", 13, UiTheme.ACCENT)
@@ -603,10 +661,7 @@ func _build_upgrade_panel(layer: Control) -> void:
 	for tech in _research_tree_view.buttons:
 		_research_tech_ids.append(tech)
 		_research_tech_buttons.append(_research_tree_view.buttons[tech])
-	_label(content, "FORSCHUNGSGEBÄUDE", 12, UiTheme.MUTED)
 	if _research_center_button == null: _research_center_button = _button(content, "FORSCHUNGSZENTRUM BAUEN · 300", _begin_settlement.bind(3))
-	_label(content, "ENERGIENETZ", 12, UiTheme.MUTED)
-	_label(content, "ENERGIETRANSPORT", 12, UiTheme.MUTED)
 	if _interceptor_button == null: _interceptor_button = _button(content, "ABFANGSTATION BAUEN · 250", _begin_settlement.bind(2))
 	_build_caption = _label(content, "BAUEN", 12, UiTheme.MUTED)
 	_source_place_button = _build_button(content, _arm_source)
@@ -617,14 +672,19 @@ func _build_upgrade_panel(layer: Control) -> void:
 
 
 func _build_minimap(layer: Control) -> void:
-	if renderer == null or camera == null:
-		return
 	_ensure_bottom(layer)
-	var frame := _map_slot
-	var content := _column(frame, 5)
-	_label(content, "ÜBERSICHT", 12, UiTheme.MUTED)
+	var content := _column(_map_slot, 4)
+	_label(content, "TEAM & KARTE", 12, UiTheme.MUTED)
+	_team_rows = _column(content, 2)
+	for index in 4:
+		var label := _label(_team_rows, "", 12, UiTheme.TEXT)
+		label.tooltip_text = "F = Siegforschungsstufe · R = gehaltene Relikte · H = Hügelfortschritt. Angezeigt werden die aktivierten Siegziele."
+		label.visible = false
+		_team_labels.append(label)
+	if renderer == null or camera == null: return
 	_map = WorldMinimap.new()
-	_map.custom_minimum_size = Vector2(192, 168)
+	_map.custom_minimum_size = Vector2(280, 210)
+	_map.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_map.world = sim.world
 	_map.renderer = renderer
 	_map.fog_view = fog_view
@@ -648,6 +708,224 @@ func _stat_row(parent: Node, title: String, color: Color, maximum: float) -> Arr
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value.custom_minimum_size.x = 53
 	return [value, bar]
+
+func _resource_counter(parent: Node, title: String, kind: String, color: Color) -> Label:
+	var row := HBoxContainer.new()
+	row.custom_minimum_size.x = 175
+	row.add_theme_constant_override("separation", 9)
+	parent.add_child(row)
+	var icon := TextureRect.new()
+	if kind == "energy":
+		var pixel := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+		pixel.fill(MatchRules.FACTION_COLORS[0])
+		icon.texture = ImageTexture.create_from_image(pixel)
+		var effect := ShaderMaterial.new()
+		effect.shader = EnergyRenderer.DOT_GLOW_SHADER
+		icon.material = effect
+	else: icon.texture = TacticalArt.icon(kind)
+	icon.custom_minimum_size = Vector2(32, 32)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	row.add_child(icon)
+	var column := _column(row, 0)
+	_label(column, title, 10, UiTheme.MUTED)
+	return _label(column, "0", 22, color)
+
+func _build_top_menu(layer: Control) -> void:
+	_top_menu = _panel(layer)
+	_top_menu.name = "TopMenu"
+	_top_menu.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_top_menu.offset_left = -570
+	_top_menu.offset_right = -10
+	_top_menu.offset_top = 10
+	_top_menu.offset_bottom = 64
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 5)
+	_top_menu.add_child(row)
+	_button(row, "MENÜ", toggle_pause_menu).tooltip_text = "Escape · Einstellungen, Lautstärke, Speichern, Laden und Spiel verlassen."
+	_button(row, "AUFTRÄGE", _toggle_orders).tooltip_text = "Alle eigenen Forschungs-, Bau- und Produktionsaufträge ansehen."
+	_button(row, "ZIELE", _toggle_goals).tooltip_text = "Aktivierte Siegziele und eigenen Fortschritt ansehen."
+	_button(row, "TECHNIK", _toggle_upgrades).tooltip_text = "Forschungsbaum ansehen. Zum Starten einer Technologie ein eigenes Zentrum wählen."
+	_pause_button = _button(row, "PAUSE", func() -> void: clock.paused = not clock.paused; refresh())
+	_speed_button = _button(row, "1×", _cycle_speed)
+
+func _build_orders_panel(layer: Control) -> void:
+	_orders_panel = _panel(layer)
+	_orders_panel.name = "OwnOrders"
+	_orders_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_orders_panel.offset_left = -490
+	_orders_panel.offset_right = -10
+	_orders_panel.offset_top = 76
+	_orders_panel.offset_bottom = 468
+	_orders_panel.visible = false
+	var content := _column(_orders_panel, 8)
+	_label(content, "EIGENE AUFTRÄGE", 16, UiTheme.ACCENT)
+	_label(content, "Anklicken: Standort auswählen und Kamera zentrieren.", 11, UiTheme.MUTED)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(440, 290)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_child(scroll)
+	_orders_rows = _column(scroll, 5)
+	_orders_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+func _toggle_orders() -> void:
+	_orders_panel.visible = not _orders_panel.visible
+	_goals_slot.visible = false
+	_refresh_reference_hud()
+
+func _toggle_goals() -> void:
+	_goals_slot.visible = not _goals_slot.visible
+	_orders_panel.visible = false
+
+func _context_button(parent: Node, key: String, title: String, kind: String, action: Callable) -> Button:
+	var button := _command_button(parent, title, kind, action)
+	button.custom_minimum_size = Vector2(96, 48)
+	button.add_theme_font_size_override("font_size", 9)
+	button.add_theme_constant_override("icon_max_width", 24)
+	button.focus_mode = Control.FOCUS_ALL
+	_context_buttons[key] = button
+	button.mouse_entered.connect(_show_action_info.bind(button))
+	button.focus_entered.connect(_show_action_info.bind(button))
+	button.mouse_exited.connect(_clear_action_info.bind(button))
+	button.focus_exited.connect(_clear_action_info.bind(button))
+	return button
+
+func _show_action_info(control: Control) -> void:
+	_hovered_action = control
+	_update_action_info()
+
+func _clear_action_info(control: Control) -> void:
+	if _hovered_action == control: _hovered_action = null
+	_update_action_info()
+
+func _update_action_info() -> void:
+	if _info_title == null: return
+	if is_instance_valid(_hovered_action) and _hovered_action.visible:
+		_info_title.text = str(_hovered_action.job.title) if _hovered_action is HudTaskIcon else (_hovered_action as Button).text.replace("\n", " · ")
+		_info_description.text = _hovered_action.tooltip_text
+		if _hovered_action is Button and _hovered_action.disabled: _info_description.text += "\nDerzeit nicht verfügbar."
+		return
+	_hovered_action = null
+	_info_title.text = "AKTION ERKLÄREN"
+	_info_description.text = "Fahre über ein Aktions- oder Auftragssymbol. Hier erscheinen Funktion, Kosten und Voraussetzungen."
+	if _placing_conduit:
+		_info_title.text = "ENERGIENETZ"
+		_info_description.text = "Linke Maustaste halten und Leitungen ziehen. Beim Loslassen wird gebaut. E beendet das Werkzeug."
+	elif _demolition_mode:
+		_info_title.text = "ABRISS"
+		_info_description.text = "Eigene Leitung oder eigenes Gebäude anklicken. Gebäude werden von Arbeitern abgerissen. Q beendet das Werkzeug."
+
+func _focus_hud_job(job: Dictionary) -> void:
+	var site := int(job.site)
+	if site < 0:
+		_toggle_orders()
+		return
+	if not sim.construction.sites.valid(site) or sim.construction.sites.records[site].owner != 0: return
+	sim.construction.selected = site
+	if camera != null:
+		var cell := sim.construction.center(site)
+		camera.focus_world(Vector2(cell % sim.world.width, cell / sim.world.width) + Vector2.ONE * 0.5)
+	refresh()
+
+func _refresh_job_icons(parent: HBoxContainer, icons: Array[HudTaskIcon], items: Array[Dictionary], limit: int) -> void:
+	var shown: Array[Dictionary] = []
+	for index in mini(items.size(), limit):
+		if index == limit - 1 and items.size() > limit:
+			shown.append({"key": "overflow", "site": -1, "icon": "research_tree", "title": "Weitere Aufträge", "count": items.size() - index, "progress": 0.0, "waiting": false, "detail": "%d weitere Aufträge · anklicken für die Gesamtübersicht." % (items.size() - index)})
+		else: shown.append(items[index])
+	var changed := icons.size() != shown.size()
+	if not changed:
+		for index in shown.size():
+			if icons[index].job.key != shown[index].key: changed = true
+	if changed:
+		for child in parent.get_children():
+			parent.remove_child(child)
+			child.queue_free()
+		icons.clear()
+		for value in shown:
+			var icon := HudTaskIcon.new()
+			parent.add_child(icon)
+			icon.pressed.connect(func() -> void: _focus_hud_job(icon.job))
+			icon.mouse_entered.connect(_show_action_info.bind(icon))
+			icon.focus_entered.connect(_show_action_info.bind(icon))
+			icon.mouse_exited.connect(_clear_action_info.bind(icon))
+			icon.focus_exited.connect(_clear_action_info.bind(icon))
+			icons.append(icon)
+	for index in shown.size(): icons[index].update_job(shown[index])
+
+func _refresh_reference_hud() -> void:
+	if sim == null or _tasks_row == null: return
+	_own_jobs = HudOverview.jobs(sim)
+	_refresh_job_icons(_tasks_row, _task_icons, _own_jobs, 10)
+	var site := _production_site()
+	var local_jobs: Array[Dictionary] = []
+	for job in _own_jobs:
+		if site < 0 or int(job.site) == site: local_jobs.append(job)
+	_refresh_job_icons(_context_jobs, _context_icons, local_jobs, 4)
+	if _action_hint != null: _refresh_context_actions(site)
+	if not _team_labels.is_empty():
+		var rows := HudOverview.team_rows(sim)
+		for index in _team_labels.size():
+			_team_labels[index].visible = index < rows.size()
+			if index >= rows.size(): continue
+			var row: Dictionary = rows[index]
+			_team_labels[index].text = "%s  ·  %s" % [row.name, row.score]
+			_team_labels[index].add_theme_color_override("font_color", MatchRules.FACTION_COLORS[int(row.owner)])
+	if _orders_panel.visible:
+		var order_keys: Array = []
+		for job in _own_jobs: order_keys.append(job.key)
+		var signature := hash(order_keys)
+		if signature != _orders_signature or _orders_rows.get_child_count() == 0:
+			_orders_signature = signature
+			for child in _orders_rows.get_children():
+				_orders_rows.remove_child(child)
+				child.queue_free()
+			_order_buttons.clear()
+			if _own_jobs.is_empty(): _label(_orders_rows, "Keine laufenden eigenen Aufträge.", 13, UiTheme.MUTED)
+			for job in _own_jobs:
+				var button := _button(_orders_rows, "", _focus_hud_job.bind(job))
+				button.icon = TacticalArt.icon(str(job.icon))
+				_order_buttons.append(button)
+		for index in _order_buttons.size():
+			var job: Dictionary = _own_jobs[index]
+			_order_buttons[index].text = "%s ×%d · %d %%" % [job.title, job.count, roundi(float(job.progress) * 100.0)]
+			_order_buttons[index].tooltip_text = str(job.detail)
+	_update_action_info()
+
+func _refresh_context_actions(site: int) -> void:
+	var keys: Array = []
+	var workers_selected := 0
+	for id in sim.picked:
+		if id >= 0 and id < sim.workers.count and sim.workers.faction[id] == 0: workers_selected += 1
+	if sim.construction.sites.valid(site):
+		var row: Dictionary = sim.construction.sites.records[site]
+		_action_caption.text = HudOverview.site_name(int(row.kind)).to_upper()
+		_selection_caption.text = "%s #%d" % [HudOverview.site_name(int(row.kind)).to_upper(), site]
+		_selection_detail.text = "%d / %d HP%s" % [row.hp, row.max_hp, " · Bau %d %%" % roundi(100.0 * row.work / maxi(1, int(row.required))) if not row.ready else ""]
+		if not sim.picked.is_empty(): _selection_detail.text += "\n%d Einheiten mitgewählt" % sim.picked.size()
+		_selection_cards[0].texture = TacticalArt.icon(["core", "outpost", "interceptor", "research"][int(row.kind)])
+		_selection_cards[0].visible = true
+		_selection_cards[0].modulate = Color.WHITE
+		if row.ready:
+			if int(row.kind) in [0, 1]: keys.append_array(["worker", "warrior"])
+			if int(row.kind) == 3: keys.append("technology")
+			keys.append_array(["network", "demolish"])
+			if workers_selected > 0 and row.hp < row.max_hp: keys.append("repair")
+		else: keys.append("cancel")
+		_action_hint.text = "Standortproduktion und Baufortschritt rechts."
+	elif workers_selected > 0:
+		keys = ["core", "outpost", "research", "interceptor", "network", "demolish"]
+		_action_caption.text = "ARBEITER · BAUEN"
+		_action_hint.text = "Rechtsklick: Marsch\nStrg + Rechtsziehen: Abbaugebiet"
+	else:
+		_action_caption.text = "KRIEGER · BEFEHLE" if not sim.picked.is_empty() else "AKTIONEN"
+		_action_hint.text = "Rechtsklick: Marsch\nStrg + Rechtsklick: Kampfauftrag" if not sim.picked.is_empty() else "Einheit oder eigenes Gebäude auswählen."
+	for key in _context_buttons:
+		var button: Button = _context_buttons[key]
+		button.visible = keys.has(key)
+		if key == "outpost": button.disabled = not sim.construction.unlocked(sim, 1) or sim.upgrades.energy < sim.construction.price(1, 0)
+		if key == "core": button.disabled = sim.upgrades.energy < sim.construction.price(0, 0) or sim.construction.sites.count(0, 0) > 0
 
 
 func _objective(parent: Node, title: String, color: Color, maximum: float) -> Array:
@@ -1081,6 +1359,7 @@ func _refresh_selection() -> void:
 		_selection_detail.text = "%d Arbeiter  /  %d Krieger\nRechtsklick: Marsch · E: Netz · Q: Abriss" % [workers_selected, warriors_selected]
 		for i in _selection_cards.size():
 			_selection_cards[i].texture = _unit_icons[1 if i >= workers_selected else 0]
+			_selection_cards[i].visible = i < selection.size()
 			_selection_cards[i].modulate = Color.WHITE if i < selection.size() else Color(0.20, 0.32, 0.40)
 	var unit_size := 1
 	for group_id in sim.group_open.size():
@@ -1140,6 +1419,8 @@ func _match_live() -> bool:
 func _set_selection(ids: PackedInt32Array) -> void:
 	selection = ids
 	sim.picked = ids
+	sim.construction.selected = -1
+	if _buy_worker_button != null: refresh()
 
 
 func _party_for(_cell: int, _rect: Rect2i) -> PackedInt32Array:
@@ -1472,7 +1753,7 @@ func _refresh_build_actions() -> void:
 		_research_center_button.tooltip_text = "Forschungszentrum: 3×3, 200 HP, 300 Energie, 300 Arbeitertakte. Von Anfang an baubar; Ein Auftrag pro fertigem Zentrum; Energiezufuhr über Leitungen."
 	if _interceptor_button != null:
 		_interceptor_button.disabled = not sim.construction.unlocked(sim, 2) or sim.upgrades.energy < 250
-		_interceptor_button.tooltip_text = "Test: 3×3, 150 HP, 250 Energie, 300 Arbeitertakte. Abfangen am freien Rand; Freischaltung über Energietransport → Abfangstation."
+		_interceptor_button.tooltip_text = "3×3, 150 HP, 250 Energie, 300 Arbeitertakte. Abfangen am freien Rand; Freischaltung über Energietransport → Abfangstation."
 	if _repair_button == null or _cancel_build_button == null: return
 	var site: int = _production_site()
 	_repair_button.disabled = true
@@ -1481,7 +1762,7 @@ func _refresh_build_actions() -> void:
 	if not sim.construction.sites.valid(site): return
 	var row: Dictionary = sim.construction.sites.records[site]
 	_repair_button.disabled = not row.ready or row.hp >= row.max_hp or selection.is_empty()
-	_repair_button.tooltip_text = "Ausgewählte eigene Arbeiter reparieren am Gebäuderand. Test: bis zu 2 HP für 1 Energie alle 4 Takte je Arbeiter. Ohne Energie wartet der Auftrag."
+	_repair_button.tooltip_text = "Ausgewählte eigene Arbeiter reparieren am Gebäuderand: bis zu 2 HP für 1 Energie alle 4 Takte je Arbeiter. Ohne Energie wartet der Auftrag."
 	_cancel_build_button.disabled = row.ready
 	if not row.ready:
 		var refund := sim.construction.cancel_refund(site)

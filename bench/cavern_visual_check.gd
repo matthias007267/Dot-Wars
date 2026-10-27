@@ -99,7 +99,7 @@ func _run() -> void:
 	game.hud.refresh()
 	check(game.hud._bottom_strip.get_global_rect().position.y > root.size.y * 0.65, "HUD reserved to bottom")
 	check(game.hud._map != null, "minimap integrated")
-	check(game.hud._selection_caption.text.contains(str(selected.size())), "selection portraits bound to actual selection")
+	check(game.hud._selection_detail.text.contains("%d Einheiten mitgewählt" % selected.size()), "selection portraits bound to actual selection")
 	await _capture("overview")
 	game.hud._toggle_upgrades()
 	await _capture("research")

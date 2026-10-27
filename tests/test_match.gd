@@ -194,7 +194,7 @@ func test_match_world_drops_the_old_center_and_splits_mass() -> void:
 	check_eq(sim.rules.relic_cell.size(), 5, "fünf Reliquien")
 	for cell in sim.rules.relic_cell:
 		check_eq(sim.world.cells[cell], Materials.EMPTY, "Reliquie %d ist frei" % cell)
-	check_eq(sim.world.indestructible_count, 50, "zwei Kerne mit je 25 Zellen")
+	check_eq(sim.world.indestructible_count, WorldGenerator.generate(sim.config).indestructible_count + 50, "zwei Kerne mit je 25 Zellen zusätzlich zum Obsidian")
 	check_eq(sim.faction_mass(0), 1, "eigene Masse")
 	check_eq(sim.opponent_mass(), 1, "Masse der KI")
 	check_no_errors(sim.check_invariants(), "Bilanzen")

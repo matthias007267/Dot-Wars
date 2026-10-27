@@ -1,5 +1,7 @@
 # Architektur – Ist-Stand und Konzeptabgleich
 
+Weltauftrag D-075/D-076: `CavernGenerator` erzeugt getrennte Tunnelnetze, ein dauerhaftes Wandgerüst und seltene Erzadern. `WorldState.released` zählt die während des Abbaus freigesetzte Energie; `MiningSystem` zahlt kumulativ und speicherfest aus. Material-IDs wählen einen quadratischen Terrain-Atlas, Fog verwendet nur Fraktionswissen. Die historischen Prototypformeln unten sind dadurch für neue Ressourcen ersetzt. Aktueller Stand: [ORE_WORLD.md](ORE_WORLD.md).
+
 Energiephase D-062: `EnergyStore` enthält parallele Routenverlust-/Puffer-/Freigabefelder und Bilanzzähler; `energy_transport.gd` verbindet exakte gemeinsame Terrainfelder mit stabilen Stationskontakten und gemeinsamer Array-Kompaktion. Gebäudetyp 2 ist Abfangstation und wird aus Produktion/Empfang/Schutz ausgeschlossen. Additive SaveGame-V2-Daten validieren Besitz, Frist, Ort und Station. Details: [ENERGY_PHASE.md](ENERGY_PHASE.md).
 
 Folgephase D-060: `WorkerStore.build_mode` unterscheidet Bau/Reparatur innerhalb des bestehenden Zustands 4; `SettlementStore.paid` erhält den tatsächlich gezahlten Preis für Abbrüche. `ConstructionSystem` enthält Reparatur/Abbruch und die gemeinsame Platzierungs-/Wegeprüfung. `construction_ai.gd` plant deterministisch über gespeicherten Takt und vorhandene Zustände, mit begrenzter Kandidatensuche und ohne neue Nodes/Threads. Additive Version-2-Speicherung; Details in [MAINTENANCE_PHASE.md](MAINTENANCE_PHASE.md).
@@ -50,7 +52,7 @@ docs/             verbindliche Dokumentation
 | `DigAreas` | Rechtecke und Masken je Gruppe |
 | `FlowField` | gemeinsame, budgetierte Zielsuche je Gruppe, plus Laufziel |
 | `MovementSystem` | orthogonale Schritte, native Bewegung normaler Arbeiter und Referenz für größere Einheiten |
-| `MiningSystem` | Zielwahl und Fortschritt an der Zelle; Abschluss erzeugt Energie-Dots nach Härte |
+| `MiningSystem` | Zielwahl, Fortschritt und kumulative anteilige Energieausgabe; Härte, Dauer und Ertrag sind getrennt |
 | `EnergyStore` | Energie-Dots auf dem Weg zum Kern, Arbeiter haben Vorrang |
 | `CoreZone` | freie Fläche um den Kern, Maske und Aushub ohne Abbau |
 | `ArmyState` | Dichte Kriegerdaten, stabile IDs, Produktion, Bewegung, Nahkampf und Verluste |

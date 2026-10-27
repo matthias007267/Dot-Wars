@@ -31,13 +31,13 @@ static func step(e: EnergyStore, world: WorldState, workers: WorkerStore, gates:
 	for id in e.held_by:
 		if id >= 0: buffered[id] = int(buffered.get(id, 0)) + 1
 	var used := {}
-	var moved := PackedInt32Array()
-	# Preserve the existing native single-faction movement path.
-	if factions == 1 and tick % e._pace_of(0, period, periods) == 0:
-		var native := e.NATIVE_SEARCH.backend()
-		if native != null:
-			var result: Variant = native.energy_next(e.cells, world.cells, workers.occupant, e._routed[0], world.width)
-			if result is PackedInt32Array: moved = result
+	var moved_by_owner := {}
+	var native := e.NATIVE_SEARCH.backend()
+	if native != null:
+		for faction in factions:
+			if tick % e._pace_of(faction, period, periods) != 0: continue
+			var result: Variant = native.energy_next(e.cells, world.cells, workers.occupant, e._routed[faction], world.width)
+			if result is PackedInt32Array and result.size() == e.cells.size(): moved_by_owner[faction] = result
 	var gained := 0
 	var delivered_count := 0
 	var write := 0
@@ -92,23 +92,31 @@ static func step(e: EnergyStore, world: WorldState, workers: WorkerStore, gates:
 				continue
 			if owner < e._routed.size():
 				e._dist = e._routed[owner]
-				cell = moved[i] if owner == 0 and moved.size() == original_size else e._next_cell(cell, world, workers)
+				cell = moved_by_owner[owner][i] if moved_by_owner.has(owner) else e._next_cell(cell, world, workers)
 		# Compact every parallel array together. Held energy stays on its actual capture cell.
-		e.cells[write] = cell
-		e.birth[write] = e.birth[i]
-		e.refined[write] = e.refined[i]
-		e.owner[write] = owner
-		e.no_route[write] = age
-		e.held_by[write] = holder
-		e.release_at[write] = release_at
+		if write != i:
+			e.birth[write] = e.birth[i]
+			e.refined[write] = e.refined[i]
+			e.cells[write] = cell
+			e.owner[write] = owner
+			e.no_route[write] = age
+			e.held_by[write] = holder
+			e.release_at[write] = release_at
+		else:
+			if e.cells[i] != cell: e.cells[i] = cell
+			if e.owner[i] != owner: e.owner[i] = owner
+			if e.no_route[i] != age: e.no_route[i] = age
+			if e.held_by[i] != holder: e.held_by[i] = holder
+			if e.release_at[i] != release_at: e.release_at[i] = release_at
 		write += 1
-	e.cells.resize(write)
-	e.birth.resize(write)
-	e.refined.resize(write)
-	e.owner.resize(write)
-	e.no_route.resize(write)
-	e.held_by.resize(write)
-	e.release_at.resize(write)
+	if write < original_size:
+		e.cells.resize(write)
+		e.birth.resize(write)
+		e.refined.resize(write)
+		e.owner.resize(write)
+		e.no_route.resize(write)
+		e.held_by.resize(write)
+		e.release_at.resize(write)
 	e.delivered += delivered_count
 	return gained
 

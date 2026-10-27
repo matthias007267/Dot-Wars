@@ -58,6 +58,8 @@ func test_narrow_tunnel_delivers_every_dot_after_the_worker_steps_aside() -> voi
 	var worker_cell := world.index(block_x, core.y)
 	var pocket := world.index(block_x, core.y + 1)
 	var sim := Simulation.from_world(TestHelpers.default_config(), world, PackedInt32Array([worker_cell]))
+	sim.clear_area(0)
+	sim.set_move_goal(0, worker_cell) # isolate transport from continuous mining payouts
 	var count := 24
 	sim.energy_dots.enqueue(world.index(1, core.y), count)
 	sim.run_ticks(40)

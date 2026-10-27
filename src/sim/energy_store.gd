@@ -54,9 +54,9 @@ func pending() -> int:
 	return cells.size()
 
 
-func enqueue(origin: int, count: int, faction_id: int = 0) -> void:
+func enqueue(origin: int, count: int, faction_id: int = 0, release_cell := -1) -> void:
 	for _i in count:
-		cells.append(origin)
+		cells.append(origin if release_cell < 0 else release_cell)
 		birth.append(origin)
 		refined.append(0)
 		owner.append(faction_id)

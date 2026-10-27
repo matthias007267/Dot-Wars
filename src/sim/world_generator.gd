@@ -1,10 +1,8 @@
 class_name WorldGenerator
 extends RefCounted
-## Reproduzierbare Weltgenerierung mit reiner Ganzzahl-Wertnoise (unabhängig von Engine-Versionen).
-##
-## Die Welt ist ein zusammenhängender Materialkörper. Im Einzelspieler beginnt sie mit
-## einer kompakten, abgerundeten Startlichtung um den unzerstörbaren Energiekern.
-## Ein kleines unzerstörbares Feld daneben macht diesen Materialtyp in der Ansicht sichtbar.
+## Reproduzierbare Ganzzahl-Generierung: freie Tunnel, Gestein, Erzadern und Obsidian.
+## Mehrspieler beginnen in getrennten Tunnelnetzen, die durch Abbau verbindbar bleiben.
+## Die alten Noise-Helfer unten bleiben für bestehende Diagnoseaufrufe verfügbar.
 
 const LARGE_SCALE := 32
 const SMALL_SCALE := 11
@@ -15,22 +13,7 @@ const START_CLEARING_RADIUS := 2
 static func generate(config: SimConfig) -> WorldState:
 	var size := config.world_size
 	var world := WorldState.new(size, size, config.chunk_size, Materials.SOFT)
-	var noise := _noise_field(size, config.world_seed)
-	var thresholds := _thresholds(noise, config.soft_percent, config.soft_percent + config.medium_percent)
-	for idx in size * size:
-		var value := noise[idx]
-		var material := Materials.HARD
-		if value < thresholds[0]:
-			material = Materials.SOFT
-		elif value < thresholds[1]:
-			material = Materials.MEDIUM
-		world.cells[idx] = material
-	# Mehrspieler legt eigene Basen an; Einzelspieler bekommt eine kleine Startlichtung.
-	if config.mode != SimConfig.MODE_MATCH:
-		carve_start_clearing(world, sacrifice_cell(world))
-		_place_unbreakable(world, config.tunnel_arm_length)
-	# Der Rausch schreibt das Array direkt. Die Flächenliste liest danach den fertigen Stand.
-	world.rebuild_faces()
+	CavernGenerator.populate(world, config)
 	return world
 
 
