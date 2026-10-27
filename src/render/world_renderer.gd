@@ -7,6 +7,7 @@ const GRID_MIN_ZOOM := 8.0
 const PIT_GLOW_MIN_ZOOM := 2.5
 const TERRAIN_SHADER := preload("res://src/render/shaders/terrain.gdshader")
 const FLOOR_TEXTURE := preload("res://assets/pixel/cavern_floor.png")
+const ORE_TEXTURE := preload("res://assets/pixel/ore_tiles.png")
 
 ## Reine Darstellungsoptionen, ohne Einfluss auf die Welt oder das HUD.
 @export var world_fx_enabled := true
@@ -46,6 +47,8 @@ var _bytes := PackedByteArray()
 var _image: Image
 var _floor_texture: ImageTexture
 var _floor_stamp := -1
+var _material_texture: ImageTexture
+var _material_stamp := -1
 var _texture: ImageTexture
 var _surface: Sprite2D
 var _energy_overlay: Node2D
@@ -64,6 +67,7 @@ func _ready() -> void:
 		var shader_material := ShaderMaterial.new()
 		shader_material.shader = TERRAIN_SHADER
 		shader_material.set_shader_parameter("stone_floor", FLOOR_TEXTURE)
+		shader_material.set_shader_parameter("ore_tiles", ORE_TEXTURE)
 		shader_material.set_shader_parameter("detail_strength", terrain_detail)
 		shader_material.set_shader_parameter("edge_strength", tunnel_depth)
 		shader_material.set_shader_parameter("vignette_strength", vignette_strength)
@@ -359,6 +363,13 @@ func _upload() -> void:
 		if _surface.material is ShaderMaterial:
 			_surface.material.set_shader_parameter("floor_history", floor_history_texture())
 			_surface.material.set_shader_parameter("floor_history_enabled", true)
+			if _material_texture == null or _material_stamp != world.revision:
+				var ids := Image.create_from_data(world.width, world.height, false, Image.FORMAT_R8, material_id_bytes())
+				if _material_texture == null: _material_texture = ImageTexture.create_from_image(ids)
+				else: _material_texture.update(ids)
+				_material_stamp = world.revision
+			_surface.material.set_shader_parameter("material_ids", _material_texture)
+			_surface.material.set_shader_parameter("material_ids_enabled", true)
 
 func floor_history_texture() -> ImageTexture:
 	# Mining alone changes this mask; progress, units and marker updates reuse it.
@@ -368,6 +379,18 @@ func floor_history_texture() -> ImageTexture:
 		else: _floor_texture.update(image)
 		_floor_stamp = world.mined_count
 	return _floor_texture
+
+func material_id_bytes() -> PackedByteArray:
+	var ids := world.cells.duplicate()
+	if energy_sim != null:
+		for row in energy_sim.construction.sites.records:
+			if row.destroyed: continue
+			var rect: Rect2i = row.rect
+			for y in range(rect.position.y, rect.end.y):
+				for x in range(rect.position.x, rect.end.x):
+					var cell := y * world.width + x
+					if ids[cell] == Materials.INDESTRUCTIBLE: ids[cell] = 254 # foundation, not natural obsidian
+	return ids
 
 
 ## Die Kerne aller Fraktionen leuchten ohne zusaetzliche Nodes oder Lichtquellen.

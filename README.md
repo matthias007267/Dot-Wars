@@ -1,5 +1,7 @@
 # DOT WARS
 
+Neue Weltgenerierung: je Spieler ein getrenntes freies Tunnelnetz, abbaubares Gestein, acht seltene Erzarten und dauerhaftes violettes Obsidian. Energie entsteht bereits während des Abbaus als einzelne Dots; Diamant liefert vorläufig 20.000 Energie bei 128 Sekunden Basisarbeit. Forschung beschleunigt den Abbau. Werte, Grafikprüfung und Speicherregeln: [ORE_WORLD.md](docs/ORE_WORLD.md). Windows-Native-Modul **v10** neu bauen und das Spiel vollständig neu starten.
+
 Dunkler Steinboden für freie Flächen: ursprünglich frei ist leicht kühler, durch Ressourcenabbau freigegraben dezent wärmer. Die Abbauhistorie bleibt gespeichert und erscheint im Nebel nur als zuletzt bekanntes Wissen. Ältere Spielstände kennen noch keine individuelle Abbauhistorie; neuer Abbau wird ab dem Laden markiert. Details: [STONE_FLOOR.md](docs/STONE_FLOOR.md).
 
 Die Grafik verwendet jetzt die bestätigten einfachen Quadrat-Einheiten: Arbeiter mit hellem Kern, Krieger mit dunklem Panzerrahmen und stets sichtbarem Teamrand. Drei verwandte Kriegergrafiken liegen im Katalog; reguläre Partien verwenden den bestehenden Basiskrieger. Die Einheiten drehen sich beim Arbeiten nicht. Weltgrafik und Menüporträts teilen die Assets; Forschungszentren behalten ihre sichtbaren Betriebszustände. Assetformat und Grafikprüfungen: [SPRITE_CATALOG.md](docs/SPRITE_CATALOG.md).
@@ -22,7 +24,7 @@ Bauphase lokal integriert: Arbeiter errichten Kerne und Außenposten, fertige St
 
 Minimalistisches Echtzeit-Strategiespiel mit Godot 4. Die verbindlichen Regeln stehen in `docs/GAME_DESIGN.md`, die Architektur in `docs/ARCHITECTURE.md`, der Phasenstand in `docs/ROADMAP.md`. Agenten arbeiten nach `AGENTS.md`.
 
-`godot --path .` öffnet das Startmenü. „Neues Spiel“ startet die Welt. Das reduzierte HUD zeigt Masse, Energie, Abbaufortschritt und Missionsziele. Farbgruppen werden intern verwaltet und erscheinen nicht mehr als eigene Spielereinstellung. Beim Abbau entstehen ausschließlich Energie-Dots (Härte 1/3/8 → 1/3/8), die zum Energiekern transportiert werden. Nur eingelagerte Energie kann ausgegeben werden.
+`godot --path .` öffnet das Startmenü. „Neues Spiel“ startet die Welt. Das reduzierte HUD zeigt Masse, Energie, Abbaufortschritt und Missionsziele. Farbgruppen werden intern verwaltet und erscheinen nicht mehr als eigene Spielereinstellung. Beim Abbau entstehen ausschließlich Energie-Dots, die zum Energiekern transportiert werden. Härte, Dauer und Ertrag sind getrennte Materialwerte. Nur eingelagerte Energie kann ausgegeben werden.
 
 ## Voraussetzungen
 
@@ -43,7 +45,7 @@ Andere Entwicklungsgröße oder anderer Seed, die Argumente stehen hinter `--`:
 godot --path . -- --size=64 --seed=7
 ```
 
-Die Szene prüft die Konfiguration, zeichnet die Welt und lässt die Arbeiter mit 20 Takten pro Sekunde laufen. Härte 8 dauert in der Simulation 8 Sekunden. Bei einem Fehler beendet sich das Programm mit Code 1.
+Die Szene prüft die Konfiguration, zeichnet die Welt und lässt die Arbeiter mit 20 Takten pro Sekunde laufen. Neue Erze mit Härte 8 benötigen ohne Forschung 128 Sekunden Arbeit eines einzelnen Basis-Arbeiters. Bei einem Fehler beendet sich das Programm mit Code 1.
 
 Steuerung im Fenster:
 

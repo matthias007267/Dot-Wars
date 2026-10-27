@@ -37,16 +37,16 @@ var population_test_mode := false
 var initial_workers: int = 5
 var tunnel_arm_length: int = 5
 
-## Verteilung der Materialien in Prozent (Rest = hartes Material).
+## Legacy-Konfiguration; neue Tunnel-/Erzwelten verwenden CavernGenerator-Intervalle.
 var soft_percent: int = 45
 var medium_percent: int = 35
 
 ## Zielquoten der Gruppen in ganzen Prozent. Summe muss 100 ergeben.
 var group_quotas: PackedInt32Array = PackedInt32Array([50, 50])
 
-## Fortschrittspunkte je Härtestufe.
+## Fortschrittspunkte je Basis-Arbeitseinheit.
 ## 20 Punkte sind eine Arbeitseinheit und damit eine Simulationssekunde.
-## Ein Basis-Arbeiter braucht für Härte 8 deshalb genau 8 Sekunden.
+## Erze benötigen je Härtegrad 1/2/4/8/16/32/64/128 Sekunden vor Forschung.
 var work_per_hardness: int = TICKS_PER_SECOND
 ## Fortschrittspunkte, die ein Arbeiter pro Tick beiträgt.
 var dig_power: int = 1
@@ -84,8 +84,8 @@ func validate() -> PackedStringArray:
 		errors.append("tunnel_arm_length passt nicht in die Welt")
 	if soft_percent < 0 or medium_percent < 0 or soft_percent + medium_percent > 100:
 		errors.append("Materialanteile müssen ≥ 0 sein und höchstens 100 ergeben")
-	if work_per_hardness < 1 or work_per_hardness * 8 > MAX_DURABILITY:
-		errors.append("work_per_hardness ungültig (1 bis %d)" % (MAX_DURABILITY / 8))
+	if work_per_hardness < 1 or work_per_hardness * 128 > MAX_DURABILITY:
+		errors.append("work_per_hardness ungültig (1 bis %d)" % (MAX_DURABILITY / 128))
 	if dig_power < 1:
 		errors.append("dig_power muss mindestens 1 sein")
 	if move_period_ticks < 1:
@@ -100,7 +100,7 @@ func validate() -> PackedStringArray:
 
 ## Sekunden, die ein Arbeiter mit dem gesetzten dig_power für diese Härte braucht.
 func seconds_for_hardness(hardness: int) -> float:
-	return float(hardness * work_per_hardness) / float(dig_power * TICKS_PER_SECOND)
+	return float((1 << (clampi(hardness, 1, 8) - 1)) * work_per_hardness) / float(dig_power * TICKS_PER_SECOND)
 
 
 ## Liest `--size=N` und `--seed=N` aus den Benutzerargumenten (hinter `--`).

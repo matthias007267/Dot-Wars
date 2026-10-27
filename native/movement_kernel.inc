@@ -67,7 +67,7 @@ static void movement_call(void *data,void *instance,const void *const *args,int6
         if(personal>=0) {
             int32_t dest=step[id];
             if(dest==c) {
-                if(personal<n && direction_between(c,personal,(int32_t)width) && cells[personal]>=1 && cells[personal]<=3 && marks[group[id]][personal]==1) { target[id]=personal; state[id]=2; }
+                if(personal<n && direction_between(c,personal,(int32_t)width) && cells[personal]>=1 && cells[personal]<=12 && cells[personal]!=4 && marks[group[id]][personal]==1) { target[id]=personal; state[id]=2; }
                 else state[id]=0;
                 continue;
             }
@@ -77,7 +77,7 @@ static void movement_call(void *data,void *instance,const void *const *args,int6
         }
         if(direction==5) {
             int32_t found=-1;
-            for(int d=0;d<4;d++) { int32_t next=neighbor(c,d,(int32_t)width,(int32_t)n); if(next>=0 && cells[next]>=1 && cells[next]<=3 && marks[group[id]][next]==1) { found=next; break; } }
+            for(int d=0;d<4;d++) { int32_t next=neighbor(c,d,(int32_t)width,(int32_t)n); if(next>=0 && cells[next]>=1 && cells[next]<=12 && cells[next]!=4 && marks[group[id]][next]==1) { found=next; break; } }
             if(found>=0) { target[id]=found; state[id]=2; } else state[id]=0;
             continue;
         }

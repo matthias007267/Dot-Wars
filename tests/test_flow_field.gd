@@ -23,7 +23,7 @@ func _reference_distances(world: WorldState, areas: DigAreas, group: int) -> Dic
 	for rect in areas.rects[group]:
 		for y in range(rect.position.y, rect.end.y):
 			for x in range(rect.position.x, rect.end.x):
-				if world.cells[y * w + x] == Materials.EMPTY:
+				if not Materials.is_mineable(world.cells[y * w + x]):
 					continue
 				for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 					var nx: int = x + d.x

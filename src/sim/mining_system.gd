@@ -62,28 +62,14 @@ static func step(
 	dig_power: int,
 ) -> int:
 	var completed := 0
-	var cells := world.cells
-	var progress := world.progress
-	var state := workers.state
-	var target := workers.target
 	for id in workers.count:
-		if state[id] != WorkerStore.STATE_MINING:
-			continue
-		var cell := target[id]
+		if workers.state[id] != WorkerStore.STATE_MINING: continue
+		var cell := workers.target[id]
 		var mask: PackedByteArray = areas.masks[workers.group[id]]
-		if not Materials.is_mineable(cells[cell]) or mask[cell] == 0:
-			if not acquire_target(workers, world, areas, id):
-				state[id] = WorkerStore.STATE_WAITING
+		if not _can_mine(world.cells, mask, cell):
+			if not acquire_target(workers, world, areas, id): workers.state[id] = WorkerStore.STATE_WAITING
 			continue
-		var total := progress[cell] + dig_power
-		if total >= Materials.durability(cells[cell], work_per_hardness):
-			var hardness := Materials.hardness(cells[cell])
-			if world.mine_cell(cell):
-				energy.enqueue(cell, hardness, int(workers.faction[id]))
-				completed += 1
-		else:
-			progress[cell] = total
-			world.note_progress(cell)
+		if _contribute(world, energy, cell, workers.cell[id], workers.faction[id], dig_power, work_per_hardness): completed += 1
 	return completed
 
 
@@ -190,15 +176,20 @@ static func _apply_power(
 		var scaled: Array = _scale(_read_rem(world, cell), share, dig_level)
 		points = int(scaled[0])
 		_write_rem(world, cell, scaled[1])
-	var current := int(world.progress[cell])
-	var durability := Materials.durability(world.cells[cell], work_per_hardness)
-	if current >= durability or points >= durability - current:
-		var hardness := Materials.hardness(world.cells[cell])
-		if world.mine_cell(cell):
-			energy.enqueue(cell, hardness, int(workers.faction[id]))
-			return true
-		return false
-	world.progress[cell] = current + points
+	return _contribute(world, energy, cell, workers.cell[id], workers.faction[id], points, work_per_hardness)
+
+static func _contribute(world: WorldState, energy: EnergyStore, cell: int, release_cell: int, faction: int, points: int, work_per_hardness: int) -> bool:
+	var material := int(world.cells[cell])
+	var durability := Materials.durability(material, work_per_hardness)
+	var next := mini(durability, world.progress[cell] + points)
+	# Integer entitlement is monotonic and exact, including multiple miners and reloads.
+	var entitled: int = (next * Materials.energy(material) * 2 + durability) / (durability * 2)
+	var due := maxi(0, entitled - world.released[cell])
+	if due > 0:
+		energy.enqueue(cell, due, faction, release_cell)
+		world.released[cell] += due
+	if next >= durability: return world.mine_cell(cell)
+	world.progress[cell] = next
 	world.note_progress(cell)
 	return false
 

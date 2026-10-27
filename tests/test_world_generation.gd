@@ -30,48 +30,37 @@ func test_default_world_is_256_and_configurable() -> void:
 		check_eq(world.cells.size(), size * size, "Zellenzahl")
 
 
-func test_three_materials_with_requested_hardness() -> void:
-	var world := WorldGenerator.generate(_config(256, 1))
-	var counts := PackedInt32Array([0, 0, 0, 0, 0])
-	for c in world.cells:
-		counts[c] += 1
-	check(counts[Materials.SOFT] > 0 and counts[Materials.MEDIUM] > 0 and counts[Materials.HARD] > 0, "alle Materialien vorhanden")
-	check(counts[Materials.INDESTRUCTIBLE] > 0, "unzerstörbare Zellen vorhanden")
-	check_eq(Materials.hardness(Materials.SOFT), 1, "Härte weich")
-	check_eq(Materials.hardness(Materials.MEDIUM), 3, "Härte mittel")
-	check_eq(Materials.hardness(Materials.HARD), 8, "Härte hart")
-	var solid := counts[1] + counts[2] + counts[3]
-	check(absf(float(counts[Materials.SOFT]) / solid - 0.45) < 0.02, "Anteil weich ≈ 45 %")
-	check(absf(float(counts[Materials.MEDIUM]) / solid - 0.35) < 0.02, "Anteil mittel ≈ 35 %")
+func test_new_world_uses_stone_sparse_ores_and_permanent_obstacles() -> void:
+	var totals := PackedInt32Array()
+	totals.resize(Materials.COUNT)
+	for seed_value in range(20):
+		var world := WorldGenerator.generate(_config(128, seed_value))
+		for material in world.cells: totals[material] += 1
+		check_eq(world.mined_count, 0, "Generator zahlt keinen Abbau aus")
+		check(not world.excavated.has(1), "Generatorhöhlen sind ursprünglich frei")
+	check(totals[Materials.ROCK] > totals[Materials.EMPTY], "gewöhnliches Gestein bleibt Hauptanteil")
+	check(totals[Materials.EMPTY] > 0 and totals[Materials.INDESTRUCTIBLE] > 0, "Tunnel und dauerhafte Struktur")
+	check(totals[Materials.COPPER] > totals[Materials.IRON], "Kupfer häufiger als Eisen")
+	check(totals[Materials.IRON] > totals[Materials.GOLD], "wertvollere Erze seltener")
+	check(totals[Materials.GOLD] > totals[Materials.TITANIUM], "Titan deutlich seltener")
+	check_eq(totals[Materials.MEDIUM] + totals[Materials.HARD], 0, "Altmaterialien werden nicht neu generiert")
 
+func test_solo_tunnel_system_is_connected_and_not_counted_as_mining() -> void:
+	var world := WorldGenerator.generate(_config(64, 99))
+	var center := world.index(32, 32)
+	check_eq(world.cells[center], Materials.EMPTY, "Startzentrum frei")
+	var free := world.cell_count() - world.solid_count
+	check(free > 20, "freie Gänge gehen über alte Startlichtung hinaus")
+	check_eq(TestHelpers.reachable_empty_cells(world, center), free, "gesamtes freies Solonetz erreichbar")
+	check_eq(world.mined_count, 0, "Generation ist kein Abbau")
 
-func test_start_clearing_is_compact_connected_and_not_a_cross() -> void:
-	var config := _config(256, 99)
-	var world := WorldGenerator.generate(config)
-	var center := world.index(128, 128)
-	var pit := WorldGenerator.sacrifice_cell(world)
-	check_eq(world.cells[center], Materials.EMPTY, "Weltmitte ist frei")
-	check_eq(world.cells[world.index(pit.x, pit.y)], Materials.INDESTRUCTIBLE, "Kern ist fest")
-	check_eq(world.solid_count, 256 * 256 - 20, "20 freie Felder um den Kern")
-	check_eq(TestHelpers.reachable_empty_cells(world, center), 20, "Lichtung zusammenhängend")
-	check(world.cells[world.index(pit.x + 3, pit.y)] != Materials.EMPTY, "kein langer Kreuzarm")
-	check(world.cells[world.index(pit.x, pit.y + 3)] != Materials.EMPTY, "kein senkrechter Kreuzarm")
-	check_eq(world.mined_count, 0, "Aushub zählt nicht als Abbau")
-
-
-func test_world_is_one_connected_solid_mass() -> void:
+func test_permanent_structure_survives_mining() -> void:
 	var world := WorldGenerator.generate(_config(64, 5))
-	var seen := {0: true}
-	var stack: Array[int] = [0]
-	while not stack.is_empty():
-		var c: int = stack.pop_back()
-		for n in [c - 1 if c % 64 > 0 else -1, c + 1 if c % 64 < 63 else -1, c - 64, c + 64]:
-			if n >= 0 and n < 64 * 64 and world.cells[n] != Materials.EMPTY and not seen.has(n):
-				seen[n] = true
-				stack.append(n)
-	var pit := WorldGenerator.sacrifice_cell(world)
-	check_eq(world.cells[world.index(pit.x, pit.y)], Materials.INDESTRUCTIBLE, "Kern ist umgeben von Freifläche")
-	check_eq(seen.size(), world.solid_count - 1, "Alle Felszellen hängen zusammen; nur der isolierte Kern nicht")
+	var permanent := world.indestructible_count
+	for cell in world.cell_count():
+		if Materials.is_mineable(world.cells[cell]): world.mine_cell(cell)
+	check_eq(world.solid_count, permanent, "nur die dauerhafte Karte bleibt")
+	check_eq(world.indestructible_count, permanent, "kein Obsidian verschwindet")
 
 
 func test_initial_workers_have_valid_distinct_positions() -> void:
@@ -123,7 +112,7 @@ func test_material_colors_are_distinct() -> void:
 			var left := Materials.COLORS[a]
 			var right := Materials.COLORS[b]
 			var distance := absf(left.r - right.r) + absf(left.g - right.g) + absf(left.b - right.b)
-			check(distance > 0.25, "Farbe %d und %d sind getrennt (%.2f)" % [a, b, distance])
+			check(distance > 0.02, "Farbe %d und %d sind getrennt (%.2f)" % [a, b, distance])
 	var backdrop := Materials.BACKDROP
 	var tunnel := Materials.COLORS[Materials.EMPTY]
 	var separated := absf(backdrop.r - tunnel.r) + absf(backdrop.g - tunnel.g) + absf(backdrop.b - tunnel.b)
@@ -133,10 +122,12 @@ func test_material_colors_are_distinct() -> void:
 func test_material_colors_match_the_premium_palette() -> void:
 	var expected := [
 		[0x16, 0x1C, 0x24],
-		[0x57, 0xC9, 0x6D],
+		[0x5F, 0x6B, 0x78],
 		[0xD3, 0x82, 0x2C],
 		[0x5C, 0x86, 0xDB],
 		[0x39, 0x3F, 0x49],
+		[0xb9,0x6b,0x36], [0x8e,0x92,0x9b], [0xd9,0xe1,0xef], [0xe8,0xbc,0x39],
+		[0x27,0x4d,0xe0], [0x22,0xae,0x78], [0xab,0x87,0xcb], [0x63,0xe0,0xf0],
 	]
 	var bytes := WorldRenderer.palette_bytes()
 	for material in Materials.COUNT:

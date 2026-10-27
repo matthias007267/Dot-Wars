@@ -137,3 +137,24 @@ jobs:
             /tmp/floor-visual.log
             /tmp/floor-comparison.png
           if-no-files-found: ignore
+
+      - name: Erzadern, Tunnel und Energiefluss prüfen
+        run: |
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1920x1080x24" timeout 90s godot --audio-driver Dummy --path . -s bench/ore_world_check.gd 2>&1 | tee /tmp/ore-visual.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|SHADER ERROR|Shader compilation failed|shader_compiler.cpp" /tmp/ore-visual.log; then
+            exit 1
+          fi
+          grep -q "ORE SUMMARY: 0 failures" /tmp/ore-visual.log
+
+      - name: Erz- und Karten-Grafiknachweise
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ore-visual-check
+          path: |
+            /tmp/ore-visual.log
+            /tmp/ore-catalog.png
+            /tmp/ore-map-overview.png
+            /tmp/ore-map-detail.png
+            /tmp/ore-diamond-flow.png
+          if-no-files-found: ignore

@@ -70,7 +70,7 @@ static func snapshot(sim: Simulation) -> Dictionary:
 		"march_cell": sim.march_cell,
 		"cells": sim.world.cells.duplicate(),
 		"excavated": sim.world.excavated.duplicate(),
-		"progress": sim.world.progress.duplicate(),
+		"progress": sim.world.progress.duplicate(), "mining_released": sim.world.released.duplicate(),
 		"progress_frac": sim.world.progress_frac.duplicate(),
 		"progress_frac_high": _export_frac_high(sim.world),
 		"mined": sim.world.mined_count,
@@ -93,7 +93,7 @@ static func snapshot(sim: Simulation) -> Dictionary:
 		"research_level": sim.upgrades.research_level,
 		"swarm_level": sim.upgrades.swarm_level,
 		"match": sim.rules.export_state(),
-		"move_period": sim.config.move_period_ticks,
+		"move_period": sim.config.move_period_ticks, "work_per_hardness": sim.config.work_per_hardness, "dig_power": sim.config.dig_power,
 		"quotas_config": sim.config.group_quotas.duplicate(),
 	}
 
@@ -162,6 +162,8 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 	config.world_seed = int(data.get("seed", 1))
 	config.initial_workers = 1
 	config.move_period_ticks = int(data.get("move_period", 2))
+	config.work_per_hardness = int(data.get("work_per_hardness", 20))
+	config.dig_power = int(data.get("dig_power", 1))
 	config.mode = int(data.get("mode", SimConfig.MODE_CLEARING))
 	config.ai_count = int(data.get("ai_count", 0))
 	config.victory_mask = int(data.get("victory_mask", MatchRules.VICTORY_ALL))
@@ -175,15 +177,29 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 	for flag in excavated:
 		if flag > 1: return null
 	world.excavated = excavated.duplicate()
+	var released = data.get("mining_released", world.released)
+	if not released is PackedInt32Array or released.size() != cells.size(): return null
+	for idx in cells.size():
+		if cells[idx] >= Materials.COUNT or released[idx] < 0 or released[idx] > Materials.energy(cells[idx]): return null
 	var progress: PackedInt32Array = data.get("progress", PackedInt32Array())
 	var frac: PackedInt32Array = data.get("progress_frac", PackedInt32Array())
 	if progress.size() != cells.size() or frac.size() != cells.size():
 		return null
 	for idx in cells.size():
+		if progress[idx] < 0: return null
+		if Materials.is_mineable(cells[idx]):
+			var duration := Materials.durability(cells[idx], config.work_per_hardness)
+			if progress[idx] >= duration: return null
+			var entitlement: int = (progress[idx] * Materials.energy(cells[idx]) * 2 + duration) / (duration * 2)
+			if released[idx] > entitlement: return null
+		else:
+			if progress[idx] != 0 or released[idx] != 0: return null
+		if cells[idx] >= Materials.COPPER and not data.has("mining_released"): return null
 		if cells[idx] != Materials.EMPTY:
 			world.set_material(idx, cells[idx])
 		world.progress[idx] = progress[idx]
 		world.progress_frac[idx] = frac[idx]
+	world.released = released.duplicate()
 	if not _restore_frac_high(world, data.get("progress_frac_high", [])):
 		return null
 	world.mined_count = int(data.get("mined", 0))

@@ -1,5 +1,9 @@
 # Regeln für Agenten
 
+## Neuester Auftrag: Erzadern, getrennte Tunnelnetze und laufender Energiefluss
+
+Der Nutzer übernimmt die quadratischen Erzdesigns und beauftragt ausdrücklich den Weltumbau: Startgebiet je Spieler, anfangs getrennte freie Tunnelnetze, gewöhnliches Gestein, seltenere wertvollere gemischte Erzadern und dauerhaftes, klar unterscheidbares Obsidian. Abbau muss alle Startregionen verbinden können; Obsidian darf kein Abbauziel sein. Bestätigte vorläufige Erträge Kupfer bis Diamant: 3/8/25/80/250/800/4.000/20.000, Gestein zusätzlich 1. Erzhärten 1–8 brauchen vor Forschung 1/2/4/8/16/32/64/128 Sekunden. Alle Ressourcen bleiben abbaubar. Ein Energiepunkt pro Dot, anteilige Freisetzung während der Arbeit statt Abschlusszahlung. Neuer Branch `feat/ore-veins-world` baut auf dem noch offenen Boden-PR #12 auf; Review-PR gegen main enthält diese Abhängigkeit. Kein automatischer Merge. Regeln, Speicherung, Native-v10-Neustart und Nachweise: `docs/ORE_WORLD.md`, D-075/D-076. Diese ausdrückliche Freigabe ersetzt ältere Aussagen, Weltumbau sei noch nicht beauftragt.
+
 ## Neuester Auftrag: Steinboden und sichtbare Abbauhistorie
 
 Der Nutzer möchte den generierten dunklen Steinhintergrund als Boden freier Zellen übernehmen und anfangs freie von abgebauten Flächen dezent farblich unterscheiden. Neuer Branch/PR auf `cfd2df3` nach Merge von #11 und D-071–D-073. Die bestehenden Performance-Pfade bleiben erhalten. Nur optische Historie, additive Speicherung und sichtgefiltertes Bodengedächtnis; keine Änderung von Rohstoffen, Bilanz, Bewegung oder Weltgenerierung. Regeln/Altstandgrenze und Prüfungen: `docs/STONE_FLOOR.md`, D-074. Kein automatischer Merge dieses Folgeauftrags.

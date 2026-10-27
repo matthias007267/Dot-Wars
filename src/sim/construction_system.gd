@@ -33,9 +33,12 @@ func initial(sim: Simulation, cell: int, owner: int, legacy := false) -> int:
 	var rect := Rect2i(pos if legacy else pos - Vector2i(2, 2), Vector2i.ONE if legacy else Vector2i(5, 5))
 	if not sites.rect_inside(rect): return -1
 	if not legacy:
-		for y in range(pos.y - 4, pos.y + 5):
-			for x in range(pos.x - 4, pos.x + 5):
-				if sim.world.in_bounds(x, y): sim.world.set_material(y * sites.width + x, Materials.EMPTY)
+		var radius := 5 if sim.config.initial_workers > 30 and not sim.world.start_regions.is_empty() else 4
+		for y in range(pos.y - radius, pos.y + radius + 1):
+			for x in range(pos.x - radius, pos.x + radius + 1):
+				if not sim.world.in_bounds(x, y): continue
+				if not sim.world.start_regions.is_empty() and not CavernGenerator.region_open(Vector2i(x, y), sim.world.start_regions, owner): continue
+				sim.world.set_material(y * sites.width + x, Materials.EMPTY)
 	var id: int = sites.add(Store.Kind.MAIN_CORE, owner, rect, 600, 600, 600, true)
 	if id >= 0: _ground(sim, rect, Materials.INDESTRUCTIBLE)
 	return id

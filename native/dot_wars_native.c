@@ -117,7 +117,7 @@ static void search_call(void *data, void *instance, const void *const *args, int
             int32_t next=neighbor(c,d,w,(int32_t)n); if(next<0) continue;
             budget--;
             if(target<0) {
-                if(cells[next]>=1 && cells[next]<=3 && mask[next]==1 && next!=ban) {
+                if(cells[next]>=1 && cells[next]<=12 && cells[next]!=4 && mask[next]==1 && next!=ban) {
                     Value key; int64_t raw=faction*16777216+next; from_int(&key,&raw);
                     GDExtensionBool valid=0; int claimed=has_key(args[4],&key,&valid); variant_destroy(&key);
                     if(valid && !claimed) { result=next; goto cleanup; }
