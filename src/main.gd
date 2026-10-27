@@ -9,6 +9,7 @@ const FogView = preload("res://src/render/fog_overlay.gd")
 var fog_view: FogOverlay
 const ArmyView = preload("res://src/render/army_renderer.gd")
 var army_view
+var combat_view: CombatEffects
 var workers_view: WorkerRenderer
 var energy_view: EnergyRenderer
 var camera: CameraController
@@ -142,6 +143,10 @@ func _attach(next: Simulation) -> void:
 	army_view = ArmyView.new()
 	army_view.sim = sim
 	add_child(army_view)
+	combat_view = CombatEffects.new()
+	combat_view.sim = sim
+	combat_view.clock = clock
+	add_child(combat_view)
 	orders = OrderOverlay.new()
 	orders.sim = sim
 	add_child(orders)
@@ -165,13 +170,14 @@ func _attach(next: Simulation) -> void:
 
 
 func _clear_playfield() -> void:
-	for node in [renderer, fog_view, energy_view, workers_view, army_view, orders, camera, hud, _tone]:
+	for node in [renderer, fog_view, energy_view, workers_view, army_view, combat_view, orders, camera, hud, _tone]:
 		if node != null and is_instance_valid(node):
 			node.queue_free()
 	renderer = null
 	fog_view = null
 	workers_view = null
 	army_view = null
+	combat_view = null
 	energy_view = null
 	orders = null
 	camera = null
