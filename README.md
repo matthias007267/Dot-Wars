@@ -1,5 +1,7 @@
 # DOT WARS
 
+Bestätigte Energie-Dots: kleine weiße Lichtquadrate mit Teamrand, cyanfarbenem Innenlicht und dezentem Glow. Im Fernzoom bleibt die Teamfarbe erhalten, gepufferte Energie hat ein bernsteinfarbenes Innenlicht. Entwurf und Grafiknachweise: [ENERGY_DOT_ART.md](docs/ENERGY_DOT_ART.md).
+
 Neue Weltgenerierung: je Spieler ein getrenntes freies Tunnelnetz, abbaubares Gestein, acht seltene Erzarten und dauerhaftes violettes Obsidian. Energie entsteht bereits während des Abbaus als einzelne Dots; Diamant liefert vorläufig 20.000 Energie bei 128 Sekunden Basisarbeit. Forschung beschleunigt den Abbau. Werte, Grafikprüfung und Speicherregeln: [ORE_WORLD.md](docs/ORE_WORLD.md). Windows-Native-Modul **v10** neu bauen und das Spiel vollständig neu starten.
 
 Dunkler Steinboden für freie Flächen: ursprünglich frei ist leicht kühler, durch Ressourcenabbau freigegraben dezent wärmer. Die Abbauhistorie bleibt gespeichert und erscheint im Nebel nur als zuletzt bekanntes Wissen. Ältere Spielstände kennen noch keine individuelle Abbauhistorie; neuer Abbau wird ab dem Laden markiert. Details: [STONE_FLOOR.md](docs/STONE_FLOOR.md).
