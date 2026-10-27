@@ -9,6 +9,9 @@ uniform sampler2D cavern_light : filter_linear, repeat_disable;
 uniform bool lighting_enabled = false;
 uniform float ambient_multiplier = 1.0;
 uniform vec2 cell_origin = vec2(0.0);
+uniform sampler2D stone_floor : source_color, filter_nearest, repeat_enable;
+uniform sampler2D floor_history : filter_nearest, repeat_disable;
+uniform bool floor_history_enabled = false;
 const vec3 TUNNEL = vec3(22.0, 28.0, 36.0) / 255.0;
 const vec3 SOFT = vec3(87.0, 201.0, 109.0) / 255.0;
 const vec3 MEDIUM = vec3(211.0, 130.0, 44.0) / 255.0;
@@ -37,10 +40,12 @@ void fragment() {
     vec3 light = lighting_enabled ? texture(cavern_light, UV).rgb : vec3(0.0);
     vec3 color = source.rgb;
     if (corridor) {
-        color = mix(TUNNEL, vec3(0.17, 0.12, 0.072), detail_strength);
-        color *= 0.65 + seed * 0.22 + grain * 0.23;
-        float grit = step(0.94, grain) * detail_strength;
-        color += vec3(0.045, 0.032, 0.018) * grit;
+        // World-aligned, flat slate floor, with a subtle persistent mining tint.
+        vec2 floor_uv = floor((world + cell_origin) * 12.0) / 96.0;
+        vec3 slate = texture(stone_floor, floor_uv).rgb;
+        float dug = floor_history_enabled ? step(0.5 / 255.0, texture(floor_history, UV).r) : 0.0;
+        vec3 tint = mix(vec3(0.91, 0.99, 1.07), vec3(1.10, 1.01, 0.91), dug);
+        color = mix(TUNNEL, (slate * 0.68 + vec3(0.018)) * tint, detail_strength);
         float wall = 4.0 - is_corridor(texture(TEXTURE, clamp(UV + vec2(TEXTURE_PIXEL_SIZE.x, 0.0), TEXTURE_PIXEL_SIZE * 0.5, vec2(1.0) - TEXTURE_PIXEL_SIZE * 0.5)).rgb) - is_corridor(texture(TEXTURE, clamp(UV - vec2(TEXTURE_PIXEL_SIZE.x, 0.0), TEXTURE_PIXEL_SIZE * 0.5, vec2(1.0) - TEXTURE_PIXEL_SIZE * 0.5)).rgb) - is_corridor(texture(TEXTURE, clamp(UV + vec2(0.0, TEXTURE_PIXEL_SIZE.y), TEXTURE_PIXEL_SIZE * 0.5, vec2(1.0) - TEXTURE_PIXEL_SIZE * 0.5)).rgb) - is_corridor(texture(TEXTURE, clamp(UV - vec2(0.0, TEXTURE_PIXEL_SIZE.y), TEXTURE_PIXEL_SIZE * 0.5, vec2(1.0) - TEXTURE_PIXEL_SIZE * 0.5)).rgb);
         color *= 1.0 - min(wall, 2.0) * 0.12 * edge_strength;
         color += light * 0.38;

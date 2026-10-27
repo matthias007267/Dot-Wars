@@ -1,5 +1,7 @@
 # DOT WARS
 
+Dunkler Steinboden für freie Flächen: ursprünglich frei ist leicht kühler, durch Ressourcenabbau freigegraben dezent wärmer. Die Abbauhistorie bleibt gespeichert und erscheint im Nebel nur als zuletzt bekanntes Wissen. Ältere Spielstände kennen noch keine individuelle Abbauhistorie; neuer Abbau wird ab dem Laden markiert. Details: [STONE_FLOOR.md](docs/STONE_FLOOR.md).
+
 Die Grafik verwendet jetzt die bestätigten einfachen Quadrat-Einheiten: Arbeiter mit hellem Kern, Krieger mit dunklem Panzerrahmen und stets sichtbarem Teamrand. Drei verwandte Kriegergrafiken liegen im Katalog; reguläre Partien verwenden den bestehenden Basiskrieger. Die Einheiten drehen sich beim Arbeiten nicht. Weltgrafik und Menüporträts teilen die Assets; Forschungszentren behalten ihre sichtbaren Betriebszustände. Assetformat und Grafikprüfungen: [SPRITE_CATALOG.md](docs/SPRITE_CATALOG.md).
 
 Erste neue Höhlenoptik: texturierte Stein-/Tunneloberflächen, fraktionsbezogene Lichtfelder, metallische Gebäudesilhouetten, unterscheidbare Dot-Arten und eine gemeinsame untere Bau-/Infoleiste mit Minimap. Diese Darstellung baut auf PR #9 auf und ändert keine Spielregeln. Stand, Grenzen und Grafikprüfungen: [CAVERN_VISUALS.md](docs/CAVERN_VISUALS.md).

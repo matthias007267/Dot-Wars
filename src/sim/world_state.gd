@@ -9,6 +9,8 @@ var chunks_x: int
 var chunks_y: int
 
 var cells := PackedByteArray()
+## Visual mining history, retained under foundations and independent of resources.
+var excavated := PackedByteArray()
 ## Abbaufortschritt je Zelle in Arbeitspunkten (immer kleiner als die Haltbarkeit).
 var progress := PackedInt32Array()
 ## Niederes Glied des Restbruchs, Basis 2^31. Kleiner als der Nenner, solange der Rest hier hineinpasst.
@@ -50,6 +52,7 @@ func _init(p_width: int, p_height: int, p_chunk_size: int = 32, fill_material: i
 	chunks_y = ceili(float(height) / chunk_size)
 	cells.resize(width * height)
 	cells.fill(fill_material)
+	excavated.resize(width * height)
 	progress.resize(width * height)
 	progress.fill(0)
 	progress_frac.resize(width * height)
@@ -116,6 +119,7 @@ func set_material(idx: int, material: int) -> void:
 func mine_cell(idx: int) -> bool:
 	if not Materials.is_mineable(cells[idx]):
 		return false
+	excavated[idx] = 1
 	set_material(idx, Materials.EMPTY)
 	mined_count += 1
 	return true
@@ -286,7 +290,7 @@ func _chunk_index(idx: int) -> int:
 
 
 func state_hash() -> int:
-	var base := hash([hash(cells), hash(progress), hash(progress_frac), mined_count, opened_count, solid_count])
+	var base := hash([hash(cells), hash(excavated), hash(progress), hash(progress_frac), mined_count, opened_count, solid_count])
 	if progress_frac_high.is_empty():
 		return base
 	var keys: Array = progress_frac_high.keys()
