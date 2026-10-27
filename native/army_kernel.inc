@@ -94,7 +94,10 @@ static void army_call_impl(void *data,void *instance,const void *const *args,int
     (void)data; (void)instance;
     if(!validate_args(args,argc,army_types,5,error)) { return_nil(out); return; }
     Value bundle,fields,terrain,wa[13],fa[16]; int wn=0,fn=0,valid=0;
-    ArmyCache *route_cache=NULL; int32_t *occ=NULL,*warrior_damage=NULL,*worker_damage=NULL; ArmyOrder *order=NULL;
+    ArmyCache *route_cache=NULL; int32_t *occ=NULL,*warrior_damage=NULL,*worker_damage=NULL,*positions=NULL; ArmyOrder *order=NULL;
+    /* The slot map persists per instance and is all -1 between calls; only
+     * warrior cells are written and cleared, never a full map pass. */
+    int own_occ=0; int64_t occ_set=0; const int32_t *goals=NULL,*ai=NULL; const uint8_t *owners=NULL;
     const GDExtensionVariantType types[13]={I,I,B,I,I,I,I,I,B,I,I,I,I};
     to_array(&bundle,(void *)args[0]); to_array(&fields,(void *)args[1]); to_bytes(&terrain,(void *)args[2]);
     int64_t n=array_size(size_bytes,&terrain),w64=read_int(args[3]),tick=read_int(args[4]);
@@ -117,23 +120,32 @@ static void army_call_impl(void *data,void *instance,const void *const *args,int
     const int32_t *params=ints_const(&wa[12],0);
     int32_t damage=params[0],attack_period=params[1],move_period=params[2],radius=params[3],scan_period=params[4];
     if(damage<=0 || damage>100000 || attack_period<=0 || move_period<=0 || radius<1 || radius>8 || scan_period<=0 || tick+(int64_t)move_period*n>INT32_MAX || count*damage>INT32_MAX) goto cleanup;
-    const uint8_t *cells=bytes_const(&terrain,0),*owners=count?bytes_const(&wa[2],0):NULL,*worker_owners=worker_count?bytes_const(&wa[8],0):NULL;
-    const int32_t *uids=count?ints_const(&wa[0],0):NULL,*goals=count?ints_const(&wa[3],0):NULL,*workers=ints_const(&wa[7],0),*teams=ints_const(&wa[9],0),*ai=ints_const(&wa[10],0);
+    const uint8_t *cells=bytes_const(&terrain,0),*worker_owners=worker_count?bytes_const(&wa[8],0):NULL;
+    owners=count?bytes_const(&wa[2],0):NULL; goals=count?ints_const(&wa[3],0):NULL; ai=ints_const(&wa[10],0);
+    const int32_t *uids=count?ints_const(&wa[0],0):NULL,*workers=ints_const(&wa[7],0),*teams=ints_const(&wa[9],0);
     /* Mutable copies are returned explicitly; no mutation of caller arguments. */
-    int32_t *positions=count?ints_mutable(&wa[1],0):NULL,*moves=count?ints_mutable(&wa[4],0):NULL,*attacks=count?ints_mutable(&wa[5],0):NULL,*occupancy=ints_mutable(&wa[6],0);
-    occ=malloc((size_t)n*sizeof(int32_t)); warrior_damage=calloc((size_t)(count?count:1),sizeof(int32_t)); worker_damage=calloc((size_t)(worker_count?worker_count:1),sizeof(int32_t)); order=malloc((size_t)(count?count:1)*sizeof(ArmyOrder));
+    positions=count?ints_mutable(&wa[1],0):NULL;
+    int32_t *moves=count?ints_mutable(&wa[4],0):NULL,*attacks=count?ints_mutable(&wa[5],0):NULL,*occupancy=ints_mutable(&wa[6],0);
+    Search *search=instance;
+    if(search && search->army_occ_n!=n) {
+        free(search->army_occ); search->army_occ=malloc((size_t)n*sizeof(int32_t)); search->army_occ_n=search->army_occ?n:0;
+        if(search->army_occ) for(int64_t c=0;c<n;c++) search->army_occ[c]=-1;
+    }
+    if(search && search->army_occ) occ=search->army_occ;
+    else { occ=malloc((size_t)n*sizeof(int32_t)); own_occ=1; if(occ) for(int64_t c=0;c<n;c++) occ[c]=-1; }
+    warrior_damage=calloc((size_t)(count?count:1),sizeof(int32_t)); worker_damage=calloc((size_t)(worker_count?worker_count:1),sizeof(int32_t)); order=malloc((size_t)(count?count:1)*sizeof(ArmyOrder));
     if(!occ || !warrior_damage || !worker_damage || !order) goto cleanup;
-    for(int64_t c=0;c<n;c++) { occ[c]=-1; if(workers[c]<-1 || workers[c]>=worker_count) goto cleanup; }
     for(int64_t i=0;i<worker_count;i++) if(worker_owners[i]>3) goto cleanup;
     for(int i=0;i<4;i++) if(ai[i]<-1 || ai[i]>=n) goto cleanup;
     for(int32_t i=0;i<count;i++) {
         int32_t c=positions[i];
         if(uids[i]<0 || c<0 || c>=n || cells[c]!=0 || workers[c]>=0 || occ[c]>=0 || owners[i]>3 || goals[i]<-1 || goals[i]>=n || occupancy[c]!=uids[i]) goto cleanup;
-        occ[c]=i; order[i]=(ArmyOrder){uids[i],i};
+        occ[c]=i; occ_set=i+1; order[i]=(ArmyOrder){uids[i],i};
         int32_t goal=goals[i]<0?ai[owners[i]]:goals[i];
         if(goal>=0) { int found=0; for(int f=0;f<field_count;f++) if(keys[f]==goal) found=1; if(!found && !use_cache) goto cleanup; }
     }
-    for(int64_t c=0;c<n;c++) if(occ[c]<0 && occupancy[c]!=-1) goto cleanup;
+    /* One pass for both former full-map checks: worker ids and stray warriors. */
+    for(int64_t c=0;c<n;c++) if(workers[c]<-1 || workers[c]>=worker_count || (occ[c]<0 && occupancy[c]!=-1)) goto cleanup;
     qsort(order,(size_t)count,sizeof(ArmyOrder),army_compare);
     for(int64_t i=1;i<count;i++) if(order[i-1].uid==order[i].uid) goto cleanup;
     int32_t w=(int32_t)w64;
@@ -203,7 +215,9 @@ static void army_call_impl(void *data,void *instance,const void *const *args,int
     variant_destroy(out); from_array(out,&result); valid=1;
     destroy_array(&result); destroy_ints(&hit_warriors); destroy_ints(&hit_workers);
 cleanup:
-    free(occ); free(warrior_damage); free(worker_damage); free(order);
+    if(route_cache) for(int64_t i=0;i<count;i++) { int32_t goal=goals[i]<0?ai[owners[i]]:goals[i]; if(goal>=0) route_cache->goal_frequency[goal]=0; }
+    if(occ) { if(own_occ) free(occ); else for(int64_t i=0;i<occ_set;i++) if(positions[i]>=0 && positions[i]<n) occ[positions[i]]=-1; }
+    free(warrior_damage); free(worker_damage); free(order);
     for(int i=0;i<wn;i++) { if(types[i]==I) destroy_ints(&wa[i]); else destroy_bytes(&wa[i]); }
     for(int i=0;i<fn;i++) destroy_ints(&fa[i]);
     destroy_array(&bundle); destroy_array(&fields); destroy_bytes(&terrain);

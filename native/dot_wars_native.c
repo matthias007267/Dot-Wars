@@ -9,7 +9,8 @@
 #include <limits.h>
 
 typedef union { max_align_t alignment; unsigned char bytes[64]; } Value;
-typedef struct { int32_t *queue, *parent; uint32_t *seen; size_t count, queue_capacity; uint32_t stamp; void *army_cache; } Search;
+typedef struct { int32_t *queue, *parent; uint32_t *seen; size_t count, queue_capacity; uint32_t stamp; void *army_cache; int32_t *army_occ; int64_t army_occ_n;
+    int32_t *job_dist, *job_queue; uint8_t *job_dir; int64_t job_n, job_capacity, job_head, job_tail; int32_t job_width; uint8_t job_improve, job_active; } Search;
 static GDExtensionClassLibraryPtr library;
 static Value class_name, parent_name, empty_name, empty_string;
 static GDExtensionInterfaceStringNameNewWithUtf8Chars sn_new;
@@ -273,6 +274,7 @@ cleanup:
 #include "army_corners.inc"
 #include "army_kernel.inc"
 #include "fog_kernel.inc"
+#include "flow_job.inc"
 #include "window_probe.inc"
 
 static void *create(void *data) {
@@ -283,7 +285,7 @@ static void *create(void *data) {
 }
 static void release(void *data,void *instance) {
     (void)data; Search *s=instance; if(!s) return;
-    free(s->queue); free(s->parent); free(s->seen); army_cache_free(s->army_cache); free(s);
+    free(s->queue); free(s->parent); free(s->seen); army_cache_free(s->army_cache); free(s->army_occ); free(s->job_dist); free(s->job_dir); free(s->job_queue); free(s);
 }
 static void bind_method(const char *name,GDExtensionClassMethodCall fn,const GDExtensionVariantType *types,int argc,GDExtensionVariantType result_type) {
     Value method_name; sn_new(&method_name,name);
@@ -316,6 +318,10 @@ static void initialize(void *data,GDExtensionInitializationLevel level) {
     bind_method("device_change_guard_self_test",device_guard_test_call,window_test_types,1,GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY);
     bind_method("search",search_call,search_types,11,N);
     bind_method("flow_spread",flow_call,flow_types,9,GDEXTENSION_VARIANT_TYPE_ARRAY);
+    bind_method("flow_job_begin",job_begin_call,job_begin_types,9,GDEXTENSION_VARIANT_TYPE_ARRAY);
+    bind_method("flow_job_step",job_step_call,job_step_types,4,GDEXTENSION_VARIANT_TYPE_ARRAY);
+    bind_method("flow_job_export",job_export_call,NULL,0,GDEXTENSION_VARIANT_TYPE_ARRAY);
+    bind_method("flow_job_drop",job_drop_call,NULL,0,N);
 }
 static void deinitialize(void *data,GDExtensionInitializationLevel level) {
     (void)data; if(level!=GDEXTENSION_INITIALIZATION_SCENE) return;

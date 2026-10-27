@@ -348,6 +348,7 @@ static func write_file(path: String, sim: Simulation) -> bool:
 	# Vor dem Öffnen prüfen: WRITE würde einen vorhandenen Stand abschneiden.
 	if sim.debug_mode or sim.debug_modified:
 		return false
+	finish_background_write()
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		return false
@@ -356,7 +357,44 @@ static func write_file(path: String, sim: Simulation) -> bool:
 	return true
 
 
+## Hintergrundspeicherung (Autosave): Der Stand wird sofort als tiefe Kopie
+## festgehalten (Packed-Arrays copy-on-write, Container neu), Serialisieren und
+## Schreiben laufen in einem Worker. Gleiches Dateiformat. Erst eine Temporärdatei,
+## dann Umbenennen: ein Abbruch lässt den alten Stand stehen.
+static var _write_task := -1
+static var last_write_ok := true
+
+
+static func write_file_background(path: String, sim: Simulation) -> bool:
+	if sim.debug_mode or sim.debug_modified:
+		return false
+	finish_background_write()
+	var data := snapshot(sim).duplicate(true)
+	var target := ProjectSettings.globalize_path(path)
+	_write_task = WorkerThreadPool.add_task(func() -> void: last_write_ok = _store_atomic(target, var_to_bytes(data)), false, "Autosave")
+	return true
+
+
+## Wartet auf eine laufende Hintergrundspeicherung (Beenden, Laden, nächster Stand).
+static func finish_background_write() -> void:
+	if _write_task < 0:
+		return
+	WorkerThreadPool.wait_for_task_completion(_write_task)
+	_write_task = -1
+
+
+static func _store_atomic(target: String, bytes: PackedByteArray) -> bool:
+	var temp := target + ".tmp"
+	var file := FileAccess.open(temp, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_buffer(bytes)
+	file.close()
+	return DirAccess.rename_absolute(temp, target) == OK
+
+
 static func read_file(path: String) -> Simulation:
+	finish_background_write()
 	if not FileAccess.file_exists(path):
 		return null
 	var file := FileAccess.open(path, FileAccess.READ)

@@ -21,7 +21,8 @@ static func step(e: EnergyStore, world: WorldState, workers: WorkerStore, gates:
 	var stamp := hash([hash(gates), hash(owners), factions])
 	# Exact topology refresh: unit occupancy is deliberately absent from these fields.
 	if stamp != e._exit_stamp or world.width != e._width or world.revision != e._revision or e._routed.size() != factions:
-		e._rebuild_routed(world, gates, owners, factions)
+		if stamp != e._exit_stamp or world.width != e._width or e._routed.size() != factions or not e._update_routed(world, gates, owners):
+			e._rebuild_routed(world, gates, owners, factions)
 		e._exit_stamp = stamp
 		e._last_rebuild_tick = tick
 	var exits := {}

@@ -75,6 +75,10 @@ func _restart() -> void:
 	_boot(config)
 
 
+func _exit_tree() -> void:
+	SaveGame.finish_background_write()
+
+
 func _leave() -> void:
 	clock.paused = false
 	_clear_playfield()
@@ -271,7 +275,8 @@ func _process(delta: float) -> void:
 			_play_tone()
 		if sim.tick_count - _autosave_tick >= 600 and not _headless() and not sim.debug_mode and not sim.debug_modified:
 			_autosave_tick = sim.tick_count
-			SaveGame.write_file("user://autosave.dw", sim)
+			# Serialisiert sofort; nur das Schreiben auf die Platte läuft im Hintergrund.
+			SaveGame.write_file_background("user://autosave.dw", sim)
 		if hud != null:
 			hud.refresh()
 		renderer.sync_match(sim)

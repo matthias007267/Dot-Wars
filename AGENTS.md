@@ -1,5 +1,9 @@
 # Regeln für Agenten
 
+## Neuester Auftrag: große Karten
+
+Der Nutzer beauftragt nach der Analyse seiner laufenden 1000×1000-Partie ausdrücklich: „Ja, setze die Optimierungen 1 bis 4 für große Karten um, gemessen an der Kopie meiner Partie, ohne Regeländerung.“ Gemessen wird nur an einer Kopie des Autosaves; die laufende Partie und ihr Originalstand bleiben unangetastet. Gleichheit zum vollständigen Neuaufbau ist Pflicht (Takthashes, Spielstand-SHA). Native Windows-Version v14, vollständiger Neubau/Neustart. Branch `perf/large-maps`; der Nutzer beauftragt ausdrücklich Commit, Fast-Forward nach `main` und normalen Push, kein Force-Push oder Release. Details: `docs/LARGE_MAPS.md`, D-086.
+
 ## Neuester Auftrag: Codeanalyse, Konzeptvorschläge und gemessene Performance
 
 Der Nutzer beauftragt: „Analysiere den Code und schlage mir Verbesserungen vor am Spielkonzept und optimiere die Performance.“ Gemessen wird eine normale KI-Partie (headless und mit Fenster); optimiert werden nur gemessene Engpässe ohne Regel-, Sicht-, Takt- oder Bilanzänderung. Konzeptvorschläge sind Vorschläge ohne Freigabe. Native Windows-Version v13 (`fog_merge`), vollständiger Neubau/Neustart. Branch `perf/match-profile`; da kein PR-Werkzeug angemeldet war, beauftragte der Nutzer ausdrücklich, den Stand direkt nach `main` zu übernehmen. Fast-Forward und normaler Push nach origin/main, kein Force-Push oder Release. Details: `docs/MATCH_PERFORMANCE.md`, D-085.

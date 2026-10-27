@@ -85,13 +85,24 @@ static void fog_merge_call(void *data,void *instance,const void *const *args,int
     const int32_t *cells=count?ints_const(&list,0):NULL;
     for(int64_t i=0;i<count;i++) if(cells[i]<0 || cells[i]>=n) goto cleanup;
     if(!resize(resize_bytes,&vis,n)) goto cleanup;
-    uint8_t *seen=bytes_mutable(&vis,0),*explored=bytes_mutable(&maps[0],0),*memory=bytes_mutable(&maps[1],0),*floor_memory=bytes_mutable(&maps[2],0);
     const uint8_t *terrain=bytes_const(&maps[3],0),*excavated=bytes_const(&maps[4],0);
-    memset(seen,0,(size_t)n);
-    for(int64_t i=0;i<count;i++) {
-        int32_t c=cells[i];
-        seen[c]=1; explored[c]=1; memory[c]=terrain[c]; floor_memory[c]=excavated[c];
+    /* Read first: an unchanged knowledge array is returned without a copy-on-write. */
+    int dirty[3]={0,0,0};
+    {
+        const uint8_t *explored=bytes_const(&maps[0],0),*memory=bytes_const(&maps[1],0),*floor_memory=bytes_const(&maps[2],0);
+        for(int64_t i=0;i<count && !(dirty[0] && dirty[1] && dirty[2]);i++) {
+            int32_t c=cells[i];
+            if(explored[c]!=1) dirty[0]=1;
+            if(memory[c]!=terrain[c]) dirty[1]=1;
+            if(floor_memory[c]!=excavated[c]) dirty[2]=1;
+        }
     }
+    uint8_t *seen=bytes_mutable(&vis,0);
+    memset(seen,0,(size_t)n);
+    for(int64_t i=0;i<count;i++) seen[cells[i]]=1;
+    if(dirty[0]) { uint8_t *explored=bytes_mutable(&maps[0],0); for(int64_t i=0;i<count;i++) explored[cells[i]]=1; }
+    if(dirty[1]) { uint8_t *memory=bytes_mutable(&maps[1],0); for(int64_t i=0;i<count;i++) memory[cells[i]]=terrain[cells[i]]; }
+    if(dirty[2]) { uint8_t *floor_memory=bytes_mutable(&maps[2],0); for(int64_t i=0;i<count;i++) floor_memory[cells[i]]=excavated[cells[i]]; }
     new_array(&result,NULL);
     if(!resize(resize_array,&result,4)) { destroy_array(&result); goto cleanup; }
     Value *outputs[4]={&vis,&maps[0],&maps[1],&maps[2]};

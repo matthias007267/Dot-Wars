@@ -16,7 +16,7 @@ static func backend() -> RefCounted:
 		return null
 	_checked = true
 	if not ClassDB.class_exists("DotWarsNativeSearch"):
-		var binary := "res://native/bin/dot_wars_native.windows.x86_64.v13.dll"
+		var binary := "res://native/bin/dot_wars_native.windows.x86_64.v14.dll"
 		if OS.get_name() == "Linux":
 			binary = "res://native/bin/libdot_wars_native.linux.x86_64.so"
 		elif OS.get_name() != "Windows":

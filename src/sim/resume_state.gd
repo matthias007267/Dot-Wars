@@ -17,6 +17,7 @@ static func _export(source: Object, names: Array) -> Dictionary:
 static func snapshot(sim: Simulation) -> Dictionary:
 	var flow: Array[Dictionary] = []
 	for field in sim.fields:
+		field.sync_job()
 		var row := _export(field, FLOW)
 		row.mining_first = field.mining_first
 		row.built_mining_first = field._built_mining_first
@@ -116,6 +117,7 @@ static func restore(sim: Simulation, data: Variant) -> bool:
 	for index in sim.fields.size():
 		sim.fields[index].mining_first = data.flow[index].get("mining_first", false)
 		sim.fields[index]._built_mining_first = data.flow[index].get("built_mining_first", false)
+		sim.fields[index]._drop_job()
 		_assign(sim.fields[index], FLOW, data.flow[index])
 	_assign(sim.energy_dots, ENERGY, data.energy)
 	_assign(sim.work_front, FRONT, data.front)

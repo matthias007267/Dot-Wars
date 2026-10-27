@@ -251,9 +251,8 @@ func _apply_damage(sim: Simulation, workers_hit: Dictionary, warriors_hit: Dicti
 
 func _spawn(sim: Simulation) -> void:
 	if queue.is_empty(): return
-	var mask := blockers(sim.core_mask if sim.config.mode != SimConfig.MODE_MATCH else PackedByteArray())
-	mask = mask.duplicate()
-	mask.resize(sim.world.cell_count())
+	# Built on the first due item only; waiting queues no longer copy the map each tick.
+	var mask := PackedByteArray()
 	var remaining: Array[Dictionary] = []
 	for item in queue:
 		var site := int(item.get("site", -1))
@@ -265,6 +264,9 @@ func _spawn(sim: Simulation) -> void:
 		if sim.tick_count < int(item.ready):
 			remaining.append(item)
 			continue
+		if mask.is_empty():
+			mask = blockers(sim.core_mask if sim.config.mode != SimConfig.MODE_MATCH else PackedByteArray()).duplicate()
+			mask.resize(sim.world.cell_count())
 		var spot := sim.spawner.find_free_cell(sim.world, sim.workers, int(item.origin), mask)
 		if spot < 0:
 			remaining.append(item)

@@ -138,10 +138,13 @@ func tick_once() -> void:
 	search_usec[SearchStage.ANCHORS] += search_anchors - search_guidance
 	search_usec[SearchStage.FIELDS] += search_fields - search_anchors
 	search_usec[SearchStage.SWARM] += t1 - search_fields
-	var move_forbidden := army.blockers(core_mask)
+	# Warriors move only in army.step below, so one blocker map serves movement,
+	# spawning and growth this tick; all three only read it.
+	var army_blocked := army.blockers(core_mask)
+	var move_forbidden := army_blocked
 	var move_periods := PackedByteArray()
 	if _match_live():
-		move_forbidden = army.blockers(PackedByteArray())
+		if not core_mask.is_empty(): move_forbidden = army.blockers(PackedByteArray())
 		move_periods = rules.worker_periods(self)
 	MovementSystem.step(
 		tick_count, workers, world, areas, fields,
@@ -164,9 +167,9 @@ func tick_once() -> void:
 		)
 	_lap("mining")
 	var t3 := Time.get_ticks_usec()
-	spawner.process(world, workers, quotas, army.blockers(core_mask), self)
+	spawner.process(world, workers, quotas, army_blocked, self)
 	# Fusion ist aus dem Spiel entfernt.
-	buildings.grow(world, workers, energy_dots, army.blockers(core_mask))
+	buildings.grow(world, workers, energy_dots, army_blocked)
 	buildings.refine(energy_dots, world, tick_count)
 	_lap("spawn_buildings")
 	if _match_live():

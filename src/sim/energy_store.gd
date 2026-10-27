@@ -39,6 +39,10 @@ var _revision := -1
 var _width := 0
 var _exit_stamp := 0
 var _last_rebuild_tick := -1000
+## Position in `WorldState.change_log` covered by `_routed`; not part of the resume
+## state, so a loaded game rebuilds once and then updates incrementally.
+var _log_size := -1
+var _log_epoch := -1
 
 
 func pending_owned(faction: int) -> int:
@@ -204,6 +208,70 @@ func _rebuild_routed(world: WorldState, gate: PackedInt32Array, gate_owner: Pack
 				mine.append(gate[index])
 		_rebuild(world, mine)
 		_routed.append(_dist.duplicate())
+	_log_size = world.change_log.size()
+	_log_epoch = world.change_epoch
+
+
+## Brings `_routed` up to date when mining only opened cells since the last build.
+## Opening cells can only shorten breadth-first distances, so relaxing from the
+## opened cells yields exactly the full rebuild. Any closed cell, a replaced
+## change log or other gates returns false and the caller rebuilds everything.
+func _update_routed(world: WorldState, gate: PackedInt32Array, gate_owner: PackedByteArray) -> bool:
+	if _log_epoch != world.change_epoch or _log_size < 0 or _routed.is_empty(): return false
+	var logged := world.change_log.size()
+	if logged - _log_size != world.revision - _revision or logged < _log_size: return false
+	var opened := PackedInt32Array()
+	for i in range(_log_size, logged):
+		if world.change_from[i] == Materials.EMPTY: return false
+		var cell := world.change_log[i]
+		if world.cells[cell] == Materials.EMPTY: opened.append(cell)
+	var width := world.width
+	var count := world.cell_count()
+	var native := NATIVE_SEARCH.backend()
+	var directions := PackedByteArray()
+	if native != null: directions.resize(count)
+	for faction in _routed.size():
+		var dist: PackedInt32Array = _routed[faction]
+		var sources := {}
+		for index in gate.size():
+			if index < gate_owner.size() and int(gate_owner[index]) == faction: sources[gate[index]] = true
+		var frontier := PackedInt32Array()
+		for cell in opened:
+			if dist[cell] == 0: continue
+			var best := 0 if sources.has(cell) else -1
+			if best != 0:
+				var x := cell % width
+				for next in [cell - width if cell >= width else -1, cell + 1 if x < width - 1 else -1, cell + width if cell + width < count else -1, cell - 1 if x > 0 else -1]:
+					if next >= 0 and dist[next] >= 0 and world.cells[next] == Materials.EMPTY and (best < 0 or dist[next] + 1 < best): best = dist[next] + 1
+			if best >= 0 and (dist[cell] < 0 or best < dist[cell]):
+				dist[cell] = best
+				frontier.append(cell)
+		if frontier.is_empty(): continue
+		var relaxed := false
+		if native != null:
+			var result: Variant = native.flow_spread(world.cells, PackedByteArray(), dist, directions, frontier, 0, 1 << 40, true, width)
+			if result is Array and result.size() == 5:
+				dist = result[0]
+				relaxed = true
+		if not relaxed:
+			var head := 0
+			while head < frontier.size():
+				var cell := frontier[head]
+				head += 1
+				var x := cell % width
+				for next in [cell - 1 if x > 0 else -1, cell + 1 if x < width - 1 else -1, cell - width if cell >= width else -1, cell + width if cell + width < count else -1]:
+					if next < 0 or world.cells[next] != Materials.EMPTY: continue
+					if dist[next] != -1 and dist[next] <= dist[cell] + 1: continue
+					dist[next] = dist[cell] + 1
+					frontier.append(next)
+		_routed[faction] = dist
+	# The full rebuild leaves `_dist` as a copy of the last field; it is resume state.
+	_dist = (_routed[_routed.size() - 1] as PackedInt32Array).duplicate()
+	_revision = world.revision
+	_width = world.width
+	_log_size = logged
+	_log_epoch = world.change_epoch
+	return true
 
 
 func _fit_transport() -> void:

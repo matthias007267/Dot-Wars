@@ -49,6 +49,12 @@ var _next_dist := PackedInt32Array()
 var _next_dir := PackedByteArray()
 var _queue := PackedInt32Array()
 var _head: int = 0
+## Native copy of an unfinished build. While active, the four arrays above are
+## stale; `sync_job()` refreshes them, and replacing them must `_drop_job()`.
+var _job: RefCounted
+var _job_active := false
+## Comparison switch for tests: false keeps the stateless flow_spread path.
+var use_job := true
 var _phase: Phase = Phase.IDLE
 var _seed_faces := PackedInt32Array()
 var _seed_pos: int = 0
@@ -178,6 +184,7 @@ func rebuild_blocking() -> void:
 
 
 func _begin() -> void:
+	_drop_job()
 	full_rebuilds += 1
 	_count_rects_on_publish = false
 	_built_world_revision = _world.revision
@@ -399,6 +406,9 @@ func _seed(idx: int) -> void:
 
 func _spread(budget: int) -> int:
 	var native := NATIVE_SEARCH.backend()
+	if use_job and native != null and native.has_method("flow_job_begin"):
+		var remaining := _spread_job(budget)
+		if remaining >= 0: return remaining
 	if native != null:
 		var result: Variant = native.flow_spread(_world.cells, blocked, _next_dist, _next_dir, _queue, _head, budget, _improve, _world.width)
 		if not result is Array or result.size() != 5:
@@ -474,6 +484,51 @@ func _spread(budget: int) -> int:
 	return remaining
 
 
+## Same spread as flow_spread, but the field stays native until it is complete.
+## Returns -1 when the job path is unavailable and the caller must continue.
+func _spread_job(budget: int) -> int:
+	if _job == null:
+		_job = ClassDB.instantiate("DotWarsNativeSearch") as RefCounted
+		if _job == null: return -1
+	var result: Variant
+	if _job_active:
+		result = _job.flow_job_step(_world.cells, blocked, budget, _world.width)
+		if not result is Array or result.size() != 6:
+			# Recover the exact arrays, then let the stateless path continue.
+			if not sync_job(): push_error("Natives Wegfeld verloren")
+			_drop_job()
+			return -1
+	else:
+		result = _job.flow_job_begin(_world.cells, blocked, _next_dist, _next_dir, _queue, _head, budget, _improve, _world.width)
+		if not result is Array or result.size() != 6: return -1
+		_job_active = true
+	if int(result[0]) == 1:
+		_job_active = false
+		_next_dist = result[3]
+		_next_dir = result[4]
+		_queue = result[5]
+		_head = int(result[1])
+		_publish()
+	return int(result[2])
+
+
+## Writes an unfinished native build back into the GDScript arrays (save, tests).
+func sync_job() -> bool:
+	if not _job_active or _job == null: return true
+	var result: Variant = _job.flow_job_export()
+	if not result is Array or result.size() != 6: return false
+	_next_dist = result[3]
+	_next_dir = result[4]
+	_queue = result[5]
+	_head = int(result[1])
+	return true
+
+
+func _drop_job() -> void:
+	if _job_active and _job != null: _job.flow_job_drop()
+	_job_active = false
+
+
 func _relax(idx: int, distance: int, direction: int) -> void:
 	if not _open(idx):
 		return
@@ -493,6 +548,7 @@ func _can_patch() -> bool:
 
 
 func _begin_patch() -> void:
+	_drop_job()
 	var changed := _world.change_log.slice(_applied_changes)
 	_built_world_revision = _world.revision
 	_applied_changes = _world.change_log.size()

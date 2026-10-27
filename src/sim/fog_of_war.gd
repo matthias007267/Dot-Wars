@@ -22,11 +22,23 @@ var alliance := PackedInt32Array()
 var _last_signature := -1
 var _last_terrain_signature := -1
 var _sight_cache: Dictionary = {}
+## Exact terrain change detection without hashing the map every tick: the last
+## seen arrays are kept as copies and compared directly, so raw writes are still
+## noticed. Not saved; a fresh or restored state starts a new version.
+var _seen_cells := PackedByteArray()
+var _seen_excavated := PackedByteArray()
+var _terrain_version := 0
+var _blocking := PackedByteArray()
+var _blocking_key := -1
+## Per faction: allied visible cells and terrain key of the last published merge.
+var _merged_cells: Array[PackedInt32Array] = []
+var _merged_terrain: PackedInt64Array = PackedInt64Array()
 
 func setup(world: WorldState, count: int) -> void:
 	_last_signature = -1
 	_last_terrain_signature = -1
 	_sight_cache.clear()
+	_forget_merges()
 	width = world.width
 	height = world.height
 	factions = count
@@ -48,6 +60,15 @@ func setup(world: WorldState, count: int) -> void:
 		known_terrain.append(memory)
 		known_excavated.append(empty.duplicate())
 		known_sites.append({})
+
+func _forget_merges() -> void:
+	_seen_cells = PackedByteArray()
+	_seen_excavated = PackedByteArray()
+	_terrain_version += 1
+	_blocking = PackedByteArray()
+	_blocking_key = -1
+	_merged_cells.clear()
+	_merged_terrain = PackedInt64Array()
 
 func is_visible(faction: int, cell: int) -> bool:
 	return faction >= 0 and faction < factions and cell >= 0 and cell < width * height and visible[faction][cell] == 1
@@ -85,7 +106,11 @@ func update(sim: Simulation) -> void:
 		sites_state.append([row.id, row.owner, row.rect, row.ready, row.destroyed, row.hp, row.work, row.get("weapon_level", 0), row.get("weapon_upgrade", -1)])
 		if not row.destroyed and (row.ready or row.started):
 			sources.append([int(row.owner), sim.construction.center(int(row.id)), CORE_RADIUS, row.rect])
-	var terrain_signature := hash([hash(sim.world.cells), hash(sim.world.excavated)])
+	if _seen_cells != sim.world.cells or _seen_excavated != sim.world.excavated:
+		_seen_cells = sim.world.cells.duplicate()
+		_seen_excavated = sim.world.excavated.duplicate()
+		_terrain_version += 1
+	var terrain_signature := hash(["terrain", _terrain_version])
 	var signature := hash([terrain_signature, sources, sites_state, alliance])
 	if signature == _last_signature and terrain_signature == _last_terrain_signature:
 		return
@@ -93,12 +118,17 @@ func update(sim: Simulation) -> void:
 	_last_terrain_signature = terrain_signature
 	# Materials are already zero for empty / nonzero for opaque. Only building
 	# footprints must be added; never scan the entire map through construction.at().
-	var blocking := sim.world.cells.duplicate()
+	var footprints: Array = []
 	for row in sim.construction.sites.records:
-		if row.destroyed: continue
-		var rect: Rect2i = row.rect
-		for y in range(rect.position.y, rect.end.y):
-			for x in range(rect.position.x, rect.end.x): blocking[y * width + x] = Materials.INDESTRUCTIBLE
+		if not row.destroyed: footprints.append(row.rect)
+	var blocking_key := hash([terrain_signature, footprints])
+	if blocking_key != _blocking_key or _blocking.size() != sim.world.cell_count():
+		_blocking = sim.world.cells.duplicate()
+		for rect in footprints:
+			for y in range(rect.position.y, rect.end.y):
+				for x in range(rect.position.x, rect.end.x): _blocking[y * width + x] = Materials.INDESTRUCTIBLE
+		_blocking_key = blocking_key
+	var blocking := _blocking
 	var own_cells: Array[PackedInt32Array] = []
 	for faction in factions: own_cells.append(PackedInt32Array())
 	var native := Backend.backend() if not reference_only and not "--fog-reference" in OS.get_cmdline_user_args() else null
@@ -153,19 +183,30 @@ func update(sim: Simulation) -> void:
 		_sight_cache.clear()
 	var terrain := sim.world.cells
 	var merge_native := native != null and native.has_method("fog_merge")
+	if _merged_cells.size() != factions:
+		_merged_cells.resize(factions)
+		_merged_terrain.resize(factions)
+		_merged_terrain.fill(-1)
 	for faction in factions:
 		var merged := false
 		if merge_native:
 			var allied_cells := PackedInt32Array()
 			for ally in factions:
 				if alliance[faction] == alliance[ally]: allied_cells.append_array(own_cells[ally])
-			var published = native.fog_merge(allied_cells, explored[faction], known_terrain[faction], known_excavated[faction], terrain, sim.world.excavated)
+			# Same cells over unchanged terrain rewrite identical bytes; skip the copy.
+			if _merged_terrain[faction] == terrain_signature and _merged_cells[faction] == allied_cells:
+				merged = true
+			else:
+				_merged_terrain[faction] = -1
+			var published = null if merged else native.fog_merge(allied_cells, explored[faction], known_terrain[faction], known_excavated[faction], terrain, sim.world.excavated)
 			if published is Array and published.size() == 4:
 				visible[faction] = published[0]
 				explored[faction] = published[1]
 				known_terrain[faction] = published[2]
 				known_excavated[faction] = published[3]
 				merged = true
+				_merged_cells[faction] = allied_cells
+				_merged_terrain[faction] = terrain_signature
 		if not merged:
 			var mask := PackedByteArray()
 			mask.resize(blocking.size())
@@ -300,4 +341,5 @@ func restore(data: Dictionary, world: WorldState, count: int) -> bool:
 	_last_signature = -1
 	_last_terrain_signature = -1
 	_sight_cache.clear()
+	_forget_merges()
 	return true
