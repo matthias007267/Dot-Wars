@@ -35,12 +35,12 @@ func test_cached_visibility_matches_fresh_rays_after_blocker_and_alliance_change
 			var rect: Rect2i = row.rect
 			for y in range(rect.position.y, rect.end.y):
 				for x in range(rect.position.x, rect.end.x): blockers[y * sim.world.width + x] = 1
-			if row.ready: sources.append([int(row.owner), sim.construction.center(row.id), Fog.CORE_RADIUS])
+			if row.ready or row.started: sources.append([int(row.owner), sim.construction.center(row.id), Fog.CORE_RADIUS, row.rect])
 		for faction in 2:
 			var expected := PackedByteArray()
 			expected.resize(sim.world.cell_count())
 			for source in sources:
-				if fog.alliance[faction] == fog.alliance[source[0]]: fog._reveal(expected, blockers, source[1], source[2])
+				if fog.alliance[faction] == fog.alliance[source[0]]: fog._reveal(expected, blockers, source[1], source[2], source[3] if source.size() > 3 else Rect2i())
 			check_eq(fog.visible[faction], expected, "cached sight equals fresh rays at step %d faction %d" % [step, faction])
 
 func test_overlay_updates_knowledge_pixels_and_chunk_edges_without_live_terrain_leak() -> void:
@@ -117,7 +117,7 @@ func test_local_cache_reacts_immediately_to_opened_and_closed_rays() -> void:
 	fog.setup(world, 2)
 	var origin := 10 * 32 + 10
 	var wall := origin + 1
-	var behind := origin + 2
+	var behind := origin + 5
 	var blockers := world.cells.duplicate()
 	check(fog._visible_cells(blockers, origin, 7).has(behind), "initial free ray")
 	blockers[wall] = Materials.HARD

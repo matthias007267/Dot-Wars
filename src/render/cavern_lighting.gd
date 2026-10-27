@@ -15,9 +15,10 @@ static func sources(sim: Simulation) -> Array[Dictionary]:
 		var cell := sim.construction.center(row.id)
 		if not site_visible(sim, row): continue
 		var tint := TacticalArt.tint(row.owner)
-		if row.kind == 3 and not sim.research.is_powered(row.id, sim.tick_count): continue
-		# Research illumination is emitted only on an actual consumption tick.
-		result.append({"cell": cell, "radius": 9.0 if row.kind == 0 else 5.0, "tint": tint, "strength": 0.95 if row.ready else 0.25})
+		if not row.ready and not row.started: continue
+		# Every standing/started building has base light. Consumption adds activity.
+		var active: bool = row.kind == 3 and sim.research.is_powered(row.id, sim.tick_count)
+		result.append({"cell": cell, "radius": 9.0 if row.kind == 0 else 5.0, "tint": tint, "strength": 0.95 if row.kind == 0 or active else 0.55 if row.ready else 0.25})
 		if result.size() == MAX_SOURCES: return result
 	for shipment in sim.research.shipments:
 		if sim._match_live() and shipment.faction != 0 and not sim.fog.is_visible(0, shipment.cell): continue

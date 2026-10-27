@@ -3,10 +3,10 @@ extends TestCase
 func _sim() -> Simulation:
 	var config := TestHelpers.default_config()
 	config.mode = SimConfig.MODE_MATCH
-	config.world_size = 32
+	config.world_size = 64
 	config.ai_count = 1
 	config.initial_workers = 1
-	var sim := Simulation.from_world(config, WorldState.new(32, 32, 8, Materials.EMPTY))
+	var sim := Simulation.from_world(config, WorldState.new(64, 64, 8, Materials.EMPTY))
 	sim.rules.control.fill(MatchRules.CONTROL_REMOTE)
 	return sim
 
@@ -54,7 +54,7 @@ func test_hud_uses_one_bottom_strip_and_keeps_live_actions() -> void:
 	layer.free()
 	hud.free()
 
-func test_research_light_requires_actual_consumption() -> void:
+func test_research_has_base_light_and_consumption_adds_activity() -> void:
 	var sim := _sim()
 	sim.upgrades.energy = 300
 	var site := sim.construction.place(sim, 3, 100, PackedInt32Array())
@@ -62,19 +62,19 @@ func test_research_light_requires_actual_consumption() -> void:
 	if site < 0: return
 	sim.construction.sites.contribute(site, 0, 300)
 	var center := sim.construction.center(site)
-	var has_light := false
+	var base_strength := 0.0
 	for source in CavernLighting.sources(sim):
-		if source.cell == center: has_light = true
-	check(not has_light, "inaktives Zentrum erzeugt kein Verbrauchslicht")
+		if source.cell == center: base_strength = source.strength
+	check(base_strength > 0, "inaktives eigenes Zentrum hat Grundlicht")
 	check(sim.research.start(sim, 0, site, "dig"), "Auftrag")
 	sim.research.deliver(site)
 	sim.tick_once()
-	has_light = false
+	var active_strength := 0.0
 	for source in CavernLighting.sources(sim):
-		if source.cell == center: has_light = true
-	check(has_light, "tatsächlich verbrauchte Energie beleuchtet Umgebung")
+		if source.cell == center: active_strength = source.strength
+	check(active_strength > base_strength, "nur tatsächlicher Verbrauch verstärkt das Aktivitätslicht")
 	sim.tick_once()
-	has_light = false
+	var waiting_strength := 0.0
 	for source in CavernLighting.sources(sim):
-		if source.cell == center: has_light = true
-	check(not has_light, "Unterversorgung löscht Aktivitätslicht")
+		if source.cell == center: waiting_strength = source.strength
+	check_eq(waiting_strength, base_strength, "Unterversorgung lässt nur Grundlicht bestehen")

@@ -305,7 +305,7 @@ static void initialize(void *data,GDExtensionInitializationLevel level) {
     bind_method("energy_next",energy_call,energy_types,5,I);
     bind_method("army_step",army_call,army_types,5,GDEXTENSION_VARIANT_TYPE_ARRAY);
     bind_method("army_step_cached",army_cached_call,army_types,5,GDEXTENSION_VARIANT_TYPE_ARRAY);
-    bind_method("fog_visible",fog_call,fog_types,4,GDEXTENSION_VARIANT_TYPE_ARRAY);
+    bind_method("fog_visible_depth",fog_call,fog_types,4,GDEXTENSION_VARIANT_TYPE_ARRAY);
     bind_method("army_route_stats",army_route_stats_call,NULL,0,GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY);
     bind_method("trace_window",window_probe_call,window_probe_types,2,GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY);
     bind_method("device_change_guard",device_guard_call,window_probe_types,2,GDEXTENSION_VARIANT_TYPE_PACKED_INT64_ARRAY);

@@ -25,8 +25,8 @@ var _last_explored := PackedByteArray()
 var _last_terrain := PackedByteArray()
 var _last_floor := PackedByteArray()
 var _last_style := true
-const UNEXPLORED := Color8(8, 10, 17)
-const MEMORY_SHADE := 0.38
+const UNEXPLORED := Color8(0, 0, 0)
+const MEMORY_SHADE := 0.55
 
 func _ready() -> void:
 	texture_filter = TEXTURE_FILTER_NEAREST

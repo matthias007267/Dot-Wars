@@ -1,5 +1,9 @@
 # Regeln für Agenten
 
+## Neuester Folgeauftrag: Gebäudelicht und Vier-Felder-Nebel
+
+Der Nutzer beauftragt eigene Gebäudelichtquellen, helleren erkundeten Nebel und Sicht bis vier Felder hinter dem Beginn einer Gebäude-/Ressourcenbarriere. Die vier Rasterfelder zählen einschließlich der ersten Barriere und auch über folgende Lücken weiter; das fünfte ist außerhalb der Sicht. Die normale Sichtweite bleibt Obergrenze. Gebäudequellen ignorieren nur ihr eigenes Fundament. Fertige und begonnene Gebäude liefern Grundlicht/Sicht, unbegonnene Pläne keine kostenlose Aufklärung. Forschungsaktivitätslicht bleibt an tatsächlichen Energieverbrauch gebunden. Erinnerung, Bündnisse und Verbergen von Gegnern außerhalb der neuen Sichtgrenze bleiben erhalten. Native Windows-Version v11, vollständiger Neubau/Neustart; kein automatischer Merge. Umsetzung im offenen PR #13; Regeln und Prüfungen: `docs/FOG_DEPTH.md`, D-079. Dieser neue ausdrückliche Auftrag ergänzt den vorher auf HUD begrenzten Auftrag.
+
 ## Neuester Folgeauftrag: ausschließlich markierte HUD-Vorschläge übernehmen
 
 Der Nutzer beauftragt aus seiner beschrifteten RTS-Referenz ausdrücklich nur die HUD-Änderungen: Energie/Arbeiter/Krieger oben links, darunter laufende eigene Forschung/Bau/Produktion als Icons, Menü oben rechts, auswahlabhängige Aktionen unten links, Produktions-/Auswahlinfo und Hover-Erklärungen daneben sowie Minimap mit Team-Zielständen unten rechts. Bestehender Grafikstil, Welt, Ressourcen, Einheiten, Simulation und Spielregeln bleiben erhalten. Eigene und verbündete vorhandene Zielstände verwenden, keine neue Punkteformel oder gegnerischen Warteschlangen offenlegen. Umsetzung im offenen PR #13 auf `feat/ore-veins-world`; kein automatischer Merge. Details und Nachweise: `docs/HUD_REFERENCE.md`, D-078.

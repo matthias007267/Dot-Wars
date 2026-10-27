@@ -1,10 +1,12 @@
 # DOT WARS
 
+Nebel überarbeitet: Fertige und begonnene Gebäude geben eigenes Grundlicht und Sicht, ohne vom eigenen Fundament verdeckt zu werden. Ressourcen und fremde Fundamente lassen die Sicht vier Rasterfelder ab der ersten Barriere weiterreichen; danach bleibt unbekanntes Gebiet schwarz. Erkundete Flächen sind heller dargestellt. Regeln und Grafiknachweise: [FOG_DEPTH.md](docs/FOG_DEPTH.md). Windows-Native-Modul **v11** neu bauen und das Spiel vollständig neu starten.
+
 HUD nach der markierten Referenz: Energie und Einheitenzahlen oben links, laufende Aufträge als Icons darunter, Menü oben rechts. Unten links wechseln Bau-/Produktions-/Forschungsaktionen mit der Auswahl; daneben stehen Produktionsübersicht und Hover-Erklärung. Minimap und Team-Zielstände liegen unten rechts. Details und Bedienung: [HUD_REFERENCE.md](docs/HUD_REFERENCE.md).
 
 Bestätigte Energie-Dots: kleine weiße Lichtquadrate mit Teamrand, cyanfarbenem Innenlicht und dezentem Glow. Im Fernzoom bleibt die Teamfarbe erhalten, gepufferte Energie hat ein bernsteinfarbenes Innenlicht. Entwurf und Grafiknachweise: [ENERGY_DOT_ART.md](docs/ENERGY_DOT_ART.md).
 
-Neue Weltgenerierung: je Spieler ein getrenntes freies Tunnelnetz, abbaubares Gestein, acht seltene Erzarten und dauerhaftes violettes Obsidian. Energie entsteht bereits während des Abbaus als einzelne Dots; Diamant liefert vorläufig 20.000 Energie bei 128 Sekunden Basisarbeit. Forschung beschleunigt den Abbau. Werte, Grafikprüfung und Speicherregeln: [ORE_WORLD.md](docs/ORE_WORLD.md). Windows-Native-Modul **v10** neu bauen und das Spiel vollständig neu starten.
+Neue Weltgenerierung: je Spieler ein getrenntes freies Tunnelnetz, abbaubares Gestein, acht seltene Erzarten und dauerhaftes violettes Obsidian. Energie entsteht bereits während des Abbaus als einzelne Dots; Diamant liefert vorläufig 20.000 Energie bei 128 Sekunden Basisarbeit. Forschung beschleunigt den Abbau. Werte, Grafikprüfung und Speicherregeln: [ORE_WORLD.md](docs/ORE_WORLD.md).
 
 Dunkler Steinboden für freie Flächen: ursprünglich frei ist leicht kühler, durch Ressourcenabbau freigegraben dezent wärmer. Die Abbauhistorie bleibt gespeichert und erscheint im Nebel nur als zuletzt bekanntes Wissen. Ältere Spielstände kennen noch keine individuelle Abbauhistorie; neuer Abbau wird ab dem Laden markiert. Details: [STONE_FLOOR.md](docs/STONE_FLOOR.md).
 

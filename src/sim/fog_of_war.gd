@@ -4,6 +4,7 @@ extends RefCounted
 const WORKER_RADIUS := 7
 const WARRIOR_RADIUS := 9
 const CORE_RADIUS := 12
+const OBSTACLE_DEPTH := 4
 const Backend = preload("res://src/sim/native_search.gd")
 var reference_only := false
 var native_updates := 0
@@ -82,8 +83,8 @@ func update(sim: Simulation) -> void:
 	var sites_state: Array = []
 	for row in sim.construction.sites.records:
 		sites_state.append([row.id, row.owner, row.rect, row.ready, row.destroyed, row.hp, row.work])
-		if not row.destroyed and row.ready:
-			sources.append([int(row.owner), sim.construction.center(int(row.id)), CORE_RADIUS])
+		if not row.destroyed and (row.ready or row.started):
+			sources.append([int(row.owner), sim.construction.center(int(row.id)), CORE_RADIUS, row.rect])
 	var terrain_signature := hash([hash(sim.world.cells), hash(sim.world.excavated)])
 	var signature := hash([terrain_signature, sources, sites_state, alliance])
 	if signature == _last_signature and terrain_signature == _last_terrain_signature:
@@ -102,14 +103,19 @@ func update(sim: Simulation) -> void:
 	for faction in factions: own_cells.append(PackedInt32Array())
 	var native := Backend.backend() if not reference_only and not "--fog-reference" in OS.get_cmdline_user_args() else null
 	var native_ok := false
-	if native != null and native.has_method("fog_visible"):
+	if native != null and native.has_method("fog_visible_depth"):
 		var packed := PackedInt32Array()
 		for source in sources:
 			if int(source[0]) < 0 or int(source[0]) >= factions: continue
 			packed.append(int(source[0]))
 			packed.append(int(source[1]))
 			packed.append(int(source[2]))
-		var result = native.fog_visible(blocking, packed, factions, width)
+			var footprint: Rect2i = source[3] if source.size() > 3 else Rect2i()
+			packed.append(footprint.position.x)
+			packed.append(footprint.position.y)
+			packed.append(footprint.size.x)
+			packed.append(footprint.size.y)
+		var result = native.fog_visible_depth(blocking, packed, factions, width)
 		if result is Array and result.size() == factions:
 			native_ok = true
 			for faction in factions: own_cells[faction] = result[faction]
@@ -127,13 +133,14 @@ func update(sim: Simulation) -> void:
 			if owner < 0 or owner >= factions: continue
 			var origin := int(source[1])
 			var radius := int(source[2])
-			var key := Vector3i(owner, origin, radius)
+			var footprint: Rect2i = source[3] if source.size() > 3 else Rect2i()
+			var key := [owner, origin, radius, footprint]
 			if seen_sources.has(key): continue
 			seen_sources[key] = true
 			active_keys[Vector2i(origin, radius)] = true
 			var mask: PackedByteArray = own_sight[owner]
 			var cells: PackedInt32Array = own_cells[owner]
-			for cell in _visible_cells(blocking, origin, radius):
+			for cell in _visible_cells(blocking, origin, radius, footprint):
 				if mask[cell] == 0:
 					mask[cell] = 1
 					cells.append(cell)
@@ -186,7 +193,7 @@ func update(sim: Simulation) -> void:
 					if visible[faction][y * width + x] == 1: revisited = true
 			if revisited: known_sites[faction].erase(id)
 
-func _visible_cells(blocking: PackedByteArray, origin: int, radius: int) -> PackedInt32Array:
+func _visible_cells(blocking: PackedByteArray, origin: int, radius: int, footprint := Rect2i()) -> PackedInt32Array:
 	var key := Vector2i(origin, radius)
 	var x0 := origin % width
 	var y0 := origin / width
@@ -198,27 +205,28 @@ func _visible_cells(blocking: PackedByteArray, origin: int, radius: int) -> Pack
 	# invalidates this origin. Distant mining keeps unrelated origins cached.
 	var patch := PackedByteArray()
 	for y in range(top, bottom): patch.append_array(blocking.slice(y * width + left, y * width + right))
-	if _sight_cache.has(key) and _sight_cache[key].blocking == patch:
+	if _sight_cache.has(key) and _sight_cache[key].blocking == patch and _sight_cache[key].footprint == footprint:
 		return _sight_cache[key].cells
 	var cells := PackedInt32Array()
 	for y in range(top, bottom):
 		for x in range(left, right):
 			if (x - x0) * (x - x0) + (y - y0) * (y - y0) > radius * radius: continue
-			if _line_clear(blocking, x0, y0, x, y): cells.append(y * width + x)
-	_sight_cache[key] = {"blocking": patch, "cells": cells}
+			if _line_clear(blocking, x0, y0, x, y, footprint): cells.append(y * width + x)
+	_sight_cache[key] = {"blocking": patch, "cells": cells, "footprint": footprint}
 	return cells
 
-func _reveal(mask: PackedByteArray, blocking: PackedByteArray, origin: int, radius: int) -> void:
+func _reveal(mask: PackedByteArray, blocking: PackedByteArray, origin: int, radius: int, footprint := Rect2i()) -> void:
 	if origin < 0 or origin >= mask.size(): return
 	var x0 := origin % width
 	var y0 := origin / width
 	for y in range(maxi(0, y0 - radius), mini(height, y0 + radius + 1)):
 		for x in range(maxi(0, x0 - radius), mini(width, x0 + radius + 1)):
 			if (x - x0) * (x - x0) + (y - y0) * (y - y0) > radius * radius: continue
-			if _line_clear(blocking, x0, y0, x, y): mask[y * width + x] = 1
+			if _line_clear(blocking, x0, y0, x, y, footprint): mask[y * width + x] = 1
 
-func _line_clear(blocking: PackedByteArray, x0: int, y0: int, x1: int, y1: int) -> bool:
-	# Integer Bresenham: endpoint is visible even if opaque, but nothing behind it.
+func _line_clear(blocking: PackedByteArray, x0: int, y0: int, x1: int, y1: int, footprint := Rect2i()) -> bool:
+	# Four raster steps including the first obstacle, with no reset in gaps.
+	# A building source ignores only its own footprint, never a neighboring site.
 	var dx := absi(x1 - x0)
 	var dy := absi(y1 - y0)
 	var sx := 1 if x0 < x1 else -1
@@ -226,6 +234,7 @@ func _line_clear(blocking: PackedByteArray, x0: int, y0: int, x1: int, y1: int) 
 	var error := dx - dy
 	var x := x0
 	var y := y0
+	var depth := 0
 	while x != x1 or y != y1:
 		var doubled := error * 2
 		if doubled > -dy:
@@ -234,8 +243,11 @@ func _line_clear(blocking: PackedByteArray, x0: int, y0: int, x1: int, y1: int) 
 		if doubled < dx:
 			error += dx
 			y += sy
+		if not footprint.has_point(Vector2i(x, y)):
+			if depth > 0: depth += 1
+			elif blocking[y * width + x] != 0: depth = 1
+			if depth > OBSTACLE_DEPTH: return false
 		if x == x1 and y == y1: return true
-		if blocking[y * width + x] != 0: return false
 	return true
 
 func snapshot() -> Dictionary:

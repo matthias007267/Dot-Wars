@@ -71,7 +71,7 @@ Neutralisierung, Eigentumswechsel und Pufferung erzeugen keine zusätzliche Ener
 
 ## Fog of War
 
-- **F01 – Verbindlich:** Solide Pixel und Gebäude blockieren die Sicht.
+- **F01 – Verbindlich, präzisiert am 27. Oktober 2026:** Solide Pixel und Gebäude begrenzen die Sicht nach vier Rasterfeldern ab der ersten Barriere, einschließlich der Barriere selbst. Freie Lücken danach setzen die Zählung nicht zurück. Gebäudequellen ignorieren nur ihre eigene Grundfläche; fertige und begonnene Gebäude liefern eigene Sicht und Grundlicht. Unbegonnene Pläne sind keine Aufklärungsquellen. Die normale Sichtweite gilt weiterhin. Details: [FOG_DEPTH.md](FOG_DEPTH.md), D-079.
 - **F02 – Verbindlich:** Gegnerische Dots verschwinden sofort aus der Darstellung, sobald sie außerhalb der aktuellen Sicht liegen. Sie bleiben nicht als letzte bekannte Einheitenposition stehen.
 - **F03 – Verbindlich:** Entdeckte gegnerische Gebäude bleiben im zuletzt bekannten Zustand sichtbar.
 - **F04 – Verbindlich:** Veränderungen außerhalb der Sicht werden erst bei erneuter Erkundung aktualisiert. Dazu gehören insbesondere Gebäudeänderungen und Veränderungen des bekannten Geländes.
