@@ -166,7 +166,7 @@ static void army_call_impl(void *data,void *instance,const void *const *args,int
                 else {
                     int cached=0; for(int k=0;k<route_cache->used;k++) if(route_cache->keys[k]==goal) { cached=1; break; }
                     if(!cached && (route_cache->used>=route_cache->capacity || route_cache->warm_budget<=0) && route_cache->goal_frequency[goal]<4) field=army_corner_route(route_cache,c,goal,owner,occ,workers,worker_owners);
-                    if(!field) { if(!cached && route_cache->goal_frequency[goal]<4 && route_cache->warm_budget>0) route_cache->warm_budget--; field=army_cached_field(route_cache,goal); }
+                    if(!field || field[c]<0) { if(!cached && route_cache->goal_frequency[goal]<4 && route_cache->warm_budget>0) route_cache->warm_budget--; field=army_cached_field(route_cache,goal); }
                 }
             }
             if(!field && !manhattan) goto cleanup;

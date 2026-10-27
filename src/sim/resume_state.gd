@@ -16,7 +16,11 @@ static func _export(source: Object, names: Array) -> Dictionary:
 
 static func snapshot(sim: Simulation) -> Dictionary:
 	var flow: Array[Dictionary] = []
-	for field in sim.fields: flow.append(_export(field, FLOW))
+	for field in sim.fields:
+		var row := _export(field, FLOW)
+		row.mining_first = field.mining_first
+		row.built_mining_first = field._built_mining_first
+		flow.append(row)
 	return {"world_revision": sim.world.revision, "change_log": sim.world.change_log.duplicate(),
 		"change_from": sim.world.change_from.duplicate(), "change_epoch": sim.world.change_epoch,
 		"faces": sim.world.face_lists.duplicate(true), "flow": flow,
@@ -70,6 +74,8 @@ static func restore(sim: Simulation, data: Variant) -> bool:
 		var field: FlowField = sim.fields[index]
 		var row: Variant = data.flow[index]
 		if not _types_match(field, FLOW, row): return false
+		if not row.get("mining_first", false) is bool: return false
+		if not row.get("built_mining_first", false) is bool: return false
 		if not _distances(row.dist, n) or not _distances(row._next_dist, n): return false
 		if row.dir.size() != n or row._next_dir.size() != n: return false
 		for directions in [row.dir, row._next_dir]:
@@ -107,7 +113,10 @@ static func restore(sim: Simulation, data: Variant) -> bool:
 	sim.world.face_lists = data.faces.duplicate(true)
 	sim.world.face_slot = face_slot
 	sim.world.face_count = face_count
-	for index in sim.fields.size(): _assign(sim.fields[index], FLOW, data.flow[index])
+	for index in sim.fields.size():
+		sim.fields[index].mining_first = data.flow[index].get("mining_first", false)
+		sim.fields[index]._built_mining_first = data.flow[index].get("built_mining_first", false)
+		_assign(sim.fields[index], FLOW, data.flow[index])
 	_assign(sim.energy_dots, ENERGY, data.energy)
 	_assign(sim.work_front, FRONT, data.front)
 	return true

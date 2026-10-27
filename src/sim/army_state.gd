@@ -32,6 +32,8 @@ var queue: Array[Dictionary] = []
 var teams := PackedInt32Array([0, 1, 2, 3])
 var _paths := {}
 var _revision := -1
+## Diagnostic only: one shared field per goal/terrain, never one per warrior.
+var field_builds := 0
 var reference_only := false
 var native_steps := 0
 var profile_enabled := false
@@ -105,6 +107,7 @@ func eliminate(owner: int) -> void:
 
 
 func command(selected: PackedInt32Array, goal: int, owner := 0) -> bool:
+	if goal < 0 or goal >= occupant.size(): return false
 	var changed := false
 	for tagged in selected:
 		var uid := tagged - TAG
@@ -272,6 +275,7 @@ func _spawn(sim: Simulation) -> void:
 
 func _field(goal: int, world: WorldState) -> PackedInt32Array:
 	if _paths.has(goal): return _paths[goal]
+	field_builds += 1
 	var dist := PackedInt32Array()
 	dist.resize(world.cell_count())
 	dist.fill(-1)
@@ -302,9 +306,50 @@ func _field(goal: int, world: WorldState) -> PackedInt32Array:
 				if next >= 0 and dist[next] < 0 and world.cells[next] == Materials.EMPTY:
 					dist[next] = dist[cell] + 1
 					frontier.append(next)
+	_fill_disconnected(dist, goal, world)
 	if _paths.size() >= 16: _paths.erase(_paths.keys()[0])
 	_paths[goal] = dist
 	return dist
+
+
+## Each isolated free component gets its own nearest stand. Equal goal distance
+## chooses the lowest cell ID. Reverse BFS is shared by all units in that component.
+func _fill_disconnected(dist: PackedInt32Array, goal: int, world: WorldState) -> void:
+	if goal < 0 or goal >= world.cell_count(): return
+	for origin in world.cell_count():
+		if world.cells[origin] != Materials.EMPTY or dist[origin] != -1: continue
+		var component := PackedInt32Array([origin])
+		dist[origin] = -2
+		var best := origin
+		var rank := _goal_distance(origin, goal, world.width)
+		var head := 0
+		while head < component.size():
+			var cell := component[head]
+			head += 1
+			var candidate := _goal_distance(cell, goal, world.width)
+			if candidate < rank or (candidate == rank and cell < best):
+				best = cell
+				rank = candidate
+			for direction in range(1, 5):
+				var next := MovementSystem.neighbor(cell, direction, world.width, world.cell_count())
+				if next >= 0 and dist[next] == -1 and world.cells[next] == Materials.EMPTY:
+					dist[next] = -2
+					component.append(next)
+		var frontier := PackedInt32Array([best])
+		dist[best] = 0
+		head = 0
+		while head < frontier.size():
+			var cell := frontier[head]
+			head += 1
+			for direction in range(1, 5):
+				var next := MovementSystem.neighbor(cell, direction, world.width, world.cell_count())
+				if next >= 0 and dist[next] == -2:
+					dist[next] = dist[cell] + 1
+					frontier.append(next)
+
+
+func _goal_distance(cell: int, goal: int, width: int) -> int:
+	return absi(cell % width - goal % width) + absi(cell / width - goal / width)
 
 
 func snapshot() -> Dictionary:
@@ -367,32 +412,23 @@ func _local_field(origin: int, goal: int, world: WorldState) -> Dictionary:
 			frontier.append(next)
 	return distances
 
-## Optional native arithmetic; old binaries and many unique goals keep the reference.
+## Optional native arithmetic; old binaries use the current reference rules.
 func _native_step(sim: Simulation) -> bool:
 	if "--army-reference" in OS.get_cmdline_user_args(): return false
 	var native := Native.backend()
-	if native == null or not native.has_method("army_step"): return false
+	# Older DLLs stop at disconnected goals; use the current reference instead.
+	if native == null or not native.has_method("army_step_reachable"): return false
 	var ai_goals := PackedInt32Array([-1, -1, -1, -1])
 	if sim.config.mode == SimConfig.MODE_MATCH:
 		for owner in range(1, sim.rules.faction_count):
 			if sim.rules.control[owner] == MatchRules.CONTROL_AI:
 				ai_goals[owner] = sim.rules._nearest_living_enemy_core(sim, owner)
 				if ai_goals[owner] >= 0: ai_goals[owner] = sim.rules._attack_cell(sim, ai_goals[owner], owner)
-	var cached := native.has_method("army_step_cached")
-	var unique := {}
-	if not cached:
-		for index in count:
-			var goal := goals[index] if goals[index] >= 0 else ai_goals[owners[index]]
-			if goal >= 0 and not cached: unique[goal] = true
-			if unique.size() > 16 and not cached: return false
-	var keys := PackedInt32Array(unique.keys())
-	var fields: Array = []
-	for goal in keys: fields.append(_field(goal, sim.world))
-	var result: Variant = native.call("army_step_cached" if cached else "army_step", [
+	var result: Variant = native.call("army_step_reachable", [
 		ids, cells, owners, goals, next_move, last_attack, occupant,
-		sim.workers.occupant, sim.workers.faction, teams, ai_goals, keys,
+		sim.workers.occupant, sim.workers.faction, teams, ai_goals, PackedInt32Array(),
 		PackedInt32Array([DAMAGE, ATTACK_PERIOD, MOVE_PERIOD, DEFENCE_RADIUS, 5]),
-	], fields, sim.world.cells, sim.world.width, sim.tick_count)
+	], [], sim.world.cells, sim.world.width, sim.tick_count)
 	if not result is Array or result.size() != 6: return false
 	cells = result[0]
 	next_move = result[1]

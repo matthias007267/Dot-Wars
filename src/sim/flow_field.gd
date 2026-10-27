@@ -69,6 +69,9 @@ var full_rebuilds: int = 0
 var patches: int = 0
 ## Gewünschter Punkt der Gruppe. Darf fest sein. -1 heißt: kein Laufziel, nur Abbaugebiete.
 var goal_cell: int = -1
+## Derived from a manual mining march; do not stop at an unrelated nearer wall.
+var mining_first := false
+var _built_mining_first := false
 ## Leere Zellen, von denen aus die Gruppe losläuft. Daraus wird der nächstmögliche Standpunkt.
 var anchors := PackedInt32Array()
 ## 1 verbietet die Zelle für Arbeiter. Leer heißt: nichts gesperrt.
@@ -105,12 +108,13 @@ func settled() -> bool:
 		and _built_world_revision == _world.revision
 		and _applied_epoch == _world.change_epoch
 		and _built_goal == goal_cell
+		and _built_mining_first == mining_first
 	)
 
 
 ## Führt höchstens `budget` Zellbesuche aus und startet bei veralteten Daten einen neuen Aufbau.
 func step(budget: int) -> void:
-	var goal_changed := goal_cell != _built_goal
+	var goal_changed := goal_cell != _built_goal or mining_first != _built_mining_first
 	var area_changed := _area_revision() != _built_area_revision
 	var epoch_gap := _world.change_epoch != _applied_epoch
 	var world_changed := _world.revision != _built_world_revision or epoch_gap
@@ -187,6 +191,7 @@ func _begin() -> void:
 	_seeds_listed = false
 	_rect_solid = _areas.sync_counts(_world, _group).duplicate()
 	_built_goal = goal_cell
+	_built_mining_first = mining_first
 	_stand_cell = _nearest_stand()
 	_applied_changes = _world.change_log.size()
 	_applied_epoch = _world.change_epoch
@@ -325,6 +330,7 @@ func goal_is_stand() -> bool:
 ## Erreichbare leere Zelle mit dem kleinsten Manhattan-Abstand zum gewünschten Punkt.
 ## Ohne Anker bleibt ein leeres Ziel der Standpunkt, ein festes Ziel hat keinen.
 func _nearest_stand() -> int:
+	if mining_first: return -1
 	var native := NATIVE_SEARCH.backend()
 	if native != null:
 		return int(native.nearest_stand(_world.cells, blocked, anchors, _world.width, goal_cell))
