@@ -1,5 +1,9 @@
 # Regeln für Agenten
 
+## Neuester Auftrag: Codeanalyse, Konzeptvorschläge und gemessene Performance
+
+Der Nutzer beauftragt: „Analysiere den Code und schlage mir Verbesserungen vor am Spielkonzept und optimiere die Performance.“ Gemessen wird eine normale KI-Partie (headless und mit Fenster); optimiert werden nur gemessene Engpässe ohne Regel-, Sicht-, Takt- oder Bilanzänderung. Konzeptvorschläge sind Vorschläge ohne Freigabe. Native Windows-Version v13 (`fog_merge`), vollständiger Neubau/Neustart. Branch `perf/match-profile`, Commit und Review-PR auf ausdrücklichen Wunsch, kein automatischer Merge. Details: `docs/MATCH_PERFORMANCE.md`, D-085.
+
 ## Neuester Auftrag: erreichbare Marschziele und gemeinsame Wegsuche
 
 Der Nutzer beauftragt während seines eigenen Spieltests bessere Bewegungsbefehle: Arbeiter bevorzugen Wege mit weniger abzubauenden Blöcken auch ohne Schwarmintelligenz; Krieger gehen bei unerreichbaren, auch unbekannten Zielen zum nächstmöglichen erreichbaren Punkt. Die Idee fester Fünfertrupps soll auf ihren tatsächlichen Rechenvorteil geprüft und sinnvoll umgesetzt werden. Bestehende gemeinsame Ziel-Wegfelder werden deshalb für getrennte Höhlen erweitert; einzelne Dots behalten Auswahl, Produktion, HP und Kampf. Keine fixe Fünferproduktion, da die Wegsuche bereits pro Ziel geteilt wird. Lexikografische Arbeiterroute: zuerst Blockzahl, dann Grund-Abbauarbeit, dann Laufstrecke; unzerstörbare Fundamente bleiben gesperrt. D-084 und docs/REACHABLE_ORDERS.md dokumentieren Entscheidung, Messung und Grenzen. PR #15 ist gemergt (`2b85612`); neuer Branch `feat/reachable-unit-orders`, neuer Review-PR, kein automatischer Merge. Native v12 muss für Windows neu gebaut und das Spiel vollständig neu gestartet werden; alte Kerne verwenden die aktuelle GDScript-Armee als korrekten Fallback.

@@ -152,23 +152,37 @@ func update(sim: Simulation) -> void:
 	else:
 		_sight_cache.clear()
 	var terrain := sim.world.cells
+	var merge_native := native != null and native.has_method("fog_merge")
 	for faction in factions:
-		var mask := PackedByteArray()
-		mask.resize(blocking.size())
-		var explored_mask := explored[faction].duplicate()
-		var memory := known_terrain[faction].duplicate()
-		var floor_memory := known_excavated[faction].duplicate()
-		for ally in factions:
-			if alliance[faction] != alliance[ally]: continue
-			for cell in own_cells[ally]:
-				mask[cell] = 1
-				explored_mask[cell] = 1
-				memory[cell] = terrain[cell]
-				floor_memory[cell] = sim.world.excavated[cell]
-		visible[faction] = mask
-		explored[faction] = explored_mask
-		known_terrain[faction] = memory
-		known_excavated[faction] = floor_memory
+		var merged := false
+		if merge_native:
+			var allied_cells := PackedInt32Array()
+			for ally in factions:
+				if alliance[faction] == alliance[ally]: allied_cells.append_array(own_cells[ally])
+			var published = native.fog_merge(allied_cells, explored[faction], known_terrain[faction], known_excavated[faction], terrain, sim.world.excavated)
+			if published is Array and published.size() == 4:
+				visible[faction] = published[0]
+				explored[faction] = published[1]
+				known_terrain[faction] = published[2]
+				known_excavated[faction] = published[3]
+				merged = true
+		if not merged:
+			var mask := PackedByteArray()
+			mask.resize(blocking.size())
+			var explored_mask := explored[faction].duplicate()
+			var memory := known_terrain[faction].duplicate()
+			var floor_memory := known_excavated[faction].duplicate()
+			for ally in factions:
+				if alliance[faction] != alliance[ally]: continue
+				for cell in own_cells[ally]:
+					mask[cell] = 1
+					explored_mask[cell] = 1
+					memory[cell] = terrain[cell]
+					floor_memory[cell] = sim.world.excavated[cell]
+			visible[faction] = mask
+			explored[faction] = explored_mask
+			known_terrain[faction] = memory
+			known_excavated[faction] = floor_memory
 		# Snapshot updates only while a footprint is in view; unseen destruction remains unknown.
 		for row in sim.construction.sites.records:
 			var id := int(row.id)

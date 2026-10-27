@@ -68,3 +68,37 @@ cleanup:
     free(seen); free(cells); destroy_bytes(&ba); destroy_ints(&sa);
     if(!valid) return_nil(out);
 }
+/* Publishes one faction's visible cell list into fresh visibility and its
+ * explored/terrain/floor memory. Same writes as the GDScript reference loop. */
+static const GDExtensionVariantType fog_merge_types[]={I,B,B,B,B,B};
+static void fog_merge_call(void *data,void *instance,const void *const *args,int64_t argc,void *out,GDExtensionCallError *error) {
+    (void)data; (void)instance;
+    if(!validate_args(args,argc,fog_merge_types,6,error)) { return_nil(out); return; }
+    Value list,maps[5],vis,result;
+    to_ints(&list,(void *)args[0]);
+    for(int i=0;i<5;i++) to_bytes(&maps[i],(void *)args[i+1]);
+    new_bytes(&vis,NULL);
+    int valid=0;
+    int64_t count=array_size(size_ints,&list),n=array_size(size_bytes,&maps[0]);
+    if(n<=0 || n>16777216) goto cleanup;
+    for(int i=1;i<5;i++) if(array_size(size_bytes,&maps[i])!=n) goto cleanup;
+    const int32_t *cells=count?ints_const(&list,0):NULL;
+    for(int64_t i=0;i<count;i++) if(cells[i]<0 || cells[i]>=n) goto cleanup;
+    if(!resize(resize_bytes,&vis,n)) goto cleanup;
+    uint8_t *seen=bytes_mutable(&vis,0),*explored=bytes_mutable(&maps[0],0),*memory=bytes_mutable(&maps[1],0),*floor_memory=bytes_mutable(&maps[2],0);
+    const uint8_t *terrain=bytes_const(&maps[3],0),*excavated=bytes_const(&maps[4],0);
+    memset(seen,0,(size_t)n);
+    for(int64_t i=0;i<count;i++) {
+        int32_t c=cells[i];
+        seen[c]=1; explored[c]=1; memory[c]=terrain[c]; floor_memory[c]=excavated[c];
+    }
+    new_array(&result,NULL);
+    if(!resize(resize_array,&result,4)) { destroy_array(&result); goto cleanup; }
+    Value *outputs[4]={&vis,&maps[0],&maps[1],&maps[2]};
+    for(int i=0;i<4;i++) { void *item=array_at(&result,i); variant_destroy(item); from_bytes(item,outputs[i]); }
+    variant_destroy(out); from_array(out,&result); destroy_array(&result); valid=1;
+cleanup:
+    destroy_ints(&list); destroy_bytes(&vis);
+    for(int i=0;i<5;i++) destroy_bytes(&maps[i]);
+    if(!valid) return_nil(out);
+}

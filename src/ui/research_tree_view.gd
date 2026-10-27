@@ -15,6 +15,7 @@ var start_button: Button
 var zoom := 1.0
 var pan := Vector2(12, 12)
 var _dragging := false
+var _styled: Dictionary = {}
 
 func _init() -> void:
 	custom_minimum_size = Vector2(840, 430)
@@ -74,18 +75,24 @@ func refresh(p_sim: Simulation, p_site: int) -> void:
 				status = "FORSCHUNG %d %% · %.1f s · %d bezahlt" % [roundi(100.0 * job.elapsed / job.ticks), (job.ticks - job.elapsed) / 20.0, job.paid]
 				if not sim.research.running(sim, job): status += " · PAUSIERT"
 		var button: Button = buttons[tech]
-		button.text = "%s [%d/%d]\n%s" % [entry.label, level, entry.max, status]
-		button.tooltip_text = status + " · Klicken für Details"
+		var label := "%s [%d/%d]\n%s" % [entry.label, level, entry.max, status]
+		if button.text != label: button.text = label
+		var tooltip := status + " · Klicken für Details"
+		if button.tooltip_text != tooltip: button.tooltip_text = tooltip
 		button.visible = tech != "victory" or (sim.config.victory_mask & MatchRules.VICTORY_RESEARCH) != 0
 		button.modulate = Color.WHITE if available(tech) or level > 0 else Color(0.65, 0.7, 0.75)
-		UiTheme.style_button(button, tech == selected)
+		# Restyling rebuilds three style boxes and eight theme overrides; only on a selection change.
+		var accent: bool = tech == selected
+		if _styled.get(tech) != accent:
+			_styled[tech] = accent
+			UiTheme.style_button(button, accent)
 	if detail != null:
 		var text: String = buttons[selected].text if buttons.has(selected) else "Technologie wählen"
 		text += "\nZentrum #%d · Kosten werden beim Start vollständig bezahlt." % site if site >= 0 else "\nEigenes fertiges Forschungszentrum auf der Karte wählen."
 		for job in sim.research.jobs:
 			if job.faction == 0:
 				text += "\n#%d %s: %.1f s verbleibend" % [job.site, ResearchSystem.CATALOG[job.tech].label, (job.ticks - job.elapsed) / 20.0]
-		detail.text = text
+		if detail.text != text: detail.text = text
 	if start_button != null:
 		start_button.disabled = not available(selected)
 		start_button.text = "FORSCHUNG STARTEN" if available(selected) else "GESPERRT / ZENTRUM BELEGT"

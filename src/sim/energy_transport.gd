@@ -42,11 +42,28 @@ static func step(e: EnergyStore, world: WorldState, workers: WorkerStore, gates:
 	var delivered_count := 0
 	var write := 0
 	var original_size := e.cells.size()
+	# Hot loop over every dot: parallel arrays, terrain, routes and per-owner pace
+	# live in locals and are written back once; decisions are unchanged.
+	var cells := e.cells
+	var owners_of := e.owner
+	var births := e.birth
+	var refined := e.refined
+	var ages := e.no_route
+	var holders := e.held_by
+	var releases := e.release_at
+	var routed := e._routed
+	var routed_count := routed.size()
+	var terrain := world.cells
+	var cell_count := world.cell_count()
+	var due_of := PackedByteArray()
+	due_of.resize(256)
+	due_of.fill(2)
+	var dist_owner := -1
 	for i in original_size:
-		var cell := e.cells[i]
-		var owner := int(e.owner[i])
-		var holder := e.held_by[i]
-		var release_at := e.release_at[i]
+		var cell := cells[i]
+		var owner := int(owners_of[i])
+		var holder := holders[i]
+		var release_at := releases[i]
 		if holder >= 0:
 			if sim == null or not sim.construction.sites.valid(holder):
 				owner = NEUTRAL
@@ -70,40 +87,53 @@ static func step(e: EnergyStore, world: WorldState, workers: WorkerStore, gates:
 				buffered[site] = int(buffered.get(site, 0)) + 1
 				e.captured += 1
 				break # At most one capture per dot and tick; no lifetime capture limit.
-		var route := owner < e._routed.size() and cell >= 0 and cell < world.cell_count() and world.cells[cell] == Materials.EMPTY and (e._routed[owner] as PackedInt32Array)[cell] >= 0
-		var age := 0 if route else e.no_route[i] + 1
+		var route := owner < routed_count and cell >= 0 and cell < cell_count and terrain[cell] == Materials.EMPTY and (routed[owner] as PackedInt32Array)[cell] >= 0
+		var age := 0 if route else ages[i] + 1
 		if age >= NO_ROUTE_TICKS:
 			e.expired += 1
 			if holder >= 0: buffered[holder] = maxi(0, int(buffered.get(holder, 0)) - 1)
 			continue
-		var due := tick % e._pace_of(owner, period, periods) == 0
-		if holder < 0 and owner < factions and due:
+		var due_flag := due_of[owner]
+		if due_flag == 2:
+			due_flag = 1 if tick % e._pace_of(owner, period, periods) == 0 else 0
+			due_of[owner] = due_flag
+		if holder < 0 and owner < factions and due_flag == 1:
 			if exits.has(cell * 4 + owner):
 				delivered_count += 1
 				gained += 1
 				while e.delivered_to.size() <= owner: e.delivered_to.append(0)
 				e.delivered_to[owner] += 1
-				if e.refined[i] != 0: e.refined_delivered += 1
+				if refined[i] != 0: e.refined_delivered += 1
 				continue
-			if owner < e._routed.size():
-				e._dist = e._routed[owner]
+			if owner < routed_count:
+				# Same last-assigned field as before; it is part of the resume state.
+				if dist_owner != owner:
+					e._dist = routed[owner]
+					dist_owner = owner
 				cell = moved_by_owner[owner][i] if moved_by_owner.has(owner) else e._next_cell(cell, world, workers)
 		# Compact every parallel array together. Held energy stays on its actual capture cell.
 		if write != i:
-			e.birth[write] = e.birth[i]
-			e.refined[write] = e.refined[i]
-			e.cells[write] = cell
-			e.owner[write] = owner
-			e.no_route[write] = age
-			e.held_by[write] = holder
-			e.release_at[write] = release_at
+			births[write] = births[i]
+			refined[write] = refined[i]
+			cells[write] = cell
+			owners_of[write] = owner
+			ages[write] = age
+			holders[write] = holder
+			releases[write] = release_at
 		else:
-			if e.cells[i] != cell: e.cells[i] = cell
-			if e.owner[i] != owner: e.owner[i] = owner
-			if e.no_route[i] != age: e.no_route[i] = age
-			if e.held_by[i] != holder: e.held_by[i] = holder
-			if e.release_at[i] != release_at: e.release_at[i] = release_at
+			if cells[i] != cell: cells[i] = cell
+			if owners_of[i] != owner: owners_of[i] = owner
+			if ages[i] != age: ages[i] = age
+			if holders[i] != holder: holders[i] = holder
+			if releases[i] != release_at: releases[i] = release_at
 		write += 1
+	e.cells = cells
+	e.owner = owners_of
+	e.birth = births
+	e.refined = refined
+	e.no_route = ages
+	e.held_by = holders
+	e.release_at = releases
 	if write < original_size:
 		e.cells.resize(write)
 		e.birth.resize(write)

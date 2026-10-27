@@ -76,6 +76,17 @@ var search_usec := PackedInt64Array([0, 0, 0, 0])
 var last_tick_usec: int = 0
 ## Messungen seit Erzeugung/Laden, unabhängig vom gespeicherten Spieltakt.
 var profiled_ticks: int = 0
+## Optionale Teilzeiten je Systemschritt; nur Benchmarks schalten sie ein.
+var profile_detail := false
+var detail_usec := {}
+var _detail_at: int = 0
+
+
+func _lap(label: String) -> void:
+	if not profile_detail: return
+	var now := Time.get_ticks_usec()
+	detail_usec[label] = int(detail_usec.get(label, 0)) + now - _detail_at
+	_detail_at = now
 
 
 ## Erzeugt Welt aus der Konfiguration. Gibt bei ungültiger Konfiguration oder fehlenden
@@ -107,15 +118,21 @@ var approach_text := ""
 
 func tick_once() -> void:
 	var t0 := Time.get_ticks_usec()
+	_detail_at = t0
 	construction.step(self)
+	_lap("construction")
 	_guide_digging()
+	_lap("guide_digging")
 	var search_guidance := Time.get_ticks_usec()
 	_refresh_flow_anchors()
+	_lap("flow_anchors")
 	var search_anchors := Time.get_ticks_usec()
 	for g in fields.size():
 		fields[g].step(config.field_budget_per_tick)
+	_lap("fields")
 	var search_fields := Time.get_ticks_usec()
 	SwarmMind.step(self)
+	_lap("swarm")
 	var t1 := Time.get_ticks_usec()
 	search_usec[SearchStage.GUIDANCE] += search_guidance - t0
 	search_usec[SearchStage.ANCHORS] += search_anchors - search_guidance
@@ -130,6 +147,7 @@ func tick_once() -> void:
 		tick_count, workers, world, areas, fields,
 		upgrades.worker_period(config.move_period_ticks), 0, move_forbidden, move_periods
 	)
+	_lap("movement")
 	var t2 := Time.get_ticks_usec()
 	if _match_live():
 		var levels := PackedInt32Array()
@@ -144,11 +162,13 @@ func tick_once() -> void:
 		MiningSystem.step_scaled(
 			workers, world, areas, energy_dots, config.work_per_hardness, config.dig_power, upgrades.dig_level
 		)
+	_lap("mining")
 	var t3 := Time.get_ticks_usec()
 	spawner.process(world, workers, quotas, army.blockers(core_mask), self)
 	# Fusion ist aus dem Spiel entfernt.
 	buildings.grow(world, workers, energy_dots, army.blockers(core_mask))
 	buildings.refine(energy_dots, world, tick_count)
+	_lap("spawn_buildings")
 	if _match_live():
 		var route: Dictionary = rules.gates(self)
 		var gate_cells: PackedInt32Array = route.cells
@@ -161,14 +181,18 @@ func tick_once() -> void:
 	else:
 		var gates := energy_exits()
 		upgrades.energy += energy_dots.step(world, workers, gates, tick_count, upgrades.energy_period(), PackedByteArray(), PackedByteArray(), self)
+	_lap("energy")
 	research.step(self)
+	_lap("research")
 	var mass_now := total_mass()
 	if mass_now > peak_mass:
 		peak_mass = mass_now
 	if workers.count > max_units:
 		max_units = workers.count
 	army.step(self)
+	_lap("army")
 	defense.step(self)
+	_lap("defense")
 	var t4 := Time.get_ticks_usec()
 	stage_usec[Stage.TARGET_SEARCH] += t1 - t0
 	stage_usec[Stage.MOVEMENT] += t2 - t1
@@ -180,7 +204,9 @@ func tick_once() -> void:
 	elif not won and _goals_met():
 		won = true
 		win_tick = tick_count
+	_lap("rules_pulse")
 	if _match_live(): fog.update(self)
+	_lap("fog")
 	# Auch KI, Kampf und Siegprüfung gehören zur vollständigen Taktzeit.
 	last_tick_usec = Time.get_ticks_usec() - t0
 	profiled_ticks += 1

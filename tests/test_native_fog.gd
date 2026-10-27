@@ -94,3 +94,45 @@ func _pack(triplets: PackedInt32Array) -> PackedInt32Array:
 		result.append_array(triplets.slice(index, index + 3))
 		result.append_array(PackedInt32Array([0, 0, 0, 0]))
 	return result
+
+func test_native_merge_matches_reference_writes_and_rejects_invalid_input() -> void:
+	var native = _backend()
+	if "--require-native" in OS.get_cmdline_user_args():
+		check(native != null and native.has_method("fog_merge"), "v13 fog merge required")
+	if native == null or not native.has_method("fog_merge"):
+		check(true, "reference mode")
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 40427
+	for iteration in 8:
+		var explored := PackedByteArray()
+		var memory := PackedByteArray()
+		var floor_memory := PackedByteArray()
+		var terrain := PackedByteArray()
+		var excavated := PackedByteArray()
+		for data in [explored, memory, floor_memory, terrain, excavated]: data.resize(256)
+		for cell in 256:
+			explored[cell] = 1 if rng.randf() < .3 else 0
+			memory[cell] = rng.randi_range(0, 12) if explored[cell] == 1 else 0
+			floor_memory[cell] = rng.randi_range(0, 1) if explored[cell] == 1 else 0
+			terrain[cell] = rng.randi_range(0, 12)
+			excavated[cell] = rng.randi_range(0, 1)
+		var cells := PackedInt32Array()
+		for i in 90: cells.append(rng.randi_range(0, 255)) # Duplicates mimic overlapping allies.
+		var inputs := [explored.duplicate(), memory.duplicate(), floor_memory.duplicate()]
+		var expected_visible := PackedByteArray()
+		expected_visible.resize(256)
+		for cell in cells:
+			expected_visible[cell] = 1
+			explored[cell] = 1
+			memory[cell] = terrain[cell]
+			floor_memory[cell] = excavated[cell]
+		var result = native.fog_merge(cells, inputs[0], inputs[1], inputs[2], terrain, excavated)
+		check_eq(result, [expected_visible, explored, memory, floor_memory], "reference writes, iteration %d" % iteration)
+	var one := PackedByteArray([0])
+	check_eq(native.fog_merge(PackedInt32Array([1]), one, one, one, one, one), null, "cell outside the map")
+	check_eq(native.fog_merge(PackedInt32Array(), one, PackedByteArray([0, 0]), one, one, one), null, "mismatched map sizes")
+	check_eq(native.fog_merge(PackedInt32Array(), PackedByteArray(), PackedByteArray(), PackedByteArray(), PackedByteArray(), PackedByteArray()), null, "empty map")
+	var kept := PackedByteArray([1, 0])
+	native.fog_merge(PackedInt32Array([1]), kept, kept, kept, PackedByteArray([5, 6]), PackedByteArray([0, 1]))
+	check_eq(kept, PackedByteArray([1, 0]), "inputs stay unchanged")
