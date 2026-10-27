@@ -11,6 +11,11 @@ const DEFENCE_RADIUS := 3
 const TAG := 1000000000
 const Native = preload("res://src/sim/native_search.gd")
 
+## Transient presentation events; never saved or included in deterministic state.
+signal combat_attack(uid: int)
+signal combat_hit(cell: int, owner: int)
+signal combat_death(cell: int, owner: int, warrior: bool)
+
 var ids := PackedInt32Array()
 var cells := PackedInt32Array()
 var owners := PackedByteArray()
@@ -211,13 +216,27 @@ func _enemy(sim: Simulation, index: int, radius: int) -> Dictionary:
 
 
 func _apply_damage(sim: Simulation, workers_hit: Dictionary, warriors_hit: Dictionary) -> void:
+	# Both arithmetic backends meet here before simultaneous damage/removal.
+	# Adjacent enemies cannot move during the army step. A viewer can recover
+	# a target with the same selector, after culling hidden/offscreen/full effects.
+	if (not workers_hit.is_empty() or not warriors_hit.is_empty()) and not combat_attack.get_connections().is_empty():
+		for index in count:
+			if last_attack[index] != sim.tick_count: continue
+			combat_attack.emit(ids[index])
 	for uid in warriors_hit:
-		if slots.has(uid): hp[slots[uid]] -= int(warriors_hit[uid])
-	for id in workers_hit: sim.workers.health[id] -= int(workers_hit[id])
+		if slots.has(uid):
+			combat_hit.emit(cells[slots[uid]], owners[slots[uid]])
+			hp[slots[uid]] -= int(warriors_hit[uid])
+	for id in workers_hit:
+		combat_hit.emit(sim.workers.cell[id], sim.workers.faction[id])
+		sim.workers.health[id] -= int(workers_hit[id])
 	for index in range(count - 1, -1, -1):
-		if hp[index] <= 0: remove(ids[index])
+		if hp[index] <= 0:
+			combat_death.emit(cells[index], owners[index], true)
+			remove(ids[index])
 	for id in range(sim.workers.count - 1, -1, -1):
 		if sim.workers.health[id] > 0: continue
+		combat_death.emit(sim.workers.cell[id], sim.workers.faction[id], false)
 		sim.worker_losses += sim.workers.mass[id]
 		var last := sim.workers.count - 1
 		var selection := PackedInt32Array()

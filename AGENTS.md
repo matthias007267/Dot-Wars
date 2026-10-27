@@ -1,5 +1,9 @@
 # Regeln für Agenten
 
+## Neuester Folgeauftrag: Kampfimpulse und Pixelzerfall
+
+Der Nutzer bestätigt den vorgeschlagenen Kampflook mit „Dann setze das so um“: kurze teamfarbene Nahkampfimpulse ohne Drehung, weißer innenliegender Trefferblitz und quadratische Splitter bei echten Kampftoden. Arbeiter erhalten acht, Krieger zwölf Splitter. Keine Energie aus Toden, keine Änderung an Schaden, Reichweite, Timing, Stufen, Speicherung oder Bilanz. Vorhandene drei Kriegergrafiken dürfen verwandte Vorschauvarianten zeigen; reguläre Partien behalten Stufe 1. Effekte sind flüchtig, sichtgefiltert bis einschließlich ihrer Halos und auf 64 Ereignisse/2.048 Quads in einem gemeinsamen MultiMesh begrenzt. PR #13 ist inzwischen auf main gemergt (`0646fa0`); neuer Branch `feat/combat-pixel-effects` und neuer Review-PR, kein automatischer Merge. Details und Nachweise: `docs/COMBAT_EFFECTS.md`, D-081.
+
 ## Neuester Folgeauftrag: Gebäudelicht und Vier-Felder-Nebel
 
 Der Nutzer beauftragt eigene Gebäudelichtquellen, helleren erkundeten Nebel und Sicht bis vier Felder hinter dem Beginn einer Gebäude-/Ressourcenbarriere. Die vier Rasterfelder zählen einschließlich der ersten Barriere und auch über folgende Lücken weiter; das fünfte ist außerhalb der Sicht. Die normale Sichtweite bleibt Obergrenze. Gebäudequellen ignorieren nur ihr eigenes Fundament. Fertige und begonnene Gebäude liefern Grundlicht/Sicht, unbegonnene Pläne keine kostenlose Aufklärung. Forschungsaktivitätslicht bleibt an tatsächlichen Energieverbrauch gebunden. Erinnerung, Bündnisse und Verbergen von Gegnern außerhalb der neuen Sichtgrenze bleiben erhalten. Native Windows-Version v11, vollständiger Neubau/Neustart; kein automatischer Merge. Umsetzung im offenen PR #13; Regeln und Prüfungen: `docs/FOG_DEPTH.md`, D-079. Dieser neue ausdrückliche Auftrag ergänzt den vorher auf HUD begrenzten Auftrag.

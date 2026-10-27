@@ -1,5 +1,7 @@
 # DOT WARS
 
+Kampfoptik: kurze teamfarbene Nahkampfimpulse, weißer Trefferblitz innerhalb des Teamrands und quadratischer Pixelzerfall bei besiegten Dots. Arbeiter zerfallen in acht, Krieger in zwölf Splitter. Nebel, Pause und Tempo gelten auch für die Effekte; Partikel erzeugen keine Energie. Darstellung und Vorschau: [COMBAT_EFFECTS.md](docs/COMBAT_EFFECTS.md). Spiel neu starten; das vorhandene Native-Modul v11 bleibt kompatibel.
+
 Nebel überarbeitet: Fertige und begonnene Gebäude geben eigenes Grundlicht und Sicht, ohne vom eigenen Fundament verdeckt zu werden. Ressourcen und fremde Fundamente lassen die Sicht vier Rasterfelder ab der ersten Barriere weiterreichen; danach bleibt unbekanntes Gebiet schwarz. Erkundete Flächen sind heller dargestellt. Regeln und Grafiknachweise: [FOG_DEPTH.md](docs/FOG_DEPTH.md). Windows-Native-Modul **v11** neu bauen und das Spiel vollständig neu starten.
 
 HUD nach der markierten Referenz: Energie und Einheitenzahlen oben links, laufende Aufträge als Icons darunter, Menü oben rechts. Unten links wechseln Bau-/Produktions-/Forschungsaktionen mit der Auswahl; daneben stehen Produktionsübersicht und Hover-Erklärung. Minimap und Team-Zielstände liegen unten rechts. Details und Bedienung: [HUD_REFERENCE.md](docs/HUD_REFERENCE.md).
