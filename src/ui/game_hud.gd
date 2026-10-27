@@ -229,11 +229,9 @@ func issue_march(cell: int) -> bool:
 	var armies := PackedInt32Array()
 	for id in selection:
 		if id >= ArmyState.TAG: armies.append(id)
-	var army_goal := cell
-	if site >= 0:
-		var perimeter := sim.construction.receivers_for(sim, site)
-		if not perimeter.is_empty(): army_goal = perimeter[0]
-	var army_order := sim.army.command(armies, army_goal)
+	# Keep the clicked target: the shared field finds the nearest reachable side,
+	# rather than sending every warrior to the building's first perimeter cell.
+	var army_order := sim.army.command(armies, cell)
 	var party := _party_for(cell, Rect2i())
 	if party.is_empty() and army_order:
 		_notice("Krieger marschieren.")

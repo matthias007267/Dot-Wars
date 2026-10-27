@@ -56,6 +56,22 @@ jobs:
           fi
           grep -q "NETWORK BENCH centers=36 jobs=36.*paid_shipments=0" /tmp/network-supply.log
 
+      - name: Gemeinsame Marschziele mit 10.000 Kriegern prüfen
+        run: |
+          timeout 30s godot --headless --path . -s bench/reachable_orders_benchmark.gd -- --require-native 2>&1 | tee /tmp/reachable-orders.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" /tmp/reachable-orders.log; then
+            exit 1
+          fi
+          grep -q "REACHABLE ORDERS SUMMARY: 0 failures" /tmp/reachable-orders.log
+
+      - name: Wegfindungs-Messnachweis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reachable-orders-benchmark
+          path: /tmp/reachable-orders.log
+          if-no-files-found: ignore
+
       - name: Hauptszene startet
         run: |
           timeout 30s godot --headless --path . --quit-after 8 > /tmp/boot.log 2>&1

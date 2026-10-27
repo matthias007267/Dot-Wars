@@ -1,5 +1,7 @@
 # Roadmap
 
+Aktueller Folgeauftrag D-084 nach Merge von PR #15: abbauarme Arbeiterwege, erreichbare Krieger-Haltepunkte und gemeinsame Ziel-Wegfelder statt fixer Fünferproduktion. Regeln und Prüfstand: [REACHABLE_ORDERS.md](REACHABLE_ORDERS.md). Neuer Review-PR, kein automatischer Merge.
+
 Aktueller beauftragter Review-Stand D-082/D-083: Kriegstürme mit drei lokalen Stufen, schwächere Basiswaffen, Forschung mit Einmalzahlung und Netzpause sowie vorausbezahlter Waffenunterhalt. Gebäudenetz ohne Einzeltransporte; Abbau-Dots bleiben erhalten. Umfang und Nachweise: [GRID_DEFENSE.md](GRID_DEFENSE.md). Kein automatischer Merge.
 
 **Neuer Weltauftrag im Review:** [ORE_WORLD.md](ORE_WORLD.md) beschreibt die bestätigten Erzwerte, getrennte Start-Tunnelnetze, dauerhaftes Obsidian und anteilige Einzelenergie während des Abbaus. Dieser Auftrag ist ausdrücklich freigegeben (D-075/D-076) und enthält den noch offenen Steinbodenstand aus PR #12. Kein automatischer Merge; ältere Phasenstände unten bleiben historisch.

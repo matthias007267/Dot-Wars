@@ -330,6 +330,7 @@ func _refresh_flow_anchors() -> void:
 		buckets[group_id].append(cell)
 	for g in fields.size():
 		fields[g].anchors = buckets[g]
+		fields[g].mining_first = g == command_group and march_cell >= 0 and DigGuidance.mineable_left(self, g)
 
 
 func clear_move_goal(group_id: int) -> void:

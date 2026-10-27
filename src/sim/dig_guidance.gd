@@ -51,56 +51,30 @@ const ROUTE_CLEAR := 0
 const ROUTE_MINING := 1
 
 
-## Markiert abbaubare Zellen auf dem kürzesten Weg der Gruppe zur Zielzelle.
+## Markiert den gruppenweit günstigsten Abbauweg, auch ohne Schwarmforschung.
 static func mark_route(sim: Simulation, group_id: int, goal: int) -> int:
 	var world := sim.world
 	var width := world.width
 	var count := world.cell_count()
-	if goal < 0 or goal >= count:
+	if group_id < 0 or group_id >= sim.fields.size() or goal < 0 or goal >= count:
 		return ROUTE_BLOCKED
-	var parent := PackedInt32Array()
-	parent.resize(count)
-	parent.fill(-2)
-	var queue := PackedInt32Array()
-	for id in sim.workers.count:
-		if sim.workers.group[id] != group_id:
-			continue
-		var cell := sim.workers.cell[id]
-		if world.cells[cell] != Materials.EMPTY or parent[cell] != -2:
-			continue
-		parent[cell] = -1
-		queue.append(cell)
-	if queue.is_empty():
+	if world.cells[goal] != Materials.EMPTY and not Materials.is_mineable(world.cells[goal]):
 		return ROUTE_BLOCKED
-	var found := -1
-	var head := 0
-	while head < queue.size() and found < 0:
-		var cell := queue[head]
-		head += 1
-		if cell == goal:
-			found = cell
-			break
-		for next in _neighbors(cell, width, count):
-			if parent[next] != -2:
-				continue
-			if next == goal or world.cells[next] == Materials.EMPTY or Materials.is_mineable(world.cells[next]):
-				parent[next] = cell
-				if next == goal:
-					found = next
-					break
-				queue.append(next)
-	if found < 0:
-		return ROUTE_BLOCKED
+	var targets := PackedByteArray()
+	targets.resize(count)
+	targets[goal] = 1
+	var path := _route(sim, group_id, targets)
+	if path.is_empty(): return ROUTE_BLOCKED
 	var along := PackedInt32Array()
-	var step := found
 	var mask: PackedByteArray = sim.areas.masks[group_id]
 	# Der Arbeitskorridor wird aus den tatsächlich zum Auftrag gehörenden Dots abgeleitet,
 	# nicht aus festen Engine-Gruppen. Kleine Trupps graben schmal, große Schwärme parallel.
 	var radius := tunnel_radius(sim.workers.group_counts[group_id])
-	while step >= 0:
+	for index in path.size():
+		var step := path[index]
 		if Materials.is_mineable(world.cells[step]) and mask[step] == 0:
 			along.append(step)
-		var previous := int(parent[step])
+		var previous := path[index + 1] if index + 1 < path.size() else -1
 		if previous >= 0 and radius > 0:
 			var horizontal := absi(step % width - previous % width) == 1
 			var x := step % width
@@ -115,7 +89,6 @@ static func mark_route(sim: Simulation, group_id: int, goal: int) -> int:
 				var side := side_y * width + side_x
 				if mask[side] == 0 and Materials.is_mineable(world.cells[side]):
 					along.append(side)
-		step = previous
 	if along.is_empty():
 		return ROUTE_CLEAR
 	return ROUTE_MINING if sim.assign_cells(group_id, along) else ROUTE_CLEAR
@@ -214,48 +187,23 @@ static func _touches_any(world: WorldState, reached: PackedByteArray, targets: P
 	return false
 
 
-static func _mark_path(sim: Simulation, group_id: int) -> bool:
-	var world := sim.world
-	var width := world.width
-	var count := world.cell_count()
-	var parent := PackedInt32Array()
-	parent.resize(count)
-	parent.fill(-2)
-	var queue := PackedInt32Array()
+static func _route(sim: Simulation, group_id: int, targets: PackedByteArray) -> PackedInt32Array:
+	var origins := PackedInt32Array()
 	for id in sim.workers.count:
-		if sim.workers.group[id] != group_id:
-			continue
-		var cell := sim.workers.cell[id]
-		if world.cells[cell] == Materials.EMPTY and parent[cell] == -2:
-			parent[cell] = -1
-			queue.append(cell)
+		if sim.workers.group[id] == group_id: origins.append(sim.workers.cell[id])
+	return ExcavationPath.find(sim.world, sim.core_mask, origins, targets)
+
+
+static func _mark_path(sim: Simulation, group_id: int) -> bool:
 	var mask: PackedByteArray = sim.areas.masks[group_id]
-	var goal := -1
-	var head := 0
-	while head < queue.size() and goal < 0:
-		var cell := queue[head]
-		head += 1
-		for next in _neighbors(cell, width, count):
-			if parent[next] != -2:
-				continue
-			var material := world.cells[next]
-			var marked := mask[next] == 1 and Materials.is_mineable(material)
-			if marked:
-				parent[next] = cell
-				goal = next
-				break
-			if material != Materials.EMPTY and not Materials.is_mineable(material):
-				continue
-			parent[next] = cell
-			queue.append(next)
-	if goal < 0:
-		return false
+	var targets := PackedByteArray()
+	targets.resize(sim.world.cell_count())
+	for cell in targets.size():
+		if mask[cell] == 1 and Materials.is_mineable(sim.world.cells[cell]): targets[cell] = 1
+	var path := _route(sim, group_id, targets)
 	var along := PackedInt32Array()
-	var step := goal
-	while step >= 0:
-		if Materials.is_mineable(world.cells[step]) and mask[step] == 0:
-			along.append(step)
-		step = parent[step]
+	for cell in path:
+		if Materials.is_mineable(sim.world.cells[cell]) and mask[cell] == 0: along.append(cell)
 	return sim.assign_cells(group_id, along)
 
 
