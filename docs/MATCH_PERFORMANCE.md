@@ -1,6 +1,6 @@
 # Normale KI-Partie: gemessene Engpässe, 27. Oktober 2026
 
-D-085. Auftrag des Nutzers: Code analysieren, Konzeptverbesserungen vorschlagen und die Performance optimieren. Die Konzeptvorschläge sind **Vorschläge ohne Freigabe** und ändern keine Regel. Die Optimierungen ändern weder Spielregeln, Sichtweiten, Takt noch Bilanzen. Branch `perf/match-profile`, Commit und Review-PR auf ausdrücklichen Wunsch, kein automatischer Merge.
+D-085. Auftrag des Nutzers: Code analysieren, Konzeptverbesserungen vorschlagen und die Performance optimieren. Die Konzeptvorschläge sind **Vorschläge ohne Freigabe** und ändern keine Regel. Die Optimierungen ändern weder Spielregeln, Sichtweiten, Takt noch Bilanzen. Branch `perf/match-profile`; da kein PR-Werkzeug angemeldet war, beauftragte der Nutzer ausdrücklich, den Stand direkt nach `main` zu übernehmen. Fast-Forward und normaler Push nach origin/main, kein Force-Push oder Release.
 
 ## Ausgangslage
 

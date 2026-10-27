@@ -2,7 +2,7 @@
 
 ## Neuester Auftrag: Codeanalyse, Konzeptvorschläge und gemessene Performance
 
-Der Nutzer beauftragt: „Analysiere den Code und schlage mir Verbesserungen vor am Spielkonzept und optimiere die Performance.“ Gemessen wird eine normale KI-Partie (headless und mit Fenster); optimiert werden nur gemessene Engpässe ohne Regel-, Sicht-, Takt- oder Bilanzänderung. Konzeptvorschläge sind Vorschläge ohne Freigabe. Native Windows-Version v13 (`fog_merge`), vollständiger Neubau/Neustart. Branch `perf/match-profile`, Commit und Review-PR auf ausdrücklichen Wunsch, kein automatischer Merge. Details: `docs/MATCH_PERFORMANCE.md`, D-085.
+Der Nutzer beauftragt: „Analysiere den Code und schlage mir Verbesserungen vor am Spielkonzept und optimiere die Performance.“ Gemessen wird eine normale KI-Partie (headless und mit Fenster); optimiert werden nur gemessene Engpässe ohne Regel-, Sicht-, Takt- oder Bilanzänderung. Konzeptvorschläge sind Vorschläge ohne Freigabe. Native Windows-Version v13 (`fog_merge`), vollständiger Neubau/Neustart. Branch `perf/match-profile`; da kein PR-Werkzeug angemeldet war, beauftragte der Nutzer ausdrücklich, den Stand direkt nach `main` zu übernehmen. Fast-Forward und normaler Push nach origin/main, kein Force-Push oder Release. Details: `docs/MATCH_PERFORMANCE.md`, D-085.
 
 ## Neuester Auftrag: erreichbare Marschziele und gemeinsame Wegsuche
 
