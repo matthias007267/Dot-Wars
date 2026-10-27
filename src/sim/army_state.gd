@@ -312,31 +312,31 @@ func _field(goal: int, world: WorldState) -> PackedInt32Array:
 	return dist
 
 
-## Each isolated free component gets its own nearest stand. Equal goal distance
-## chooses the lowest cell ID. Reverse BFS is shared by all units in that component.
+## Each isolated free component gets its nearest stands. Equal goal distance
+## seeds all candidates, giving each warrior the shortest free walk to one of them.
 func _fill_disconnected(dist: PackedInt32Array, goal: int, world: WorldState) -> void:
 	if goal < 0 or goal >= world.cell_count(): return
 	for origin in world.cell_count():
 		if world.cells[origin] != Materials.EMPTY or dist[origin] != -1: continue
 		var component := PackedInt32Array([origin])
 		dist[origin] = -2
-		var best := origin
 		var rank := _goal_distance(origin, goal, world.width)
 		var head := 0
 		while head < component.size():
 			var cell := component[head]
 			head += 1
 			var candidate := _goal_distance(cell, goal, world.width)
-			if candidate < rank or (candidate == rank and cell < best):
-				best = cell
-				rank = candidate
+			rank = mini(rank, candidate)
 			for direction in range(1, 5):
 				var next := MovementSystem.neighbor(cell, direction, world.width, world.cell_count())
 				if next >= 0 and dist[next] == -1 and world.cells[next] == Materials.EMPTY:
 					dist[next] = -2
 					component.append(next)
-		var frontier := PackedInt32Array([best])
-		dist[best] = 0
+		var frontier := PackedInt32Array()
+		for cell in component:
+			if _goal_distance(cell, goal, world.width) == rank:
+				dist[cell] = 0
+				frontier.append(cell)
 		head = 0
 		while head < frontier.size():
 			var cell := frontier[head]

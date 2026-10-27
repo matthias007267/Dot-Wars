@@ -22,7 +22,7 @@ Die vorhandene Armee berechnete bereits gemeinsame Terrainfelder pro Ziel, mit e
 
 Umgesetzt wird daher die gemeinsame Koordination über **ein Ziel-Wegfeld für beliebig viele ausgewählte Krieger**. Produktion und Einzelauswahl bleiben erhalten. Jeder Krieger behält seine Lebenspunkte, stabile ID, Belegung und Kampflogik. Es gibt weder Gruppenschaden noch eine zusätzliche Node pro Trupp oder Krieger. Kein fünffacher Gesamtgeschwindigkeitsgewinn wird behauptet.
 
-Ist das Ziel erreichbar, bleibt die bestehende kürzeste freie Bewegung erhalten. Für jede andere zusammenhängende freie Höhle enthält das gemeinsame Feld nun einen eigenen nächsten Standpunkt: kleinster Manhattan-Abstand zum ursprünglich angeklickten Ziel, bei Gleichstand kleinste Zell-ID. Krieger laufen auf freien Wegen dorthin, bleiben vor belegten Zellen stehen und graben nicht. Auch ein vollständig ummauertes oder im schwarzen Nebel liegendes Ziel funktioniert. Die interne Terrain-Wegsuche schreibt keine Fog-/Erinnerungsdaten und verrät keine fremden Aufträge oder HP. Normale Sicht entsteht weiterhin nur über tatsächliche Einheiten-/Gebäudequellen.
+Ist das Ziel erreichbar, bleibt die bestehende kürzeste freie Bewegung erhalten. Für jede andere zusammenhängende freie Höhle enthält das gemeinsame Feld nun einen eigenen nächsten Standpunkt: kleinster Manhattan-Abstand zum ursprünglich angeklickten Ziel. Bei Gleichstand bilden alle gleich nahen Randzellen gemeinsame Quellen; dadurch wählt jeder Krieger den kürzesten freien Laufweg zu einem davon. Ein bereits passend stehender Krieger bleibt stehen. Auch ein Gebäudeklick behält den angeklickten Punkt und wählt nicht pauschal dessen erstes Randfeld. Krieger laufen auf freien Wegen dorthin, bleiben vor belegten Zellen stehen und graben nicht. Auch ein vollständig ummauertes oder im schwarzen Nebel liegendes Ziel funktioniert. Die interne Terrain-Wegsuche schreibt keine Fog-/Erinnerungsdaten und verrät keine fremden Aufträge oder HP. Normale Sicht entsteht weiterhin nur über tatsächliche Einheiten-/Gebäudequellen.
 
 Der Originalauftrag wird gespeichert. Ein Durchbruch oder eine neue Terrainbarriere invalidiert die Route; nach Öffnung laufen die Krieger ohne neuen Klick weiter, nach Schließung nähern sie sich erneut. Dynamische Einheitenbelegung bleibt außerhalb des Terraincaches und wird vor jedem Schritt geprüft. Kampf und örtliche Gegnerverfolgung haben ihre bisherigen Prioritäten.
 
@@ -36,22 +36,22 @@ Version 2 bleibt bestehen. Die zwei optionalen, streng booleschen Resume-Felder 
 
 ## Nachweise
 
-`tests/test_reachable_orders.gd` enthält 16 neue Verhaltenstests: längerer Ein-Block-Weg, freier Umweg, Material-/Laufweg-Gleichstände, Blockzahlvorrang, automatische Verbindung zu einem Abbaugebiet, exaktes Resume mitten im Aufbau, Obsidian/Kernmaske, getrennte Höhlen, festes vollständig eingeschlossenes Ziel, Durchbruch nach Save/Load, schwarzer Nebel ohne Wissensänderung, geteiltes Feld mit individuellen HP, 35 native/Referenz-Zufallswelten über alle Materialien, viele getrennte Ziele, spätere Wegschließung und alte/beschädigte Resume-Daten.
+`tests/test_reachable_orders.gd` enthält 17 neue Verhaltenstests: längerer Ein-Block-Weg, freier Umweg, Material-/Laufweg-Gleichstände, Blockzahlvorrang, automatische Verbindung zu einem Abbaugebiet, exaktes Resume mitten im Aufbau, Obsidian/Kernmaske, getrennte Höhlen, festes vollständig eingeschlossenes Ziel, Durchbruch nach Save/Load, schwarzer Nebel ohne Wissensänderung, geteiltes Feld mit individuellen HP, 35 native/Referenz-Zufallswelten über alle Materialien, viele getrennte Ziele, spätere Wegschließung alte/beschädigte Resume-Daten und den echten HUD-Klick auf ein Gebäude von der Ostseite.
 
-Lokal: erster vollständiger Durchlauf mit 404 Tests (beide Varianten) grün; nach Erweiterung alle 16 neuen Tests nativ mit 254 und in GDScript mit 218 Prüfungen grün. Die bestehenden GPU-Bedienprüfungen für P6, Nahkampf und Verteidigung bestehen mit `0 failures`. Der abschließende vollständige CI-Lauf einschließlich aller zehn vorhandenen Grafikprüfungen wird mit Commit und tatsächlichem Ergebnis im Review-PR dokumentiert.
+Lokal: erster vollständiger Durchlauf mit 404 Tests (beide Varianten) grün; nach Erweiterung alle 17 neuen Tests nativ mit 259 und in GDScript mit 223 Prüfungen grün. Die bestehenden GPU-Bedienprüfungen für P6, Nahkampf und Verteidigung bestehen mit `0 failures`. Der abschließende vollständige CI-Lauf einschließlich aller zehn vorhandenen Grafikprüfungen wird mit Commit und tatsächlichem Ergebnis im Review-PR dokumentiert.
 
 Isolierter lokaler Armee-Benchmark, 256×256, 10.000 unabhängige Krieger, ein gemeinsamer Auftrag, 120 Takte, erste 20 Takte vom Mittel ausgeschlossen:
 
 | Fall | Mittel Armee-Schritt | Kalter erster Schritt | Bewegte Krieger | volle Felder |
 | --- | ---: | ---: | ---: | ---: |
 | Erreichbares Ziel, vorher | 1,103 ms | 1,446 ms | 10.000 | 0 (Freiraumnachweis) |
-| Erreichbares Ziel, nachher | 1,141 ms | 1,346 ms | 10.000 | 0 (Freiraumnachweis) |
+| Erreichbares Ziel, nachher | 1,504 ms | 2,099 ms | 10.000 | 0 (Freiraumnachweis) |
 | Abgetrenntes Ziel, vorher | 1,100 ms | 1,294 ms | **0** | 1 |
-| Abgetrenntes Ziel, nachher | 1,166 ms | 3,424 ms | **10.000** | **1** |
+| Abgetrenntes Ziel, nachher | 1,606 ms | 2,597 ms | **10.000** | **1** |
 
-Die neue Funktion bewegt die zuvor untätigen Krieger; der Vergleich ist kein Nachweis einer Beschleunigung gegenüber der alten Untätigkeit. Er belegt, dass auch die neue Annäherung keinen globalen Suchlauf pro Dot benötigt. Laufende Frames, Rendering/Fog, volle Schlachten, andere Hardware und 10.000 verschiedene individuelle Ziele sind nicht durch diese Armee-Mittelwerte abgenommen. Die nativen Terrainfelder bleiben auf 32 MiB/128 Felder begrenzt, die GDScript-Referenz auf 16 Ziele. Viele unterschiedliche Ziele und häufig wechselndes Terrain kosten weiter zusätzliche Arbeit.
+Es sind einzelne Messläufe auf derselben Cloud-Umgebung, keine statistisch kontrollierten CPU-Vergleiche. Größter gemessener Schritt im letzten Lauf: 3,902 ms beim erreichbaren und 11,199 ms beim abgetrennten Ziel. Die neue Funktion bewegt die zuvor untätigen Krieger; der Vergleich ist kein Nachweis einer Beschleunigung gegenüber der alten Untätigkeit. Er belegt, dass auch die neue Annäherung keinen globalen Suchlauf pro Dot benötigt. Laufende Frames, Rendering/Fog, volle Schlachten, andere Hardware und 10.000 verschiedene individuelle Ziele sind nicht durch diese Armee-Mittelwerte abgenommen. Die nativen Terrainfelder bleiben auf 32 MiB/128 Felder begrenzt, die GDScript-Referenz auf 16 Ziele. Viele unterschiedliche Ziele und häufig wechselndes Terrain kosten weiter zusätzliche Arbeit.
 
-Separater einmaliger gewichteter Arbeiterauftrag auf derselben Kartengröße mit großem Gesteinsbereich: native Suche **5,567 ms**, GDScript **618,419 ms**, identische 401 Pfadzellen. Das ist Auftragserstellung, keine Arbeit pro Dot/Takt. Der native Pfad ist für große Karten wichtig; die Referenz dient auch als korrekter Fallback, kann dabei aber sichtbare Pausen verursachen.
+Separater einmaliger gewichteter Arbeiterauftrag auf derselben Kartengröße mit großem Gesteinsbereich: native Suche **8,009 ms**, GDScript **766,028 ms**, identische 401 Pfadzellen. Das ist Auftragserstellung, keine Arbeit pro Dot/Takt. Der native Pfad ist für große Karten wichtig; die Referenz dient auch als korrekter Fallback, kann dabei aber sichtbare Pausen verursachen.
 
 Reproduktion:
 

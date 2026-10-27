@@ -86,18 +86,26 @@ static const int32_t *army_cached_field(ArmyCache *c,int32_t goal) {
      * per component, shared by every warrior with this requested goal. */
     for(int32_t origin=0;origin<c->n;origin++) {
         if(c->terrain[origin] || dist[origin]!=-1) continue;
-        int32_t best=origin,best_rank=INT_MAX;
+        int32_t best_rank=INT_MAX;
         head=0; tail=1; c->queue[0]=origin; dist[origin]=-2;
         while(head<tail) {
             int32_t cell=c->queue[head++];
             int rank=abs(cell%c->w-goal%c->w)+abs(cell/c->w-goal/c->w);
-            if(rank<best_rank || (rank==best_rank && cell<best)) { best=cell; best_rank=rank; }
+            if(rank<best_rank) best_rank=rank;
             for(int d=0;d<4;d++) {
                 int32_t next=neighbor(cell,d,c->w,c->n);
                 if(next>=0 && !c->terrain[next] && dist[next]==-1) { dist[next]=-2; c->queue[tail++]=next; }
             }
         }
-        head=0; tail=1; c->queue[0]=best; dist[best]=0;
+        /* Compact every equally near stand into the front of the component
+         * queue; write index never exceeds read index. One multi-source field
+         * then gives each unit its shortest walk to a nearest stand. */
+        int32_t component_size=tail; tail=0; head=0;
+        for(int32_t i=0;i<component_size;i++) {
+            int32_t cell=c->queue[i];
+            int rank=abs(cell%c->w-goal%c->w)+abs(cell/c->w-goal/c->w);
+            if(rank==best_rank) { dist[cell]=0; c->queue[tail++]=cell; }
+        }
         while(head<tail) {
             int32_t cell=c->queue[head++];
             for(int d=0;d<4;d++) {

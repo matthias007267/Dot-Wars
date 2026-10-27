@@ -285,3 +285,29 @@ func test_optional_resume_flags_preserve_old_saves_and_reject_wrong_types() -> v
 		var invalid := SaveGame.snapshot(sim)
 		invalid.resume.flow[0][key] = "true"
 		check(SaveGame.from_snapshot(invalid) == null, "falscher Bool-Typ %s abgelehnt" % key)
+
+
+func test_building_click_chooses_nearest_side_instead_of_first_perimeter_cell() -> void:
+	var config := TestHelpers.default_config()
+	config.world_size = 16
+	config.initial_workers = 0
+	var world := WorldState.new(16, 16, 8, Materials.EMPTY)
+	var sim := Simulation.from_world(config, world, PackedInt32Array(), false)
+	var site := sim.construction.initial(sim, world.index(5, 5), 0, true)
+	check(site >= 0, "echter Kern mit unzerstörbarem Fundament")
+	var row: Dictionary = sim.construction.sites.records[site]
+	var rect: Rect2i = row.rect
+	var center := world.index(rect.position.x + rect.size.x / 2, rect.position.y + rect.size.y / 2)
+	var east := world.index(rect.end.x, center / world.width)
+	var uid := sim.army.add(east + 3, 0)
+	var hud := GameHud.new()
+	hud.sim = sim
+	hud.select_at(east + 3)
+	check(hud.issue_march(center), "HUD-Marsch auf Gebäudezentrum")
+	check_eq(sim.army.goals[0], center, "angeklicktes Ziel bleibt unverändert")
+	_army_ticks(sim, 32)
+	check_eq(sim.army.cells[sim.army.slots[uid]], east, "von Osten auf kürzestem freien Weg zur Ostseite")
+	var before := sim.army.cells[0]
+	_army_ticks(sim, 12)
+	check_eq(sim.army.cells[0], before, "kein unnötiger Wechsel zu gleich nahem Nordrand")
+	hud.free()
