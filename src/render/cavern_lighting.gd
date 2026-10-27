@@ -20,10 +20,6 @@ static func sources(sim: Simulation) -> Array[Dictionary]:
 		var active: bool = row.kind == 3 and sim.research.is_powered(row.id, sim.tick_count)
 		result.append({"cell": cell, "radius": 9.0 if row.kind == 0 else 5.0, "tint": tint, "strength": 0.95 if row.kind == 0 or active else 0.55 if row.ready else 0.25})
 		if result.size() == MAX_SOURCES: return result
-	for shipment in sim.research.shipments:
-		if sim._match_live() and shipment.faction != 0 and not sim.fog.is_visible(0, shipment.cell): continue
-		result.append({"cell": shipment.cell, "radius": 3.5, "tint": TacticalArt.tint(shipment.faction), "strength": 0.5})
-		if result.size() == MAX_SOURCES: break
 	return result
 
 static func site_visible(sim: Simulation, row: Dictionary) -> bool:

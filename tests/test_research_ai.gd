@@ -28,11 +28,11 @@ func test_ai_connects_and_completes_research_through_real_deliveries() -> void:
 	Planner.step(sim, 1)
 	check(not sim.energy_network.cells.is_empty(), "KI hat eigene Leitungen gelegt")
 	for owner in sim.energy_network.owners: check_eq(owner, 1, "nur eigenes Netz")
-	check_eq(sim.rules.wallet(sim, 1).energy, before, "Leitungen sind kostenlos")
+	check_eq(sim.rules.wallet(sim, 1).energy, before - 60, "Leitungen kostenlos, Forschung sofort bezahlt")
 	check_eq(sim.research.jobs.size(), 1, "KI-Auftrag gestartet")
 	check_eq(sim.research.jobs[0].elapsed, 0, "kein kostenloser Fortschritt beim Start")
 	sim.run_ticks(8)
-	check(not sim.research.shipments.is_empty(), "bezahlte Energie physisch unterwegs")
+	check_eq(int(sim.research.jobs[0].elapsed), 8, "acht direkt versorgte Forschungstakte")
 	var loaded := SaveGame.from_bytes(SaveGame.to_bytes(sim))
 	check(loaded != null, "KI-Netz und Sendungen gespeichert")
 	if loaded == null: return
@@ -79,3 +79,16 @@ func test_all_ai_difficulties_research_on_the_normal_simulation_path() -> void:
 		sim.run_ticks(850)
 		check(sim.research.level(1, "dig") >= 1, "Forschung mit KI-Stufe %d" % difficulty)
 		check_no_errors(sim.check_invariants(), "keine KI-Bilanzumgehung")
+
+func test_ai_reserves_the_whole_next_research_price_instead_of_one_energy_point() -> void:
+	var sim := _sim()
+	var site := _center(sim)
+	var route := sim.energy_network.plan_connection(sim, 1, 1, site)
+	sim.energy_network.place_path(sim, 1, route)
+	sim.rules.wallet(sim, 1).energy = 40
+	check_eq(Planner.reserve(sim, 1), 60, "sammelt gesamten Startpreis")
+	sim.rules.wallet(sim, 1).energy = 60
+	sim.tick_count = 1
+	Planner.step(sim, 1)
+	check_eq(sim.rules.wallet(sim, 1).energy, 0, "Forschung startet mit vollständiger Einmalzahlung")
+	check_eq(Planner.reserve(sim, 1), 0, "bezahlter Auftrag benötigt keine weiteren Energiepunkte")

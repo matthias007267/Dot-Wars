@@ -21,6 +21,7 @@ var construction: Construction = Construction.new()
 var buildings := Buildings.new()
 var rules := MatchRules.new()
 var research := ResearchSystem.new()
+var defense := BuildingDefense.new()
 var energy_network := EnergyNetwork.new()
 const Fog = preload("res://src/sim/fog_of_war.gd")
 var fog = Fog.new()
@@ -167,6 +168,7 @@ func tick_once() -> void:
 	if workers.count > max_units:
 		max_units = workers.count
 	army.step(self)
+	defense.step(self)
 	var t4 := Time.get_ticks_usec()
 	stage_usec[Stage.TARGET_SEARCH] += t1 - t0
 	stage_usec[Stage.MOVEMENT] += t2 - t1
@@ -515,6 +517,7 @@ func check_invariants() -> PackedStringArray:
 		errors.append("Gruppenzähler inkonsistent")
 	if army.purchased - army.lost != army.count + army.queue.size(): errors.append("Kriegerbilanz verletzt")
 	var factions := rules.faction_count if config.mode == SimConfig.MODE_MATCH else 1
+	errors.append_array(defense.errors(self))
 	for item in army.queue:
 		if int(item.owner) >= factions: errors.append("Kriegerproduktion ohne Fraktion")
 	for index in army.count:
@@ -528,7 +531,7 @@ func check_invariants() -> PackedStringArray:
 func state_hash() -> int:
 	return hash([
 		tick_count,
-		world.state_hash(), army.state_hash(), worker_losses, construction.sites.state_hash(), hash(construction.demolitions), hash(spawner.site_queue()),
+		world.state_hash(), army.state_hash(), defense.state_hash(), worker_losses, construction.sites.state_hash(), hash(construction.demolitions), hash(spawner.site_queue()),
 		workers.state_hash(),
 		areas.state_hash(),
 		spawner.pending(),

@@ -54,6 +54,7 @@ static func draw(canvas: CanvasItem, key: String, area: Rect2, tint: Color, tick
 	canvas.draw_texture_rect_region(atlas.team_mask, area, source, Color(tint.r * brightness, tint.g * brightness, tint.b * brightness))
 
 static func icon(kind: String) -> Texture2D:
+	if kind == "tower": return TowerArt.texture(team_color(0))
 	if _icons.has(kind): return _icons[kind]
 	var key := kind + ".idle" if kind in ["worker", "warrior", "research"] else kind
 	if not atlas_for(key).rows.has(key): key = "pause"

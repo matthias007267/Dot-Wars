@@ -39,6 +39,7 @@ static func snapshot(sim: Simulation) -> Dictionary:
 			"mask": (sim.areas.masks[g] as PackedByteArray).duplicate(),
 		})
 	return {
+		"defense_state": sim.defense.snapshot(),
 		"energy_network": sim.energy_network.snapshot(), "research_state": sim.research.snapshot(), "fog": sim.fog.snapshot() if sim._match_live() else {}, "construction": sim.construction.snapshot(sim), "resume": Resume.snapshot(sim), "version": VERSION, "army": sim.army.snapshot(), "worker_losses": sim.worker_losses,
 		"seed": sim.config.world_seed,
 		"mode": sim.config.mode,
@@ -328,6 +329,8 @@ static func from_snapshot(data: Dictionary) -> Simulation:
 		if not data.energy_network is Dictionary or not sim.energy_network.restore(data.energy_network, sim): return null
 	if data.has("research_state"):
 		if not data.research_state is Dictionary or not sim.research.restore(sim, data.research_state): return null
+	if data.has("defense_state"):
+		if not data.defense_state is Dictionary or not sim.defense.restore(sim, data.defense_state): return null
 	if sim._match_live():
 		sim.fog.setup(sim.world, sim.rules.faction_count)
 		if data.has("fog"):

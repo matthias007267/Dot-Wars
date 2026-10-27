@@ -80,14 +80,9 @@ static func step(e: EnergyStore, world: WorldState, workers: WorkerStore, gates:
 		if holder < 0 and owner < factions and due:
 			if exits.has(cell * 4 + owner):
 				delivered_count += 1
-				var research_site := sim.research.receiver_site(sim, cell, owner) if sim != null else -1
-				if research_site >= 0:
-					sim.research.deliver(research_site)
-				else:
-					gained += 1
-				if research_site < 0:
-					while e.delivered_to.size() <= owner: e.delivered_to.append(0)
-					e.delivered_to[owner] += 1
+				gained += 1
+				while e.delivered_to.size() <= owner: e.delivered_to.append(0)
+				e.delivered_to[owner] += 1
 				if e.refined[i] != 0: e.refined_delivered += 1
 				continue
 			if owner < e._routed.size():

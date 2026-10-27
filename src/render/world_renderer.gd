@@ -27,7 +27,6 @@ var building_mask := PackedByteArray()
 var energy_network: EnergyNetwork
 var energy_sim: Simulation
 var _network_revision := -1
-var _shipment_signature := -1
 var _research_power_signature := -1
 var _overlay_tick := -1
 var _cavern_lighting := CavernLighting.new()
@@ -52,6 +51,7 @@ var _material_stamp := -1
 var _texture: ImageTexture
 var _surface: Sprite2D
 var _energy_overlay: Node2D
+var _conduit_overlay: Node2D
 var _last_glow_frame := -1
 
 
@@ -77,6 +77,13 @@ func _ready() -> void:
 	_energy_overlay.z_index = 2
 	_energy_overlay.draw.connect(_draw_energy_overlays)
 	add_child(_energy_overlay)
+	_conduit_overlay = Node2D.new()
+	_conduit_overlay.z_index = 2
+	var flow := ShaderMaterial.new()
+	flow.shader = preload("res://src/render/shaders/conduit_flow.gdshader")
+	_conduit_overlay.material = flow
+	_conduit_overlay.draw.connect(_draw_energy_network)
+	add_child(_conduit_overlay)
 	_bytes.resize(world.cell_count() * 4)
 	_paint_everything()
 	_upload()
@@ -97,10 +104,7 @@ func _process(_delta: float) -> void:
 		if _overlay_tick != energy_sim.tick_count:
 			_overlay_tick = energy_sim.tick_count
 			if _energy_overlay != null: _energy_overlay.queue_redraw()
-		var signature := hash(energy_sim.research.shipments)
-		if signature != _shipment_signature:
-			_shipment_signature = signature
-			queue_redraw()
+			if _conduit_overlay != null: _conduit_overlay.queue_redraw()
 		var power_signature := hash(energy_sim.research.powered_tick)
 		if power_signature != _research_power_signature:
 			_research_power_signature = power_signature
@@ -135,45 +139,27 @@ func overlay_visible(cell: int, owner: int = -1) -> bool:
 	if energy_sim == null or not energy_sim._match_live(): return true
 	return owner == 0 or energy_sim.fog.is_visible(0, cell)
 
-func visible_shipments() -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	if energy_sim == null: return result
-	for shipment in energy_sim.research.shipments:
-		if overlay_visible(int(shipment.cell), int(shipment.faction)): result.append(shipment)
-	return result
-
 func _draw_energy_network() -> void:
 	if energy_network == null: return
+	var active := energy_network.energized_factions(energy_sim) if energy_sim != null else PackedByteArray()
 	for i in energy_network.cells.size():
 		var cell: int = energy_network.cells[i]
 		var owner: int = energy_network.owners[i]
 		if not overlay_visible(cell, owner): continue
 		var center := Vector2(cell % energy_network.width, cell / energy_network.width) + Vector2(0.5, 0.5)
 		var tint := TacticalArt.tint(owner)
+		var powered := energy_sim != null and owner < active.size() and active[owner] == 1 and energy_network.cell_source(energy_sim, cell) >= 0
 		for next in energy_network.neighbors(cell):
 			if next <= cell or energy_network.owner_at(next) != owner or not overlay_visible(next, owner): continue
 			var end := Vector2(next % energy_network.width, next / energy_network.width) + Vector2(0.5, 0.5)
-			_energy_overlay.draw_line(center, end, Color(tint, 0.12), 0.42)
-			_energy_overlay.draw_line(center, end, Color(tint, 0.75), 0.10)
-		_energy_overlay.draw_rect(Rect2(center - Vector2.ONE * 0.10, Vector2.ONE * 0.20), tint.lightened(0.25))
+			if powered:
+				_conduit_overlay.draw_line(center, end, Color(tint, 0.12), 0.42)
+				_conduit_overlay.draw_line(center, end, Color(tint, 0.90), 0.12)
+			else: _conduit_overlay.draw_line(center, end, Color(tint.darkened(0.80), 0.5), 0.08)
 	for cell in preview_cells:
 		if cell < 0 or cell >= energy_network.width * energy_network.height: continue
 		var p := Vector2(cell % energy_network.width, cell / energy_network.width)
-		_energy_overlay.draw_rect(Rect2(p, Vector2.ONE), Color(1.0, 0.3, 0.25, 0.65) if preview_remove else Color(0.3, 1.0, 0.8, 0.45))
-
-func _draw_conduit_shipments() -> void:
-	if energy_sim == null or energy_network == null: return
-	# The dots are a view of authoritative shipments, never independent energy entities.
-	for shipment in visible_shipments():
-		var cell: int = int(shipment.get("cell", -1))
-		var faction: int = int(shipment.get("faction", -1))
-		if cell < 0 or cell >= energy_network.width * energy_network.height: continue
-		if energy_network.owner_at(cell) != faction: continue
-		var center := Vector2(float(cell % energy_network.width) + 0.5, float(cell / energy_network.width) + 0.5)
-		var tint := Color(0.65, 0.97, 1.0, 1.0) if faction == 0 else Color(1.0, 0.75, 0.45, 1.0)
-		_energy_overlay.draw_rect(Rect2(center - Vector2.ONE * 0.09, Vector2.ONE * 0.18), tint)
-		if world_fx_enabled and camera != null and camera.zoom.x >= PIT_GLOW_MIN_ZOOM:
-			_energy_overlay.draw_circle(center, 0.28, Color(tint.r, tint.g, tint.b, 0.16))
+		_conduit_overlay.draw_rect(Rect2(p, Vector2.ONE), Color(1.0, 0.3, 0.25, 0.65) if preview_remove else Color(0.3, 1.0, 0.8, 0.45))
 
 func _draw_powered_research() -> void:
 	if energy_sim == null or not world_fx_enabled or camera == null or camera.zoom.x < PIT_GLOW_MIN_ZOOM: return
@@ -191,8 +177,6 @@ func _draw_powered_research() -> void:
 
 
 func _draw_energy_overlays() -> void:
-	_draw_energy_network()
-	_draw_conduit_shipments()
 	_draw_powered_research()
 
 func _draw() -> void:
@@ -200,6 +184,7 @@ func _draw() -> void:
 		return
 	_draw_pit_glow()
 	if _energy_overlay != null: _energy_overlay.queue_redraw()
+	if _conduit_overlay != null: _conduit_overlay.queue_redraw()
 	if show_chunks:
 		_draw_chunks()
 	if show_grid:

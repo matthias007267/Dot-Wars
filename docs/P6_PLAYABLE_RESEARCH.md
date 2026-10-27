@@ -1,5 +1,7 @@
 # P6-Folgeauftrag: KI, Transport, Bedienung, Sicht und Forschungsbaum
 
+Historischer Prüfstand der P6-Einzelversorgung. Seit dem ausdrücklich bestätigten Folgeauftrag D-083 sind Forschungs-/Waffenpuffer und bezahlte Leitungssendungen durch Gesamtzahlung, Netzpause und Minutenunterhalt ersetzt. Aktuelle Regeln und Migration: [GRID_DEFENSE.md](GRID_DEFENSE.md). Die untenstehenden alten Liefernachweise bleiben historisch.
+
 Basis: `main` bei `20a5059` (PR #8 gemergt). Umsetzung auf `feat/p6-playable-research` in einem **neuen** Review-PR. Der aktuelle Auftrag umfasst ausdrücklich die sechs nach dem Soll/Ist-Abgleich angebotenen Punkte. Kein Merge, kein Release und kein Auftrag für Weltumbau, Online-Multiplayer, Reliquien, neue Farmen/Mauern/Sensoren oder Musik.
 
 ## Beschlüsse und vorläufige Werte

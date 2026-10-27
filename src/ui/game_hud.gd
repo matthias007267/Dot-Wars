@@ -615,11 +615,13 @@ func _build_dock(layer: Control) -> void:
 	_context_button(grid, "outpost", "AUSSENPOSTEN", "outpost", _begin_settlement.bind(1)).tooltip_text = "Außenposten bauen. Produziert Einheiten und empfängt Energie; benötigt die entsprechende Forschung."
 	_research_center_button = _context_button(grid, "research", "FORSCHUNG\nZentrum · 300", "research", _begin_settlement.bind(3))
 	_interceptor_button = _context_button(grid, "interceptor", "ABFANGEN\nStation · 250", "interceptor", _begin_settlement.bind(2))
+	_context_button(grid, "tower", "KRIEGSTURM\n250 Energie", "tower", _begin_settlement.bind(4)).tooltip_text = "3×3 Felder · 200 HP · 250 Energie. Benötigt Verteidigungstechnik. 100 Energie pro Minute Unterhalt, kostenlose Schüsse; benötigt Netzanschluss."
 	_context_button(grid, "network", "LEITUNGEN\nE", "network", toggle_energy_network).tooltip_text = "Energieleitungen ziehen: verbindet eigene Gebäude mit einem Kern oder Außenposten. E beendet das Werkzeug."
 	_repair_button = _context_button(grid, "repair", "REPARIEREN", "repair", _repair_selected)
 	_context_button(grid, "demolish", "ABRISS\nQ", "demolish", toggle_demolition).tooltip_text = "Q: Leitungen sofort entfernen oder Arbeiterabriss eines eigenen Gebäudes beauftragen."
 	_cancel_build_button = _context_button(grid, "cancel", "BAU ABBRECHEN", "demolish", _cancel_selected)
 	_context_button(grid, "technology", "TECHNOLOGIE\nForschungsbaum", "research_tree", _toggle_upgrades).tooltip_text = "Technologien am gewählten Forschungszentrum ansehen und bei erfüllten Voraussetzungen starten."
+	_context_button(grid, "tower_upgrade", "TURM AUSBAUEN", "tower", _upgrade_tower)
 	_action_hint = _label(content, "Einheit oder eigenes Gebäude auswählen.", 12, UiTheme.MUTED)
 	_action_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
@@ -903,19 +905,25 @@ func _refresh_context_actions(site: int) -> void:
 		_action_caption.text = HudOverview.site_name(int(row.kind)).to_upper()
 		_selection_caption.text = "%s #%d" % [HudOverview.site_name(int(row.kind)).to_upper(), site]
 		_selection_detail.text = "%d / %d HP%s" % [row.hp, row.max_hp, " · Bau %d %%" % roundi(100.0 * row.work / maxi(1, int(row.required))) if not row.ready else ""]
+		if sim.defense.armed(row):
+			_selection_detail.text += "\nWaffe: %s · %d Energie/Minute" % ["versorgt" if sim.defense.is_powered(sim, site) else "Unterhalt / Netz fehlt", sim.defense.upkeep_cost(row)]
+			if int(row.kind) == 4:
+				_selection_detail.text += " · Stufe %d/3" % sim.defense.level(row)
+				if int(row.weapon_upgrade) >= 0: _selection_detail.text += "\nAusbau: %.1f s · Waffe pausiert" % (maxi(0, int(row.weapon_upgrade) - sim.tick_count) / 20.0)
 		if not sim.picked.is_empty(): _selection_detail.text += "\n%d Einheiten mitgewählt" % sim.picked.size()
-		_selection_cards[0].texture = TacticalArt.icon(["core", "outpost", "interceptor", "research"][int(row.kind)])
+		_selection_cards[0].texture = TacticalArt.icon(HudOverview.site_icon(int(row.kind)))
 		_selection_cards[0].visible = true
 		_selection_cards[0].modulate = Color.WHITE
 		if row.ready:
 			if int(row.kind) in [0, 1]: keys.append_array(["worker", "warrior"])
 			if int(row.kind) == 3: keys.append("technology")
+			if int(row.kind) == 4: keys.append("tower_upgrade")
 			keys.append_array(["network", "demolish"])
 			if workers_selected > 0 and row.hp < row.max_hp: keys.append("repair")
 		else: keys.append("cancel")
 		_action_hint.text = "Standortproduktion und Baufortschritt rechts."
 	elif workers_selected > 0:
-		keys = ["core", "outpost", "research", "interceptor", "network", "demolish"]
+		keys = ["core", "outpost", "research", "interceptor", "tower", "network", "demolish"]
 		_action_caption.text = "ARBEITER · BAUEN"
 		_action_hint.text = "Rechtsklick: Marsch\nStrg + Rechtsziehen: Abbaugebiet"
 	else:
@@ -926,6 +934,19 @@ func _refresh_context_actions(site: int) -> void:
 		button.visible = keys.has(key)
 		if key == "outpost": button.disabled = not sim.construction.unlocked(sim, 1) or sim.upgrades.energy < sim.construction.price(1, 0)
 		if key == "core": button.disabled = sim.upgrades.energy < sim.construction.price(0, 0) or sim.construction.sites.count(0, 0) > 0
+		if key == "tower": button.disabled = not sim.construction.unlocked(sim, 4) or sim.upgrades.energy < sim.construction.price(4, 0)
+		if key == "tower_upgrade":
+			button.disabled = not sim.defense.can_upgrade(sim, site)
+			if sim.construction.sites.valid(site) and int(sim.construction.sites.records[site].kind) == 4:
+				var row: Dictionary = sim.construction.sites.records[site]
+				var cost := sim.defense.upgrade_cost(row)
+				button.text = "AUSGEBAUT · III" if cost < 0 else "%s\n%d Energie" % ["SCHNELLFEUER" if sim.defense.level(row) == 1 else "STRAHL", cost]
+				button.tooltip_text = "Ausbau am einzelnen Turm: 10 Sekunden ohne Feuern. Netzanschluss und bezahlter Unterhalt bleiben nötig."
+
+func _upgrade_tower() -> void:
+	if sim.defense.upgrade(sim, sim.construction.selected):
+		_notice("Turmausbau gestartet. Die Waffe pausiert für 10 Sekunden.")
+	refresh()
 
 
 func _objective(parent: Node, title: String, color: Color, maximum: float) -> Array:
@@ -1210,7 +1231,7 @@ func _start_research(tech: String) -> void:
 func _refresh_research() -> void:
 	var site := _production_site()
 	if _research_status != null:
-		_research_status.text = "Forschungszentrum #%d · Energiepuffer %d" % [site, int(sim.research.supply.get(site, 0))] if site >= 0 and sim.construction.sites.valid(site) and sim.construction.sites.records[site].kind == 3 else "Forschungszentrum auf der Karte auswählen."
+		_research_status.text = "Forschungszentrum #%d · %s" % [site, "Netz verbunden" if sim.research.source_for(sim, 0, site) >= 0 else "Netzanschluss fehlt"] if site >= 0 and sim.construction.sites.valid(site) and sim.construction.sites.records[site].kind == 3 else "Forschungszentrum auf der Karte auswählen."
 	if _research_tree_view != null: _research_tree_view.refresh(sim, site)
 
 
@@ -1713,6 +1734,9 @@ func _begin_settlement(kind: int) -> void:
 		return
 	if kind == 1 and not sim.construction.unlocked(sim, 1):
 		_notice("Außenposten benötigen Forschung. Im Forschungsbaum freischalten.")
+		return
+	if kind == 4 and not sim.construction.unlocked(sim, 4):
+		_notice("Kriegstürme benötigen Verteidigungstechnik im Forschungsbaum.")
 		return
 	if _upgrade_panel != null: _upgrade_panel.visible = false
 	_settlement_kind = kind

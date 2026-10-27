@@ -28,7 +28,7 @@ func test_lighting_uses_player_knowledge_and_preserves_simulation() -> void:
 func test_light_cap_and_unit_types_are_visual_only() -> void:
 	var sim := _sim()
 	for i in 100:
-		sim.research.shipments.append({"site": 0, "faction": 0, "cell": 200 + i, "source": 0, "index": 0})
+		sim.construction.sites.add(3, 0, Rect2i(1 + i % 15 * 4, 1 + i / 15 * 4, 3, 3), 200, 200, 300, true)
 	check_eq(CavernLighting.sources(sim).size(), 64, "Lichtquellen begrenzt")
 	var worker := TacticalArt.icon("worker")
 	var warrior := TacticalArt.icon("warrior")
@@ -56,7 +56,7 @@ func test_hud_uses_one_bottom_strip_and_keeps_live_actions() -> void:
 
 func test_research_has_base_light_and_consumption_adds_activity() -> void:
 	var sim := _sim()
-	sim.upgrades.energy = 300
+	sim.upgrades.energy = 600
 	var site := sim.construction.place(sim, 3, 100, PackedInt32Array())
 	check(site >= 0, "Forschungszentrum")
 	if site < 0: return
@@ -66,13 +66,15 @@ func test_research_has_base_light_and_consumption_adds_activity() -> void:
 	for source in CavernLighting.sources(sim):
 		if source.cell == center: base_strength = source.strength
 	check(base_strength > 0, "inaktives eigenes Zentrum hat Grundlicht")
+	var path := sim.energy_network.plan_connection(sim, 0, 0, site)
+	sim.energy_network.place_path(sim, 0, path)
 	check(sim.research.start(sim, 0, site, "dig"), "Auftrag")
-	sim.research.deliver(site)
 	sim.tick_once()
 	var active_strength := 0.0
 	for source in CavernLighting.sources(sim):
 		if source.cell == center: active_strength = source.strength
 	check(active_strength > base_strength, "nur tatsächlicher Verbrauch verstärkt das Aktivitätslicht")
+	sim.energy_network.remove(0, path[path.size() / 2])
 	sim.tick_once()
 	var waiting_strength := 0.0
 	for source in CavernLighting.sources(sim):

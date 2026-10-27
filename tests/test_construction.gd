@@ -135,7 +135,7 @@ func test_finished_outposts_receive_physical_energy() -> void:
 	sim.energy_dots.enqueue(cells[0], 3)
 	check_eq(sim.upgrades.energy, before, "keine vorzeitige Gutschrift")
 	sim.run_ticks(10)
-	check_eq(sim.upgrades.energy, before + 3, "Gutschrift am Außenposten")
+	check_eq(sim.upgrades.energy, before + 3 - 25, "Energieeingang abzüglich erster Außenpostenminute")
 	check_no_errors(sim.check_invariants(), "Energiebilanz")
 
 func test_begun_main_protects_without_workers_but_unstarted_plan_does_not() -> void:

@@ -41,11 +41,11 @@ func test_repair_is_manual_costs_energy_and_uses_approved_test_cadence() -> void
 	var before := sim.upgrades.energy
 	sim.run_ticks(8)
 	check_eq(sim.construction.sites.records[site].hp, 150, "keine automatische Reparatur")
-	check_eq(sim.upgrades.energy, before, "keine automatische Abbuchung")
+	check_eq(sim.upgrades.energy, before - 50, "keine automatische Reparaturzahlung; Kern/Außenposten-Unterhalt separat")
 	check_eq(sim.construction.assign_repair(sim, site, PackedInt32Array([worker])), 1, "manueller Auftrag")
 	sim.run_ticks(4)
 	check_eq(sim.construction.sites.records[site].hp, 152, "2 HP in 4 Takten")
-	check_eq(sim.upgrades.energy, before - 1, "eine Energie")
+	check_eq(sim.upgrades.energy, before - 1 - 50, "eine Reparaturenergie plus Kern-/Außenpostenunterhalt")
 	check_eq(sim.workers.build_mode[worker], 1, "Reparatur statt Neubau")
 	check_no_errors(sim.check_invariants(), "Bilanzen")
 
@@ -61,11 +61,11 @@ func test_multiple_repairers_share_costs_stop_at_max_and_do_not_charge_extra() -
 	check_eq(sim.construction.sites.records[site].hp, 199, "zwei Arbeiter reparieren vier HP")
 	sim.run_ticks(4)
 	check_eq(sim.construction.sites.records[site].hp, 200, "letzter Beitrag gekappt")
-	check_eq(sim.upgrades.energy, before - 3, "drei echte bezahlte Beiträge")
+	check_eq(sim.upgrades.energy, before - 3 - 50, "drei echte Reparaturbeiträge plus Gebäudeunterhalt")
 	check_eq(sim.workers.build_site[a], -1, "Auftrag beendet")
 	check_eq(sim.workers.build_site[b], -1, "zweiter Auftrag beendet")
 	sim.run_ticks(20)
-	check_eq(sim.upgrades.energy, before - 3, "keine Zahlung bei voller Gesundheit")
+	check_eq(sim.upgrades.energy, before - 3 - 50, "keine zusätzliche Reparaturzahlung bei voller Gesundheit")
 
 func test_repair_waits_without_energy_and_new_command_stops_it() -> void:
 	var sim := _sim()
@@ -115,7 +115,7 @@ func test_repair_uses_owner_wallet_and_continues_under_attack_until_worker_death
 	check(sim.construction.sites.records[site].hp > 100, "arbeitet trotz Angriff weiter")
 	check_eq(sim.workers.build_mode[worker], 1, "Auftrag bleibt")
 	check(sim.rules.wallet(sim, 1).energy < owner_before, "Besitzer zahlt")
-	check_eq(sim.upgrades.energy, player_before, "anderes Konto bleibt")
+	check_eq(sim.upgrades.energy, player_before - 25, "anderes Konto zahlt nur eigenen Kernunterhalt")
 	sim.run_ticks(30)
 	check_eq(sim.workers.count, 0, "Arbeiter stirbt regulär")
 	check_eq(sim.worker_losses, 1, "Verlust bilanziert")
@@ -247,7 +247,7 @@ func test_ai_rebuilds_lost_main_from_outpost_and_saves_until_affordable() -> voi
 	wallet.energy = 499
 	sim.rules.control[1] = MatchRules.CONTROL_AI
 	sim.tick_once()
-	check_eq(wallet.energy, 499, "spart statt Krieger/Upgrades zu kaufen")
+	check_eq(wallet.energy, 499 - 25, "spart statt Krieger/Upgrades, Außenpostenunterhalt separat")
 	check_eq(sim.construction.sites.count(1, 0), 0, "kein kostenloser Ersatzkern")
 	wallet.energy = 500
 	sim.tick_count = 100
@@ -353,7 +353,7 @@ func test_ai_buys_replacement_worker_for_begun_main_and_live_loop_finishes_outpo
 	check_eq(sim.rules.wallet(sim, 1).energy, before - 10, "Kauf regulär bezahlt")
 	var live := _sim()
 	_ai_workers(live, 8)
-	live.rules.wallet(live, 1).energy = 250
+	live.rules.wallet(live, 1).energy = 300 # Build budget including core upkeep and AI reserve.
 	live.construction.outposts_unlocked = true
 	live.rules.control[1] = MatchRules.CONTROL_AI
 	live.run_ticks(1000)

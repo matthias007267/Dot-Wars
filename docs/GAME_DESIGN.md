@@ -1,6 +1,6 @@
 # DOT WARS – verbindliches Zielkonzept
 
-Stand: 25. Oktober 2026. **Einheitenphase ausdrücklich freigegeben; Detailstand in [UNIT_PROTOTYPE.md](UNIT_PROTOTYPE.md). Weitere große Systeme bleiben Folgearbeit.**
+Stand: 27. Oktober 2026. Aktueller Folgeauftrag D-082/D-083: Kriegstürme, schwächere Basiswaffen und Versorgung aus dem Gesamtguthaben. [GRID_DEFENSE.md](GRID_DEFENSE.md) ersetzt die älteren Turmausschlüsse und die zwischenzeitlichen Forschungs-Lieferregeln. Weitere historische Abschnitte bleiben als Konzeptverlauf erkennbar.
 
 Dieses Dokument beschreibt das beschlossene Zielspiel. Es behauptet nicht, dass die Regeln bereits implementiert sind. Den geprüften Prototypstand, Abweichungen und die vorgeschlagene Reihenfolge späterer Arbeiten beschreibt [CONCEPT_SYNC.md](CONCEPT_SYNC.md). Die technische Einordnung steht in [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -80,9 +80,9 @@ Der aktuelle vollständige Weltzustand und das Wissen eines Spielers sind daher 
 
 ## Gebäude, Bau und Reparatur
 
-- **G01 – Verbindlich:** Zu Spielbeginn ist ausschließlich der Hauptkern als Gebäude verfügbar. Alle weiteren Gebäude müssen erforscht werden.
+- **G01 – Verbindlich:** Zu Spielbeginn steht der Hauptkern; eigene Forschungszentren sind gemäß P6 von Anfang an baubar. Weitere freischaltbare Gebäude benötigen ihre jeweilige Technologie.
 - **G02 – Verbindlicher Planungskatalog:** Außenposten, Mauern, Energiefarmen, Energie-Abfangstationen und Aufklärungssensoren sind vorgesehen. Konkrete Werte und noch nicht beschriebene Funktionsdetails dieses Katalogs sind offen. Aufklärungssensoren besitzen einen größeren Sichtbereich.
-- **G03 – Verbindliche Ausschlüsse:** Keine separaten Dot-Fabriken, keine Forschungslabore und keine automatischen Verteidigungstürme. Verteidigung erfolgt durch Mauern und Krieger.
+- **G03 – Verbindliche Ausschlüsse:** Keine separaten Dot-Fabriken. Forschungszentren sind seit P6 beauftragt; automatische Kriegstürme und schwächere Kern-/Außenpostenwaffen sind nach D-082 ausdrücklich bestätigt. Die früheren Ausschlüsse sind damit ersetzt.
 - **G04 – Verbindlich:** Mauern werden durch Ziehen einer Linie angelegt und in einzelne Segmente aufgeteilt. Kosten, Baustellen und Reparaturverhalten je Segment sind zu konkretisieren.
 - **G05 – Verbindlich:** Gebäude benötigen freien Baugrund und werden von Arbeitern errichtet. Sofortige Platzierung eines fertigen Gebäudes genügt dem Zielkonzept nicht.
 - **G06 – Verbindlich:** Reparaturen kosten Energie und erfordern manuell zugewiesene Arbeiter. Es gibt keine automatische Reparaturzuweisung. Die Folgephase D-060 setzt dies für fertige Kerne/Außenposten um; die Reparatur-/Abbruchwerte sind durch D-061 ausdrücklich als vorläufige Testregeln bestätigt und in MAINTENANCE_PHASE.md beschrieben.
@@ -91,15 +91,15 @@ Die heutigen Prototypgebäude „Quelle“ und „Veredler“ sind nicht automat
 
 ## Forschung
 
-- **R01 – Verbindlich:** Forschung erfolgt global pro Spieler ohne Forschungsgebäude.
-- **R02 – Verbindlich:** Beim Forschungsstart wird der vollständige Energiepreis bezahlt. Danach läuft die Forschungszeit; die Wirkung wird nicht als sofortiger Kauf vorausgesetzt.
+- **R01 – Verbindlich:** Technologieeffekte gelten global pro Spieler; Aufträge laufen an eigenen fertigen, angeschlossenen Forschungszentren, ein Auftrag je Zentrum.
+- **R02 – Verbindlich:** Beim Forschungsstart wird der vollständige Energiepreis bezahlt. Danach läuft nur die Forschungszeit; Netzabriss pausiert, Wiederanschluss setzt ohne neue Zahlung fort. Ein leeres Guthaben hält bereits bezahlte Forschung nicht an (D-083).
 - **R03 – Verbindlich:** Mehrere Technologien können parallel erforscht werden.
 - **R04 – Verbindlich:** Forschung schaltet Gebäude und Verbesserungen frei.
 - **R05 – Verbindlich:** Mehrstufige Upgrades haben steigende Kosten und feste Maximallevel. Die konkreten Levelgrenzen sind noch nicht festgelegt.
 
-**Vorschlag, nicht beschlossen:** Forschungszweige Wirtschaft, Militär, Infrastruktur und Energietechnik.
+**Vorläufiger implementierter Katalog:** Wirtschaft, Militär, Infrastruktur und Energietechnik; Werte/Abhängigkeiten nach P6 und D-082/D-083.
 
-**Offen:** Einzeltechnologien, Forschungsstufen, Kosten, Zeiten, Abhängigkeiten, Freischaltungsreihenfolge, Abbruch/Rückzahlung, Wiederaufnahme sowie Forschungszustand bei Kernverlust. Es wird in der Planungspause kein ausformulierter Forschungsbaum mit vermeintlich verbindlichen Zahlen erfunden.
+**Aktueller Umfang:** Der bestätigte Katalog, lokale Turmstufen und Minutenunterhalt stehen in [GRID_DEFENSE.md](GRID_DEFENSE.md). Zentrumsverlust bricht bezahlte Forschung ohne Erstattung ab; eine angeschlossene eigene Ersatzquelle kann nach Kernverlust weiter versorgen. Weiteres endgültiges Balancing und zusätzliche Technologien bleiben offen.
 
 ## Noch nicht beschlossene Anschlussfragen
 

@@ -215,11 +215,11 @@ func _enemy(sim: Simulation, index: int, radius: int) -> Dictionary:
 	return best
 
 
-func _apply_damage(sim: Simulation, workers_hit: Dictionary, warriors_hit: Dictionary) -> void:
+func _apply_damage(sim: Simulation, workers_hit: Dictionary, warriors_hit: Dictionary, announce_attacks := true) -> void:
 	# Both arithmetic backends meet here before simultaneous damage/removal.
 	# Adjacent enemies cannot move during the army step. A viewer can recover
 	# a target with the same selector, after culling hidden/offscreen/full effects.
-	if (not workers_hit.is_empty() or not warriors_hit.is_empty()) and not combat_attack.get_connections().is_empty():
+	if announce_attacks and (not workers_hit.is_empty() or not warriors_hit.is_empty()) and not combat_attack.get_connections().is_empty():
 		for index in count:
 			if last_attack[index] != sim.tick_count: continue
 			combat_attack.emit(ids[index])

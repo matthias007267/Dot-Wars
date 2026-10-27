@@ -48,6 +48,14 @@ jobs:
             exit 1
           fi
 
+      - name: Netzversorgung ohne Einzeltransporte messen
+        run: |
+          timeout 30s godot --headless --path . -s bench/network_supply_benchmark.gd 2>&1 | tee /tmp/network-supply.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" /tmp/network-supply.log; then
+            exit 1
+          fi
+          grep -q "NETWORK BENCH centers=36 jobs=36.*paid_shipments=0" /tmp/network-supply.log
+
       - name: Hauptszene startet
         run: |
           timeout 30s godot --headless --path . --quit-after 8 > /tmp/boot.log 2>&1
@@ -240,4 +248,27 @@ jobs:
             /tmp/combat-strike.png
             /tmp/combat-burst.png
             /tmp/combat-level-preview.png
+          if-no-files-found: ignore
+
+      - name: Kriegstürme, Energielieferung und Gebäudeverteidigung prüfen
+        run: |
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1920x1080x24" timeout 90s godot --audio-driver Dummy --path . -s bench/defense_visual_check.gd 2>&1 | tee /tmp/defense-visual.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script|SHADER ERROR|Shader compilation failed|shader_compiler.cpp" /tmp/defense-visual.log; then
+            exit 1
+          fi
+          grep -q "DEFENSE SUMMARY: 0 failures" /tmp/defense-visual.log
+
+      - name: Verteidigungs-Grafiknachweise
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: defense-visual-check
+          path: |
+            /tmp/defense-visual.log
+            /tmp/defense-weapons.png
+            /tmp/defense-upgrade.png
+            /tmp/defense-build-menu.png
+            /tmp/defense-compact.png
+            /tmp/grid-unpowered.png
+            /tmp/network-supply.log
           if-no-files-found: ignore

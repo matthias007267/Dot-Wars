@@ -135,19 +135,21 @@ func _run() -> void:
 	var cleared := await capture("/tmp/sprite-cleared.png")
 	check(cleared.get_pixel(3 * 64 + 6 * 4 + 2, 3 * 64 + 5 * 4 + 2).r < 0.2, "removed unit leaves no sprite")
 	# Check the actual building overlay, not only isolated atlas samples.
-	sim.upgrades.energy = 300
+	sim.upgrades.energy = 600
 	var site := sim.construction.place(sim, 3, sim.world.index(15, 10), PackedInt32Array())
 	check(site >= 0, "research fixture placed through construction API")
 	if site >= 0:
 		sim.construction.sites.contribute(site, 0, 300)
+		var path := sim.energy_network.plan_connection(sim, 0, 0, site)
+		sim.energy_network.place_path(sim, 0, path)
 		check(sim.research.start(sim, 0, site, "dig"), "research fixture starts real job")
 		var overlay := OrderOverlay.new()
 		overlay.sim = sim
 		stage.add_child(overlay)
-		sim.research.deliver(site)
 		sim.tick_once()
 		var active := await capture("/tmp/sprite-research-active.png")
 		check(overlay.research_visuals.state(sim, sim.construction.sites.records[site]) == "active", "building follows real consumption")
+		sim.energy_network.remove(0, path[path.size() / 2])
 		sim.tick_once()
 		var waiting := await capture("/tmp/sprite-research-waiting.png")
 		check(overlay.research_visuals.state(sim, sim.construction.sites.records[site]) == "waiting", "building follows supply interruption")

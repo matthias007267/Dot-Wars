@@ -11,9 +11,12 @@ func _sim() -> Simulation:
 	return sim
 
 func _center(sim: Simulation, owner := 0, cell := 100) -> int:
-	sim.rules.wallet(sim, owner).energy = 300
+	sim.rules.wallet(sim, owner).energy = 600
 	var site := sim.construction.place(sim, 3, cell, PackedInt32Array(), owner)
-	if site >= 0: sim.construction.sites.contribute(site, owner, 300)
+	if site >= 0:
+		sim.construction.sites.contribute(site, owner, 300)
+		var path := sim.energy_network.plan_connection(sim, owner, owner, site)
+		sim.energy_network.place_path(sim, owner, path)
 	return site
 
 func test_atlas_regions_layers_and_icons_share_one_catalog() -> void:
@@ -116,15 +119,17 @@ func test_research_visuals_follow_delivery_progress_and_completion() -> void:
 	check_eq(visuals.state(sim, row), "idle", "bereit ohne Auftrag")
 	check(sim.research.start(sim, 0, site, "dig"), "echter Forschungsauftrag")
 	visuals.sync(sim)
-	check_eq(visuals.state(sim, row), "waiting", "ohne Lieferung wartet Auftrag, auch im selben Takt")
-	sim.research.deliver(site)
+	check_eq(visuals.state(sim, row), "active", "bezahlter verbundener Auftrag aktiv")
 	sim.tick_once()
 	visuals.sync(sim)
 	check_eq(visuals.state(sim, row), "active", "reale Lieferung startet Aktivität")
+	var path := sim.energy_network.connected_path(sim, 0, sim.construction.center(0), sim.construction.center(site))
+	var cut := path[path.size() / 2]
+	sim.energy_network.remove(0, cut)
 	sim.tick_once()
 	visuals.sync(sim)
-	check_eq(visuals.state(sim, row), "waiting", "fehlende nächste Lieferung unterbricht Aktivität")
-	sim.research.supply[site] = 59
+	check_eq(visuals.state(sim, row), "waiting", "Netzabriss unterbricht Aktivität")
+	sim.energy_network.place(sim, 0, cut)
 	while not sim.research.jobs.is_empty():
 		sim.tick_once()
 		visuals.sync(sim)
@@ -146,7 +151,6 @@ func test_hidden_centers_and_unobserved_completions_have_no_activity() -> void:
 	var row: Dictionary = sim.construction.sites.records[site]
 	check(not CavernLighting.site_visible(sim, row), "Zentrum verborgen")
 	check(sim.research.start(sim, 1, site, "dig"), "gegnerischer Auftrag")
-	sim.research.supply[site] = 60
 	sim.tick_once()
 	var visuals := ResearchVisualState.new()
 	visuals.sync(sim)
@@ -164,7 +168,6 @@ func test_losing_sight_discards_activity_and_completion_history() -> void:
 	if site < 0: return
 	var row: Dictionary = sim.construction.sites.records[site]
 	check(sim.research.start(sim, 1, site, "dig"), "beobachteter Auftrag")
-	sim.research.supply[site] = 60
 	sim.tick_once()
 	# Explicit knowledge fixture: the renderer must respond even within one tick.
 	sim.fog.visible[0].fill(1)

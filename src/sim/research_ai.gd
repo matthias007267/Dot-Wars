@@ -1,5 +1,5 @@
 extends RefCounted
-## Same free-placement and paid-shipment rules as the player. Bounded periodic planning.
+## Same upfront prices and connection rules as the player. Bounded periodic planning.
 const PERIOD := 100
 
 static func step(sim: Simulation, faction: int) -> void:
@@ -21,12 +21,33 @@ static func step(sim: Simulation, faction: int) -> void:
 				break
 		if not connected: continue
 		# Difficulty changes priorities, not prices or research speed.
-		var priorities := ["dig", "speed", "outpost", "energy_speed", "efficiency", "interceptor", "swarm"]
+		var priorities := ["dig", "speed", "outpost", "energy_speed", "defense", "efficiency", "interceptor", "swarm"]
 		if (sim.config.victory_mask & MatchRules.VICTORY_RESEARCH) != 0: priorities.push_front("victory")
 		for tech in priorities:
 			if sim.research.level(faction, tech) == 0 and sim.research.start(sim, faction, site, tech): break
 
 static func reserve(sim: Simulation, faction: int) -> int:
+	var busy_sites := {}
+	var pending_techs := {}
 	for job in sim.research.jobs:
-		if job.faction == faction: return 1
+		if int(job.faction) != faction: continue
+		if int(job.paid) < int(job.energy): return int(job.energy) - int(job.paid)
+		busy_sites[int(job.site)] = true
+		pending_techs[str(job.tech)] = true
+	var available := false
+	for row in sim.construction.sites.records:
+		if row.destroyed or not row.ready or row.owner != faction or row.kind != 3: continue
+		if not busy_sites.has(int(row.id)) and sim.research.source_for(sim, faction, row.id) >= 0:
+			available = true
+			break
+	if not available: return 0
+	var priorities := ["dig", "speed", "outpost", "energy_speed", "defense", "efficiency", "interceptor", "swarm"]
+	if (sim.config.victory_mask & MatchRules.VICTORY_RESEARCH) != 0: priorities.push_front("victory")
+	for tech in priorities:
+		if sim.research.level(faction, tech) > 0: continue
+		if pending_techs.has(tech): continue
+		var ready := true
+		for dependency in ResearchSystem.CATALOG[tech].requires:
+			if sim.research.level(faction, str(dependency)) == 0: ready = false
+		if ready: return int(sim.research.details(tech, 1, faction).energy)
 	return 0

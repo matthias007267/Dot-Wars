@@ -1,5 +1,7 @@
 # Architektur – Ist-Stand und Konzeptabgleich
 
+Aktueller Auftrag D-082/D-083: `BuildingDefense` hält Unterhaltsfristen und echte Waffenprojektile; Forschung bezahlt den Gesamtpreis beim Start. `EnergyNetwork.prepare_power` verwendet einen invalidierten Komponenten-Cache statt Einzelenergie-Wegen. Shader-Netzfluss ist rein visuell, Abbau-Dots bleiben physisch. Details, Migration und Messung: [GRID_DEFENSE.md](GRID_DEFENSE.md).
+
 Weltauftrag D-075/D-076: `CavernGenerator` erzeugt getrennte Tunnelnetze, ein dauerhaftes Wandgerüst und seltene Erzadern. `WorldState.released` zählt die während des Abbaus freigesetzte Energie; `MiningSystem` zahlt kumulativ und speicherfest aus. Material-IDs wählen einen quadratischen Terrain-Atlas, Fog verwendet nur Fraktionswissen. Die historischen Prototypformeln unten sind dadurch für neue Ressourcen ersetzt. Aktueller Stand: [ORE_WORLD.md](ORE_WORLD.md).
 
 Energiephase D-062: `EnergyStore` enthält parallele Routenverlust-/Puffer-/Freigabefelder und Bilanzzähler; `energy_transport.gd` verbindet exakte gemeinsame Terrainfelder mit stabilen Stationskontakten und gemeinsamer Array-Kompaktion. Gebäudetyp 2 ist Abfangstation und wird aus Produktion/Empfang/Schutz ausgeschlossen. Additive SaveGame-V2-Daten validieren Besitz, Frist, Ort und Station. Details: [ENERGY_PHASE.md](ENERGY_PHASE.md).

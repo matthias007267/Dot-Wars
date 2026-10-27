@@ -315,7 +315,7 @@ func _ai(sim: Simulation) -> void:
 			_ai_hard(sim, faction)
 		else:
 			_ai_normal(sim, faction)
-		if wallet(sim, faction).energy >= ArmyState.COST + ResearchAI.reserve(sim, faction) and sim.army.population(faction) < 2000:
+		if wallet(sim, faction).energy >= ArmyState.COST + ResearchAI.reserve(sim, faction) + sim.defense.reserve(sim, faction) and sim.army.population(faction) < 2000:
 			sim.buy_warrior(faction)
 
 
@@ -403,7 +403,9 @@ func _ai_hard(sim: Simulation, faction: int) -> void:
 
 func _buy_worker(sim: Simulation, faction: int) -> bool:
 	var upgrades := wallet(sim, faction)
-	if not sim.can_buy_worker(faction) or upgrades.energy < Simulation.WORKER_COST + ResearchAI.reserve(sim, faction):
+	# Keep a minimal mining population before saving for optional research/weapons.
+	var reserve := 0 if _workers_of(sim, faction) < AI_MIN_WORKERS else ResearchAI.reserve(sim, faction) + sim.defense.reserve(sim, faction)
+	if not sim.can_buy_worker(faction) or upgrades.energy < Simulation.WORKER_COST + reserve:
 		return false
 	var site: int = sim.construction.production_site(faction)
 	var origin: int = sim.construction.origin(sim, site)
